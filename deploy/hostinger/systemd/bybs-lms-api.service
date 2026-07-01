@@ -1,0 +1,22 @@
+[Unit]
+Description=BYBS LMS API
+After=network.target
+
+[Service]
+Type=simple
+User=bybs
+Group=bybs
+WorkingDirectory=/var/www/bybs-lms/backend
+EnvironmentFile=/var/www/bybs-lms/backend/.env
+ExecStart=/usr/bin/node /var/www/bybs-lms/backend/src/server.js
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/www/bybs-lms/backend/uploads /tmp
+
+[Install]
+WantedBy=multi-user.target

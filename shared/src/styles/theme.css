@@ -1,0 +1,16 @@
+:root {
+  --bybs-blue: #00337c;
+  --bybs-blue-hover: #1e4b9e;
+  --bybs-navy: #10233f;
+  --bybs-rose: #b76e79;
+  --bybs-rose-hover: #9e5a63;
+  --bybs-gold: #ffd166;
+  --bybs-page: #f7f9fc;
+  --bybs-pale: #f5f9ff;
+  --bybs-blush: #fff0f0;
+  --bybs-surface: #ffffff;
+  --bybs-text: #111827;
+  --bybs-body: #374151;
+  --bybs-muted: #6b7280;
+  --bybs-border: #e5e7eb;
+}

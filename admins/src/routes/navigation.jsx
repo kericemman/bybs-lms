@@ -1,0 +1,40 @@
+import {
+  BookOpen,
+  CalendarClock,
+  ClipboardCheck,
+  ClipboardList,
+  FileText,
+  GraduationCap,
+  LayoutDashboard,
+  LifeBuoy,
+  Megaphone,
+  MessageSquare,
+  PackageOpen,
+  ScrollText,
+  Settings,
+  ShieldAlert,
+  UserCircle,
+  UserCheck,
+  Users
+} from "lucide-react";
+
+export const adminNavItems = [
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/cohorts", label: "Cohorts", icon: BookOpen },
+  { href: "/modules", label: "Modules", icon: PackageOpen },
+  { href: "/sessions", label: "Sessions", icon: CalendarClock },
+  { href: "/resources", label: "Resources", icon: FileText },
+  { href: "/assignments", label: "Assignments", icon: ClipboardList },
+  { href: "/students", label: "Students", icon: GraduationCap },
+  { href: "/mentors", label: "Mentors", icon: Users },
+  { href: "/bookings", label: "Bookings", icon: UserCheck },
+  { href: "/reports", label: "Reports", icon: ScrollText },
+  { href: "/discussions", label: "Discussions", icon: MessageSquare },
+  { href: "/announcements", label: "Announcements", icon: Megaphone },
+  { href: "/notifications", label: "Notifications", icon: Megaphone },
+  { href: "/support", label: "Support Tickets", icon: LifeBuoy },
+  { href: "/beta-applications", label: "Beta Applications", icon: ClipboardCheck },
+  { href: "/system-logs", label: "System Logs", icon: ShieldAlert },
+  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/profile", label: "Profile", icon: UserCircle }
+];

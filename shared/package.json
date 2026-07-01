@@ -1,0 +1,25 @@
+{
+  "name": "@bybs/shared",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./styles": "./src/styles/theme.css"
+  },
+  "peerDependencies": {
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "dependencies": {
+    "@tiptap/extension-image": "^3.27.1",
+    "@tiptap/extension-link": "^3.27.1",
+    "@tiptap/react": "^3.27.1",
+    "@tiptap/starter-kit": "^3.27.1",
+    "browser-image-compression": "^2.0.2",
+    "date-fns": "^4.4.0",
+    "dompurify": "^3.4.11",
+    "libphonenumber-js": "^1.13.7"
+  }
+}

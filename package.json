@@ -1,0 +1,25 @@
+{
+  "name": "bybs-lms",
+  "private": true,
+  "version": "0.1.0",
+  "description": "BYBS LMS monorepo with separate admin, mentor, and student portals.",
+  "workspaces": [
+    "backend",
+    "admins",
+    "mentors",
+    "students",
+    "shared"
+  ],
+  "scripts": {
+    "dev:backend": "npm --workspace backend run dev",
+    "dev:admins": "npm --workspace admins run dev",
+    "dev:mentors": "npm --workspace mentors run dev",
+    "dev:students": "npm --workspace students run dev",
+    "build:admins": "npm --workspace admins run build",
+    "build:mentors": "npm --workspace mentors run build",
+    "build:students": "npm --workspace students run build"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
