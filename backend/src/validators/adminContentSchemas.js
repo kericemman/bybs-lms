@@ -108,7 +108,18 @@ export const listReportsSchema = z.object({
   query: paginationQuerySchema.extend({
     cohort: objectIdSchema.optional(),
     mentor: objectIdSchema.optional(),
-    period: z.enum(["weekly", "monthly"]).optional()
+    period: z.enum(["weekly", "monthly"]).optional(),
+    reviewStatus: z.enum(["submitted", "reviewed", "clarificationRequested", "resolved"]).optional()
+  })
+});
+
+export const updateReportReviewSchema = z.object({
+  params: z.object({ id: objectIdSchema }),
+  body: z.object({
+    reviewStatus: z.enum(["submitted", "reviewed", "clarificationRequested", "resolved"]).optional(),
+    comment: z.preprocess(emptyToUndefined, z.string().trim().max(5000).optional())
+  }).refine((body) => body.reviewStatus || body.comment, {
+    message: "Add a comment or choose a review status"
   })
 });
 

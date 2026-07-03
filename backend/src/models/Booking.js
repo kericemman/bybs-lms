@@ -4,6 +4,7 @@ const bookingSchema = new mongoose.Schema(
   {
     student: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
     mentor: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    availabilitySlot: { type: mongoose.Schema.Types.ObjectId, ref: "MentorAvailability" },
     startsAt: { type: Date, required: true, index: true },
     endsAt: { type: Date },
     reason: { type: String, required: true },

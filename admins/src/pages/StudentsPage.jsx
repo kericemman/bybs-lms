@@ -133,8 +133,8 @@ export function StudentsPage() {
       formData.append("file", file);
       const response = await adminApi.importStudents(formData);
       const { created, skipped, errors } = response.data;
-      setFeedback(`Imported ${created.length} student(s). Skipped ${skipped.length}. Errors ${errors.length}.`);
-      toast.success(`Imported ${created.length} student(s).`);
+      setFeedback(`Imported ${created.length} mentee(s). Skipped ${skipped.length}. Errors ${errors.length}.`);
+      toast.success(`Imported ${created.length} mentee(s).`);
       await loadData();
     } catch (requestError) {
       setError(requestError.message);
@@ -155,10 +155,10 @@ export function StudentsPage() {
       if (editingId) {
         const { password, email, role, ...payload } = form;
         await adminApi.updateUser(editingId, payload);
-        toast.success("Student updated.");
+        toast.success("Mentee updated.");
       } else {
         await adminApi.createUser(form);
-        toast.success("Student added.");
+        toast.success("Mentee added.");
       }
       resetForm();
       await loadData();
@@ -179,8 +179,8 @@ export function StudentsPage() {
             <input accept=".csv,text/csv" className="sr-only" disabled={isImporting} onChange={handleImport} type="file" />
           </label>
         }
-        description="Add students, assign cohorts and mentors, view progress, and manage account access."
-        title="Students"
+        description="Add mentees, assign cohorts and mentors, view progress, and manage account access."
+        title="Mentees"
       />
 
       <FilterBar cohorts={cohorts} filters={filters} onChange={setFilters} onReset={() => setFilters({ search: "", cohort: "", status: "" })} statuses={statusOptions} />
@@ -213,7 +213,7 @@ export function StudentsPage() {
           {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose lg:col-span-3">{error}</p> : null}
           {feedback ? <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue lg:col-span-3">{feedback}</p> : null}
           <div className="flex flex-wrap gap-2 lg:col-span-3">
-            <Button disabled={isSubmitting} icon={editingId ? Save : Plus} type="submit">{isSubmitting ? "Saving..." : editingId ? "Update student" : "Add student"}</Button>
+            <Button disabled={isSubmitting} icon={editingId ? Save : Plus} type="submit">{isSubmitting ? "Saving..." : editingId ? "Update mentee" : "Add mentee"}</Button>
             {editingId ? <Button icon={X} onClick={resetForm} type="button" variant="secondary">Cancel edit</Button> : null}
           </div>
         </form>

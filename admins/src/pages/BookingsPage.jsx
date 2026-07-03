@@ -34,7 +34,7 @@ export function BookingsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        description="View mentor/student 1:1 sessions and follow their approval status."
+        description="View mentor/mentee 1:1 sessions and follow their approval status."
         title="Bookings"
       />
       <select className={inputClassName} onChange={(event) => setStatus(event.target.value)} value={status}>
@@ -44,7 +44,7 @@ export function BookingsPage() {
       {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
       <DataTable
         columns={[
-          { key: "student", header: "Student", render: (row) => relatedTitle(row.student) },
+          { key: "student", header: "Mentee", render: (row) => relatedTitle(row.student) },
           { key: "mentor", header: "Mentor", render: (row) => relatedTitle(row.mentor) },
           { key: "startsAt", header: "Starts", render: (row) => formatDateTime(row.startsAt) },
           { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
@@ -59,7 +59,7 @@ export function BookingsPage() {
             )
           }
         ]}
-        emptyDescription="Student mentor session requests will appear here."
+        emptyDescription="Mentee mentor session requests will appear here."
         rows={bookings}
       />
     </div>

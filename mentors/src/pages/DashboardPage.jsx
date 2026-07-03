@@ -59,14 +59,14 @@ export function DashboardPage() {
             </Button>
           </>
         }
-        description="See the students, submissions, and bookings that need mentor attention."
+        description="See the mentees, submissions, and bookings that need mentor attention."
         title="Mentor dashboard"
       />
 
       {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={Users} label="Assigned students" tone="blue" value={summary.assignedStudents} />
+        <StatCard icon={Users} label="Assigned mentees" tone="blue" value={summary.assignedStudents} />
         <StatCard icon={FileText} label="Assigned modules" tone="blue" value={summary.assignedModules} />
         <StatCard icon={ClipboardCheck} label="Pending reviews" tone="gold" value={summary.pendingReviews} />
         <StatCard icon={CalendarCheck} label="Upcoming sessions" tone="blue" value={summary.upcomingSessions} />
@@ -107,12 +107,12 @@ export function DashboardPage() {
       <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
         <Card>
           <SectionHeader
-            description={`${summary.atRiskStudents} student(s) currently need closer attention.`}
+            description={`${summary.atRiskStudents} mentee(s) currently need closer attention.`}
             title="Needs attention"
           />
           <DataTable
             columns={[
-              { key: "name", header: "Student" },
+              { key: "name", header: "Mentee" },
               { key: "reason", header: "Reason" },
               { key: "date", header: "Date", render: (row) => formatDateTime(row.date) },
               {

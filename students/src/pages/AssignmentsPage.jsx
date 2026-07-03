@@ -1,13 +1,16 @@
 import { ClipboardList, ExternalLink, Send, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Button, EmptyState, PageHeader, SafeHtml, StatusBadge } from "@bybs/shared";
+import { Button, EmptyState, PageHeader, RichTextEditor, SafeHtml, StatusBadge } from "@bybs/shared";
+import { AssignmentInstructions } from "../components/AssignmentInstructions.jsx";
 import { studentApi } from "../services/api.js";
 import { formatDate, titleFor } from "../utils/format.js";
 
-const textareaClassName = "min-h-28 w-full rounded-md border border-bybs-border px-3 py-2 text-sm outline-none focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale";
-
 function submissionStatus(assignment) {
   return assignment.submission?.status || "notStarted";
+}
+
+function postedBy(assignment) {
+  return assignment.createdBy?.name || "BYBS team";
 }
 
 export function AssignmentsPage() {
@@ -100,15 +103,14 @@ export function AssignmentsPage() {
             <div>
               <p className="text-sm font-medium text-bybs-blue">{titleFor(activeAssignment.module, "General assignment")}</p>
               <h2 className="mt-1 text-lg font-semibold text-bybs-navy">{activeAssignment.title}</h2>
-              <p className="mt-1 text-sm text-bybs-body">Due {formatDate(activeAssignment.dueDate)}</p>
+              <p className="mt-1 text-sm text-bybs-body">
+                Due {formatDate(activeAssignment.dueDate)} · Posted by {postedBy(activeAssignment)}
+              </p>
             </div>
             <StatusBadge status={submissionStatus(activeAssignment)} />
           </div>
 
-          <SafeHtml
-            className="mt-5 rounded-md bg-bybs-pale p-4 text-sm leading-6 text-bybs-body"
-            html={activeAssignment.instructions}
-          />
+          <AssignmentInstructions instructions={activeAssignment.instructions} />
 
           {activeAssignment.templateFileUrl ? (
             <Button
@@ -138,12 +140,15 @@ export function AssignmentsPage() {
           <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
             <label className="block">
               <span className="text-sm font-medium text-bybs-body">Written response</span>
-              <textarea
-                className={textareaClassName}
-                onChange={(event) => setWrittenResponse(event.target.value)}
-                placeholder="Write your reflection, link, notes, or assignment answer here."
-                value={writtenResponse}
-              />
+              <div className="mt-2">
+                <RichTextEditor
+                  id="written-response"
+                  minHeightClassName="min-h-36"
+                  onChange={setWrittenResponse}
+                  placeholder="Write your reflection, link, notes, or assignment answer here."
+                  value={writtenResponse}
+                />
+              </div>
             </label>
 
             <div>
@@ -184,6 +189,7 @@ export function AssignmentsPage() {
                   <p className="text-sm font-medium text-bybs-blue">{titleFor(assignment.module, "General assignment")}</p>
                   <h2 className="mt-1 text-base font-semibold text-bybs-navy">{assignment.title}</h2>
                   <p className="mt-1 text-sm text-bybs-body">Due {formatDate(assignment.dueDate)}</p>
+                  <p className="mt-1 text-sm text-bybs-muted">Posted by {postedBy(assignment)}</p>
                 </div>
                 <StatusBadge status={submissionStatus(assignment)} />
               </div>

@@ -20,3 +20,11 @@ export const changePasswordSchema = z.object({
       .regex(/[^A-Za-z0-9]/, "Password must include a symbol")
   })
 });
+
+export const updateProfileSchema = z.object({
+  body: z.object({
+    name: z.string().trim().min(2).max(120).optional(),
+    phone: z.preprocess((value) => value === "" || value === null ? undefined : value, z.string().trim().max(40).optional()),
+    bio: z.preprocess((value) => value === "" || value === null ? undefined : value, z.string().trim().max(3000).optional())
+  })
+});

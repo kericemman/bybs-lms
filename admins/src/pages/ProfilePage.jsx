@@ -1,8 +1,9 @@
-import { Card, ChangePasswordPanel, PageHeader, SectionHeader } from "@bybs/shared";
+import { Card, ChangePasswordPanel, PageHeader, ROLE_LABELS, SectionHeader } from "@bybs/shared";
 import { useAuth } from "../auth/AuthContext.jsx";
 
 export function ProfilePage() {
   const { changePassword, user } = useAuth();
+  const roleLabel = user?.role ? ROLE_LABELS[user.role] || user.role : "Admin";
 
   return (
     <div className="space-y-6">
@@ -23,7 +24,7 @@ export function ProfilePage() {
           </div>
           <div>
             <dt className="text-sm text-bybs-muted">Role</dt>
-            <dd className="mt-1 text-sm font-medium text-bybs-navy">{user?.role || "admin"}</dd>
+            <dd className="mt-1 text-sm font-medium text-bybs-navy">{roleLabel}</dd>
           </div>
           <div>
             <dt className="text-sm text-bybs-muted">Status</dt>

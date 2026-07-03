@@ -1,7 +1,13 @@
 import { Bell, Menu, Search, X } from "lucide-react";
 import { useState } from "react";
+import { ROLE_LABELS } from "../constants/roles.js";
 import { cn } from "../lib/cn.js";
 import { Button } from "./Button.jsx";
+
+function initials(name = "") {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return (parts[0]?.[0] || "B") + (parts[1]?.[0] || "");
+}
 
 export function AppShell({
   portalName,
@@ -14,6 +20,7 @@ export function AppShell({
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const currentYear = new Date().getFullYear();
+  const roleLabel = user?.role ? ROLE_LABELS[user.role] || user.role : "Signed in";
 
   function renderNavLink(item, options = {}) {
     const Icon = item.icon;
@@ -88,9 +95,20 @@ export function AppShell({
                   <Bell className="h-5 w-5" aria-hidden="true" />
                 </Button>
               ) : null}
+              {user?.profileImage ? (
+                <img
+                  alt={user.name || "Profile"}
+                  className="h-10 w-10 rounded-full border border-bybs-border object-cover"
+                  src={user.profileImage}
+                />
+              ) : (
+                <div className="hidden h-10 w-10 items-center justify-center rounded-full border border-bybs-border bg-bybs-pale text-sm font-semibold text-bybs-blue sm:flex">
+                  {initials(user?.name || "BYBS User")}
+                </div>
+              )}
               <div className="hidden text-right sm:block">
                 <p className="text-sm font-medium text-bybs-navy">{user?.name || "BYBS User"}</p>
-                <p className="text-xs text-bybs-muted">{user?.role || "Signed in"}</p>
+                <p className="text-xs text-bybs-muted">{roleLabel}</p>
               </div>
             </div>
           </div>

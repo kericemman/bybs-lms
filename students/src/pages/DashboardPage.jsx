@@ -22,6 +22,10 @@ import {
 import { studentApi } from "../services/api.js";
 import { formatDate, formatDateTime, titleFor } from "../utils/format.js";
 
+function postedBy(assignment) {
+  return assignment.createdBy?.name || "BYBS team";
+}
+
 export function DashboardPage() {
   const navigate = useNavigate();
   const [dashboard, setDashboard] = useState(null);
@@ -139,6 +143,7 @@ export function DashboardPage() {
                 <div className="rounded-md bg-white p-4 ring-1 ring-bybs-border" key={assignment._id}>
                   <p className="font-medium text-bybs-navy">{assignment.title}</p>
                   <p className="mt-1 text-sm text-bybs-body">{titleFor(assignment.module, "No module")} · Due {formatDate(assignment.dueDate)}</p>
+                  <p className="mt-1 text-sm text-bybs-muted">Posted by {postedBy(assignment)}</p>
                 </div>
               ))}
             </div>

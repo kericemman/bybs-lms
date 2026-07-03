@@ -26,7 +26,7 @@ const textAreaClassName =
 const hearAboutOptions = [
   "BYBS website",
   "BYBS mentor",
-  "BYBS student",
+  "BYBS mentee",
   "WhatsApp",
   "Instagram",
   "Facebook",
@@ -91,7 +91,7 @@ function TesterNote({ icon: Icon, title, description, tone = "blue" }) {
 }
 
 function SuccessPanel({ applicantType, alreadyApplied, email, message, onReset }) {
-  const portalLabel = applicantType === "mentor" ? "mentor portal" : "student portal";
+  const portalLabel = applicantType === "mentor" ? "mentor portal" : "mentee portal";
 
   return (
     <div className="rounded-lg border border-bybs-border bg-white p-4 text-sm text-bybs-body shadow-sm md:col-span-2">
@@ -203,7 +203,7 @@ export function BetaApplicationPage({
   const navLinks = [
     { label: "Public page", href: homeUrl },
     { label: "Main website", href: mainWebsiteUrl },
-    { label: "Student login", href: studentLoginUrl },
+    { label: "Mentee login", href: studentLoginUrl },
     { label: "Mentor login", href: mentorLoginUrl }
   ];
 
@@ -269,7 +269,7 @@ export function BetaApplicationPage({
                 Help us shape the BYBS learning experience.
               </h1>
               <p className="mt-5 text-base leading-8 text-bybs-body">
-                We are inviting students and mentors to test real BYBS workflows before the wider rollout: assignments,
+                We are inviting mentees and mentors to test real BYBS workflows before the wider rollout: assignments,
                 reminders, resources, feedback, support, and notifications.
               </p>
 
@@ -282,10 +282,10 @@ export function BetaApplicationPage({
                 <TesterNote
                   description="Check modules, session materials, assignment submissions, support tickets, and notifications from a learner's point of view."
                   icon={GraduationCap}
-                  title="Student testers"
+                  title="Mentee testers"
                 />
                 <TesterNote
-                  description="Check assigned modules, session work upload, student reminders, reviews, and progress tracking from a mentor's point of view."
+                  description="Check assigned modules, session work upload, mentee reminders, reviews, and progress tracking from a mentor's point of view."
                   icon={UserRoundCheck}
                   title="Mentor testers"
                   tone="rose"
@@ -325,7 +325,7 @@ export function BetaApplicationPage({
 
                 <Field label="I am applying as">
                   <select className={inputClassName} onChange={(event) => updateField("applicantType", event.target.value)} value={form.applicantType}>
-                    <option value="student">Student tester</option>
+                    <option value="student">Mentee tester</option>
                     <option value="mentor">Mentor tester</option>
                   </select>
                 </Field>
@@ -444,7 +444,7 @@ export function BetaApplicationPage({
           <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
             <a className="text-white/80 hover:text-white" href={homeUrl}>Public page</a>
             <a className="text-white/80 hover:text-white" href={mainWebsiteUrl}>Main website</a>
-            <a className="text-white/80 hover:text-white" href={studentLoginUrl}>Student login</a>
+            <a className="text-white/80 hover:text-white" href={studentLoginUrl}>Mentee login</a>
             <a className="text-white/80 hover:text-white" href={mentorLoginUrl}>Mentor login</a>
           </div>
         </div>

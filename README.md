@@ -136,7 +136,10 @@ For logos and uploaded announcement images to appear inside real email inboxes, 
 ```txt
 PUBLIC_API_URL=https://api.example.com
 EMAIL_LOGO_URL=https://admin.example.com/assets/Logo1.png
+CERTIFICATE_VERIFY_BASE_URL=https://lms.example.com
 ```
+
+`CERTIFICATE_VERIFY_BASE_URL` should point to the public mentee LMS domain because certificate QR codes open `/verify-certificate/:code` there.
 
 Mentor/admin welcome emails also use the same email transport and `EMAIL_FROM`. Useful links can be configured globally in `backend/.env`, or entered per mentor while adding them in the Admin Mentors page:
 

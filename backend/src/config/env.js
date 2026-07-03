@@ -42,6 +42,7 @@ export const env = {
   clientAdminUrl: process.env.CLIENT_ADMIN_URL || "http://localhost:5173",
   clientMentorUrl: process.env.CLIENT_MENTOR_URL || "http://localhost:5174",
   clientStudentUrl: process.env.CLIENT_STUDENT_URL || "http://localhost:5175",
+  certificateVerifyBaseUrl: process.env.CERTIFICATE_VERIFY_BASE_URL || "",
   publicApiUrl: process.env.PUBLIC_API_URL || "",
   cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || "",
   cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || "",

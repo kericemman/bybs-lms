@@ -7,7 +7,7 @@ export const USER_ROLES = {
 };
 
 export const ROLE_LABELS = {
-  student: "Student",
+  student: "Mentee",
   mentor: "Mentor",
   admin: "Admin",
   adminManager: "Admin Manager",

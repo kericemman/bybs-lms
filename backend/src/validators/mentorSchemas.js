@@ -12,6 +12,22 @@ export const mentorListSchema = z.object({
   query: paginationQuerySchema
 });
 
+export const mentorStudentDetailSchema = z.object({
+  params: z.object({
+    id: objectIdSchema
+  })
+});
+
+export const sendMentorStudentMessageSchema = z.object({
+  params: z.object({
+    id: objectIdSchema
+  }),
+  body: z.object({
+    title: z.string().trim().min(2).max(120),
+    message: z.string().trim().min(5).max(3000)
+  })
+});
+
 export const mentorSessionListSchema = z.object({
   query: paginationQuerySchema.extend({
     status: z.enum(["scheduled", "completed", "cancelled"]).optional()
@@ -142,4 +158,11 @@ export const createMentorReportSchema = z.object({
     recommendations: z.preprocess(emptyToUndefined, z.string().trim().max(3000).optional()),
     supportNeeded: z.preprocess(emptyToUndefined, z.string().trim().max(3000).optional())
   })
+});
+
+export const updateMentorReportSchema = z.object({
+  params: z.object({
+    id: objectIdSchema
+  }),
+  body: createMentorReportSchema.shape.body.partial()
 });

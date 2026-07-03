@@ -15,9 +15,11 @@
     "dev:admins": "npm --workspace admins run dev",
     "dev:mentors": "npm --workspace mentors run dev",
     "dev:students": "npm --workspace students run dev",
+    "build": "npm run build:admins && npm run build:mentors && npm run build:students",
     "build:admins": "npm --workspace admins run build",
     "build:mentors": "npm --workspace mentors run build",
-    "build:students": "npm --workspace students run build"
+    "build:students": "npm --workspace students run build",
+    "test:backend": "npm --workspace backend test"
   },
   "engines": {
     "node": ">=20"

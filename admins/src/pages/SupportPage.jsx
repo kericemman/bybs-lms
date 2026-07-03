@@ -121,7 +121,7 @@ export function SupportPage() {
 
   async function sendReply(event) {
     event.preventDefault();
-    await updateTicket({ reply, status: statusDraft }, "Reply sent and student notified.");
+    await updateTicket({ reply, status: statusDraft }, "Reply sent and mentee notified.");
   }
 
   const ticket = detail?.ticket;
@@ -132,7 +132,7 @@ export function SupportPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        description="Investigate student issues, understand account context, reply, and move tickets through resolution."
+        description="Investigate mentee issues, understand account context, reply, and move tickets through resolution."
         title="Support tickets"
       />
 
@@ -142,7 +142,7 @@ export function SupportPage() {
           <input
             className={`${inputClassName} pl-9`}
             onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-            placeholder="Search ticket, student email, or student ID"
+            placeholder="Search ticket, mentee email, or mentee ID"
             value={filters.search}
           />
         </div>
@@ -164,7 +164,7 @@ export function SupportPage() {
         <section className="space-y-3">
           {!tickets.length ? (
             <EmptyState
-              description="Support tickets will appear here once students begin sending requests."
+              description="Support tickets will appear here once mentees begin sending requests."
               icon={AlertCircle}
               title="No support tickets"
             />
@@ -195,7 +195,7 @@ export function SupportPage() {
 
         {!ticket ? (
           <EmptyState
-            description="Select a ticket to see student context, diagnostics, replies, and resolution controls."
+            description="Select a ticket to see mentee context, diagnostics, replies, and resolution controls."
             icon={MessageCircle}
             title="Select a support ticket"
           />
@@ -221,11 +221,11 @@ export function SupportPage() {
             <div className="grid gap-5 xl:grid-cols-[1fr_0.9fr]">
               <div className="space-y-5">
                 <section className="rounded-lg border border-bybs-border bg-white p-5 shadow-sm">
-                  <SectionHeader description="Use this to confirm the student, account state, and assignment context without opening the database." title="Student context" />
+                  <SectionHeader description="Use this to confirm the mentee, account state, and assignment context without opening the database." title="Mentee context" />
                   <div className="grid gap-3 md:grid-cols-2">
                     <DetailRow label="Name" value={student?.name} />
                     <DetailRow label="Email" value={student?.email} canCopy />
-                    <DetailRow label="Student ID" value={student?.id || student?._id} canCopy />
+                    <DetailRow label="Mentee ID" value={student?.id || student?._id} canCopy />
                     <DetailRow label="Phone" value={formatInternationalPhone(student?.phone)} canCopy={Boolean(student?.phone)} />
                     <DetailRow label="Account status" value={student?.status} />
                     <DetailRow label="Last login" value={formatDateTime(student?.lastLogin)} />
@@ -247,7 +247,7 @@ export function SupportPage() {
                 </section>
 
                 <section className="rounded-lg border border-bybs-border bg-white p-5 shadow-sm">
-                  <SectionHeader title="Reply to student" />
+                  <SectionHeader title="Reply to mentee" />
                   <form className="space-y-4" onSubmit={sendReply}>
                     <label className="block">
                       <span className="text-sm font-medium text-bybs-body">Ticket status</span>
@@ -260,14 +260,14 @@ export function SupportPage() {
                       <textarea
                         className={`${textAreaClassName} mt-1`}
                         onChange={(event) => setReply(event.target.value)}
-                        placeholder="Explain what happened, what you checked, and the next step for the student."
+                        placeholder="Explain what happened, what you checked, and the next step for the mentee."
                         required
                         value={reply}
                       />
                     </label>
                     <div className="flex flex-wrap gap-2">
                       <Button disabled={isSaving} icon={Mail} type="submit">{isSaving ? "Sending..." : "Send reply"}</Button>
-                      <Button disabled={isSaving} onClick={() => updateTicket({ status: statusDraft }, "Status updated and student notified.")} type="button" variant="secondary">
+                      <Button disabled={isSaving} onClick={() => updateTicket({ status: statusDraft }, "Status updated and mentee notified.")} type="button" variant="secondary">
                         Update status only
                       </Button>
                     </div>
@@ -277,7 +277,7 @@ export function SupportPage() {
 
               <div className="space-y-5">
                 <section className="rounded-lg border border-bybs-border bg-white p-5 shadow-sm">
-                  <SectionHeader title="Student activity" />
+                  <SectionHeader title="Mentee activity" />
                   <div className="grid gap-3 sm:grid-cols-2">
                     <DetailRow label="Assignments" value={context?.summary?.totalAssignments ?? 0} />
                     <DetailRow label="Submitted" value={context?.summary?.submittedCount ?? 0} />

@@ -16,7 +16,7 @@ import {
   X
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@bybs/shared";
+import { Button, ROLE_LABELS } from "@bybs/shared";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { FormField, inputClassName, textAreaClassName } from "./FormField.jsx";
 import { adminApi } from "../services/api.js";
@@ -182,8 +182,12 @@ function messageStartsWithGreeting(message = "") {
 function fieldLabel(form) {
   if (form.targetType === "all") return "All active users";
   if (form.targetType === "cohort") return "Selected cohort";
-  if (form.targetType === "role") return `${form.role} role`;
+  if (form.targetType === "role") return `${ROLE_LABELS[form.role] || form.role} role`;
   return "Selected user";
+}
+
+function roleLabel(role) {
+  return ROLE_LABELS[role] || role;
 }
 
 function safeImageAlt(value = "Announcement image") {
@@ -344,8 +348,8 @@ export function AnnouncementComposer({ title = "Compose email announcement", onC
   function validateForm() {
     if (form.targetType === "cohort" && !form.cohort) return "Choose a cohort.";
     if (form.targetType === "user" && !form.recipient) return "Choose a recipient.";
-    if (isAdminManager && form.targetType === "all") return "Admin managers must choose students, mentors, a cohort, or one recipient.";
-    if (isAdminManager && form.targetType === "role" && !["student", "mentor"].includes(form.role)) return "Admin managers can only target students or mentors.";
+    if (isAdminManager && form.targetType === "all") return "Admin managers must choose mentees, mentors, a cohort, or one recipient.";
+    if (isAdminManager && form.targetType === "role" && !["student", "mentor"].includes(form.role)) return "Admin managers can only target mentees or mentors.";
     if (isAdminManager && form.type === "system") return "Admin managers cannot send system announcements.";
     if (form.ctaLabel && !form.ctaUrl) return "Add a CTA link or remove the CTA label.";
     if (form.ctaUrl && !form.ctaLabel) return "Add a CTA label or remove the CTA link.";
@@ -462,7 +466,7 @@ export function AnnouncementComposer({ title = "Compose email announcement", onC
           {form.targetType === "role" ? (
             <FormField label="Role">
               <select className={inputClassName} onChange={(event) => updateField("role", event.target.value)} value={form.role}>
-                <option value="student">Students</option>
+                <option value="student">Mentees</option>
                 <option value="mentor">Mentors</option>
                 {!isAdminManager ? <option value="admin">Admins</option> : null}
                 {!isAdminManager ? <option value="adminManager">Admin managers</option> : null}
@@ -476,7 +480,7 @@ export function AnnouncementComposer({ title = "Compose email announcement", onC
                 <option value="">Choose user</option>
                 {users.map((user) => (
                   <option key={user.id} value={user.id}>
-                    {user.name} ({user.role})
+                    {user.name} ({roleLabel(user.role)})
                   </option>
                 ))}
               </select>
@@ -496,7 +500,7 @@ export function AnnouncementComposer({ title = "Compose email announcement", onC
             <input
               className={inputClassName}
               onChange={(event) => updateField("ctaLabel", event.target.value)}
-              placeholder="Open student portal"
+              placeholder="Open mentee portal"
               value={form.ctaLabel}
             />
           </FormField>
@@ -608,7 +612,7 @@ export function AnnouncementComposer({ title = "Compose email announcement", onC
               {form.previewText ? <p className="mt-2 text-sm text-bybs-muted">{form.previewText}</p> : null}
               <div className="mt-5 border-t border-bybs-border pt-4">
                 {!messageStartsWithGreeting(form.message) ? (
-                  <p className="mt-0 text-sm leading-6 text-bybs-body">Hi {form.targetType === "role" ? form.role : "First name"},</p>
+                  <p className="mt-0 text-sm leading-6 text-bybs-body">Hi {form.targetType === "role" ? roleLabel(form.role) : "First name"},</p>
                 ) : null}
                 {renderPreviewMessage(form.message)}
               </div>

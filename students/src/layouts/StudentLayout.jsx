@@ -22,7 +22,7 @@ export function StudentLayout({ children }) {
       activePath={location.pathname}
       navItems={studentNavItems}
       notificationsHref="/app/notifications"
-      portalName="Student Portal"
+      portalName="Mentee Portal"
       sidebarFooter={
         <div>
           <p className="mb-3 text-sm font-medium text-bybs-navy">Fellowship progress</p>

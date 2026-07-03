@@ -12,9 +12,12 @@ const request = (await import("supertest")).default;
 const mongoose = (await import("mongoose")).default;
 const { app } = await import("../app.js");
 const { connectDatabase, stopDatabase } = await import("../config/database.js");
+const { Assignment } = await import("../models/Assignment.js");
 const { BetaApplication } = await import("../models/BetaApplication.js");
+const { Cohort } = await import("../models/Cohort.js");
+const { Module } = await import("../models/Module.js");
 const { User } = await import("../models/User.js");
-const { changePasswordSchema } = await import("../validators/authSchemas.js");
+const { changePasswordSchema, updateProfileSchema } = await import("../validators/authSchemas.js");
 
 let databaseReady = false;
 let databaseError = null;
@@ -25,7 +28,8 @@ async function createUser({
   password = "TempPass123!",
   role = "admin",
   status = "active",
-  passwordResetRequired = false
+  passwordResetRequired = false,
+  ...rest
 }) {
   return User.create({
     name,
@@ -33,7 +37,8 @@ async function createUser({
     role,
     status,
     passwordHash: await User.hashPassword(password),
-    passwordResetRequired
+    passwordResetRequired,
+    ...rest
   });
 }
 
@@ -89,6 +94,21 @@ describe("production readiness controls", () => {
         newPassword: "NewSecurePass123!"
       }
     }));
+  });
+
+  test("self profile updates only accept safe public profile fields", () => {
+    const parsed = updateProfileSchema.parse({
+      body: {
+        name: "Mentor Profile",
+        phone: "+211912345678",
+        bio: "Short BYBS profile",
+        email: "changed@example.com",
+        role: "superAdmin",
+        status: "removed"
+      }
+    });
+
+    assert.deepEqual(Object.keys(parsed.body).sort(), ["bio", "name", "phone"]);
   });
 
   test("users with temporary passwords can change them and clear reset requirement", async (t) => {
@@ -170,5 +190,67 @@ describe("production readiness controls", () => {
       .expect(400);
 
     assert.match(response.body.message, /compressed/i);
+  });
+
+  test("mentors can edit only assignments they created", async (t) => {
+    if (!requireDatabase(t)) return;
+
+    const mentorA = await createUser({
+      name: "Mentor A",
+      email: "mentor.a@example.com",
+      role: "mentor",
+      password: "MentorPass123!"
+    });
+    const mentorB = await createUser({
+      name: "Mentor B",
+      email: "mentor.b@example.com",
+      role: "mentor",
+      password: "MentorPass123!"
+    });
+    const cohort = await Cohort.create({
+      title: "Cohort Ownership",
+      status: "active",
+      mentors: [mentorA._id, mentorB._id]
+    });
+    const module = await Module.create({
+      title: "Shared Module",
+      cohort: cohort._id,
+      status: "published"
+    });
+    const ownAssignment = await Assignment.create({
+      title: "Own Assignment",
+      instructions: "Complete the reflection and submit your notes.",
+      cohort: cohort._id,
+      module: module._id,
+      dueDate: new Date(Date.now() + 86400000),
+      createdBy: mentorA._id,
+      status: "published"
+    });
+    const otherAssignment = await Assignment.create({
+      title: "Other Assignment",
+      instructions: "This assignment belongs to another mentor.",
+      cohort: cohort._id,
+      module: module._id,
+      dueDate: new Date(Date.now() + 86400000),
+      createdBy: mentorB._id,
+      status: "published"
+    });
+
+    const { token } = await login("mentor.a@example.com", "MentorPass123!");
+
+    await request(app)
+      .patch(`/api/assignments/${ownAssignment._id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Updated Own Assignment" })
+      .expect(200);
+
+    await request(app)
+      .patch(`/api/assignments/${otherAssignment._id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Should Not Update" })
+      .expect(404);
+
+    const unchangedAssignment = await Assignment.findById(otherAssignment._id);
+    assert.equal(unchangedAssignment.title, "Other Assignment");
   });
 });

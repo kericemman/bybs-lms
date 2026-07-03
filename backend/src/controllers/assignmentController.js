@@ -1,10 +1,12 @@
 import { Assignment } from "../models/Assignment.js";
 import { Submission } from "../models/Submission.js";
+import { User } from "../models/User.js";
 import {
   mentorAssignmentVisibilityFilter,
   mentorCanUseCohort,
   mentorCanUseModule
 } from "../services/mentorScopeService.js";
+import { notifyUsers } from "../services/portalNotificationService.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getPagination, paginatedResponse } from "../utils/pagination.js";
@@ -22,6 +24,39 @@ async function assertMentorAssignmentScope(mentor, { cohort, module }) {
   if (!canUseModule) {
     throw new ApiError(403, "Mentors can only manage assignments for modules assigned to them");
   }
+}
+
+async function notifyStudentsAboutPublishedAssignment(assignment) {
+  if (assignment.status !== "published" || !assignment.cohort) return 0;
+
+  const cohortId = assignment.cohort?._id || assignment.cohort;
+  const students = await User.find({
+    role: "student",
+    status: "active",
+    cohort: cohortId
+  }).select("_id name email role");
+
+  if (!students.length) return 0;
+
+  await notifyUsers({
+    recipients: students,
+    portalRole: "student",
+    notification: {
+      title: `New assignment: ${assignment.title}`,
+      message: `A new assignment has been posted. Submit it by ${new Date(assignment.dueDate).toLocaleDateString()}.`,
+      channel: "both",
+      previewText: sanitizePlainText(assignment.instructions || "").slice(0, 160),
+      ctaLabel: "Open assignment",
+      ctaUrl: "/app/assignments",
+      targetType: "cohort",
+      targetRole: "student",
+      targetLabel: "Assigned cohort",
+      type: "assignment",
+      readStatus: false
+    }
+  });
+
+  return students.length;
 }
 
 export const listAssignments = asyncHandler(async (req, res) => {
@@ -73,6 +108,8 @@ export const createAssignment = asyncHandler(async (req, res) => {
     .populate("cohort", "title status")
     .populate("createdBy", "name email");
 
+  await notifyStudentsAboutPublishedAssignment(assignment);
+
   res.status(201).json({ data: populatedAssignment });
 });
 
@@ -80,7 +117,8 @@ export const updateAssignment = asyncHandler(async (req, res) => {
   if (req.user.role === "mentor") {
     const existingAssignment = await Assignment.findOne({
       ...(await mentorAssignmentVisibilityFilter(req.user)),
-      _id: req.params.id
+      _id: req.params.id,
+      createdBy: req.user._id
     });
 
     if (!existingAssignment) {
@@ -104,6 +142,7 @@ export const updateAssignment = asyncHandler(async (req, res) => {
     });
   }
 
+  const previousAssignment = await Assignment.findById(req.params.id).select("status cohort title");
   const assignment = await Assignment.findByIdAndUpdate(req.params.id, sanitizeAssignmentPayload(req.body), {
     new: true,
     runValidators: true
@@ -113,6 +152,10 @@ export const updateAssignment = asyncHandler(async (req, res) => {
 
   if (!assignment) {
     throw new ApiError(404, "Assignment not found");
+  }
+
+  if (previousAssignment?.status !== "published" && assignment.status === "published") {
+    await notifyStudentsAboutPublishedAssignment(assignment);
   }
 
   res.json({ data: assignment });
@@ -141,7 +184,7 @@ function sanitizeAssignmentPayload(payload) {
 
 export const deleteAssignment = asyncHandler(async (req, res) => {
   const filter = req.user.role === "mentor"
-    ? { ...(await mentorAssignmentVisibilityFilter(req.user)), _id: req.params.id }
+    ? { ...(await mentorAssignmentVisibilityFilter(req.user)), _id: req.params.id, createdBy: req.user._id }
     : { _id: req.params.id };
   const assignment = await Assignment.findOne(filter);
 

@@ -1,5 +1,6 @@
 import { Assignment } from "../models/Assignment.js";
 import { Booking } from "../models/Booking.js";
+import { Discussion } from "../models/Discussion.js";
 import { MentorAvailability } from "../models/MentorAvailability.js";
 import { Module } from "../models/Module.js";
 import { Notification } from "../models/Notification.js";
@@ -7,6 +8,8 @@ import { Resource } from "../models/Resource.js";
 import { Session } from "../models/Session.js";
 import { Submission } from "../models/Submission.js";
 import { SupportTicket } from "../models/SupportTicket.js";
+import { User } from "../models/User.js";
+import { notifyUser, notifyUsers } from "../services/portalNotificationService.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getPagination, paginatedResponse } from "../utils/pagination.js";
@@ -14,6 +17,16 @@ import { sanitizePlainText, sanitizeRichText } from "../utils/sanitizeRichText.j
 
 const activeAssignmentStatuses = ["published", "closed"];
 const submittedStatuses = ["submitted", "lateSubmission", "reviewed", "needsRevision", "approved"];
+const dayIndexes = {
+  sunday: 0,
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6
+};
+const daysByIndex = Object.fromEntries(Object.entries(dayIndexes).map(([day, index]) => [index, day]));
 
 function requireStudentCohort(student) {
   if (!student.cohort) {
@@ -28,6 +41,151 @@ function assignmentFilter(student, extra = {}) {
     cohort: requireStudentCohort(student),
     status: { $in: activeAssignmentStatuses },
     ...extra
+  };
+}
+
+function escapeRegExp(value = "") {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function discussionSearchFilter(search = "") {
+  const cleanSearch = sanitizePlainText(search).trim();
+  if (!cleanSearch) return {};
+
+  const pattern = { $regex: escapeRegExp(cleanSearch), $options: "i" };
+  return { $or: [{ title: pattern }, { body: pattern }] };
+}
+
+function populateDiscussion(query) {
+  return query
+    .populate("cohort", "title status")
+    .populate("module", "title status startDate endDate")
+    .populate("createdBy", "name email role profileImage")
+    .populate("comments.createdBy", "name email role profileImage");
+}
+
+async function populateDiscussionDocument(discussion) {
+  await discussion.populate("cohort", "title status");
+  await discussion.populate("module", "title status startDate endDate");
+  await discussion.populate("createdBy", "name email role profileImage");
+  await discussion.populate("comments.createdBy", "name email role profileImage");
+}
+
+async function assertStudentDiscussionModule(student, moduleId) {
+  if (!moduleId) return;
+
+  const module = await Module.findOne({
+    _id: moduleId,
+    cohort: requireStudentCohort(student),
+    status: { $ne: "archived" }
+  }).select("_id");
+
+  if (!module) {
+    throw new ApiError(403, "This module is not available in your cohort");
+  }
+}
+
+function timeParts(value = "") {
+  const [hours = 0, minutes = 0] = String(value).split(":").map((part) => Number(part));
+  return { hours, minutes };
+}
+
+function minutesFromTime(value = "") {
+  const { hours, minutes } = timeParts(value);
+  return hours * 60 + minutes;
+}
+
+function minutesFromDate(date) {
+  return date.getHours() * 60 + date.getMinutes();
+}
+
+function dayKey(date) {
+  return daysByIndex[date.getDay()];
+}
+
+function dateWithTime(date, time) {
+  const nextDate = new Date(date);
+  const { hours, minutes } = timeParts(time);
+  nextDate.setHours(hours, minutes, 0, 0);
+  return nextDate;
+}
+
+function upcomingAvailabilityOptions(slots = [], { daysAhead = 28 } = {}) {
+  const now = new Date();
+  const startDate = new Date(now);
+  startDate.setHours(0, 0, 0, 0);
+
+  return slots
+    .flatMap((slot) => {
+      const options = [];
+
+      for (let offset = 0; offset <= daysAhead; offset += 1) {
+        const candidateDate = new Date(startDate);
+        candidateDate.setDate(startDate.getDate() + offset);
+
+        if (dayKey(candidateDate) !== slot.dayOfWeek) continue;
+
+        const startsAt = dateWithTime(candidateDate, slot.startTime);
+        const endsAt = dateWithTime(candidateDate, slot.endTime);
+
+        if (startsAt <= now || endsAt <= startsAt) continue;
+
+        options.push({
+          availabilitySlot: slot._id,
+          dayOfWeek: slot.dayOfWeek,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          startsAt,
+          endsAt
+        });
+      }
+
+      return options;
+    })
+    .sort((left, right) => new Date(left.startsAt) - new Date(right.startsAt))
+    .slice(0, 24);
+}
+
+function bookingFitsSlot({ startsAt, endsAt, slot }) {
+  const startMinutes = minutesFromDate(startsAt);
+  const endMinutes = minutesFromDate(endsAt);
+  const slotStartMinutes = minutesFromTime(slot.startTime);
+  const slotEndMinutes = minutesFromTime(slot.endTime);
+
+  return (
+    dayKey(startsAt) === slot.dayOfWeek &&
+    dayKey(endsAt) === slot.dayOfWeek &&
+    startMinutes >= slotStartMinutes &&
+    endMinutes <= slotEndMinutes &&
+    endsAt > startsAt
+  );
+}
+
+async function resolveBookingAvailability({ mentorId, startsAt, requestedEndsAt, availabilitySlotId }) {
+  const slotFilter = { mentor: mentorId, isActive: true };
+  if (availabilitySlotId) {
+    slotFilter._id = availabilitySlotId;
+  }
+
+  const slots = await MentorAvailability.find(slotFilter).sort({ dayOfWeek: 1, startTime: 1 });
+
+  if (!slots.length) {
+    throw new ApiError(400, "Your mentor has not published availability for that time");
+  }
+
+  const matchingSlot = slots.find((slot) => {
+    const defaultEndsAt = dateWithTime(startsAt, slot.endTime);
+    const endsAt = requestedEndsAt || defaultEndsAt;
+    return bookingFitsSlot({ startsAt, endsAt, slot });
+  });
+
+  if (!matchingSlot) {
+    throw new ApiError(400, "Choose a time inside your mentor's published availability");
+  }
+
+  return {
+    slot: matchingSlot,
+    endsAt: requestedEndsAt || dateWithTime(startsAt, matchingSlot.endTime)
   };
 }
 
@@ -90,6 +248,7 @@ export const studentDashboard = asyncHandler(async (req, res) => {
       .limit(4),
     Assignment.find(assignmentFilter(req.user))
       .populate("module", "title")
+      .populate("createdBy", "name email role")
       .sort({ dueDate: 1 })
       .limit(4)
   ]);
@@ -170,6 +329,97 @@ export const listStudentMaterials = asyncHandler(async (req, res) => {
   res.json(paginatedResponse({ data: resources, total, page, limit }));
 });
 
+export const listStudentDiscussions = asyncHandler(async (req, res) => {
+  const { page, limit, skip } = getPagination(req.query);
+  const filter = {
+    status: req.query.status || { $ne: "archived" },
+    ...discussionSearchFilter(req.query.search)
+  };
+
+  if (req.query.cohort) {
+    filter.cohort = req.query.cohort;
+  }
+
+  if (req.query.module) {
+    filter.module = req.query.module;
+  }
+
+  const [discussions, total] = await Promise.all([
+    populateDiscussion(Discussion.find(filter))
+      .sort({ updatedAt: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    Discussion.countDocuments(filter)
+  ]);
+
+  res.json(paginatedResponse({ data: discussions, total, page, limit }));
+});
+
+export const createStudentDiscussion = asyncHandler(async (req, res) => {
+  await assertStudentDiscussionModule(req.user, req.body.module);
+
+  const discussion = await Discussion.create({
+    cohort: req.user.cohort,
+    module: req.body.module,
+    title: sanitizePlainText(req.body.title),
+    body: sanitizeRichText(req.body.body || ""),
+    createdBy: req.user._id,
+    status: "open"
+  });
+
+  await populateDiscussionDocument(discussion);
+  res.status(201).json({ data: discussion });
+});
+
+export const replyStudentDiscussion = asyncHandler(async (req, res) => {
+  const discussion = await Discussion.findOne({
+    _id: req.params.id,
+    status: "open"
+  });
+
+  if (!discussion) {
+    throw new ApiError(404, "Open discussion not found");
+  }
+
+  const ownerId = discussion.createdBy;
+  const cleanBody = sanitizeRichText(req.body.body);
+
+  discussion.comments.push({
+    body: cleanBody,
+    createdBy: req.user._id
+  });
+  await discussion.save();
+
+  if (String(ownerId) !== String(req.user._id)) {
+    const owner = await User.findById(ownerId).select("name email role");
+
+    if (owner) {
+      const ownerPortalUrl = owner.role === "student" ? "/app/forum" : owner.role === "mentor" ? "/forum" : "/discussions";
+
+      await notifyUser({
+        recipient: owner,
+        portalRole: owner.role,
+        notification: {
+          title: `New reply: ${discussion.title}`,
+          message: `${req.user.name} replied to your discussion.`,
+          channel: "both",
+          previewText: sanitizePlainText(cleanBody).slice(0, 160),
+          type: "system",
+          ctaLabel: "Open forum",
+          ctaUrl: ownerPortalUrl,
+          targetType: "discussion",
+          targetRole: owner.role,
+          targetLabel: "Forum discussion",
+          readStatus: false
+        }
+      });
+    }
+  }
+
+  await populateDiscussionDocument(discussion);
+  res.status(201).json({ data: discussion });
+});
+
 export const listStudentAssignments = asyncHandler(async (req, res) => {
   const { page, limit, skip } = getPagination(req.query);
   const filter = assignmentFilter(req.user);
@@ -241,17 +491,27 @@ export const submitStudentAssignment = asyncHandler(async (req, res) => {
   await submission.populate("reviewedBy", "name email");
 
   if (req.user.mentor) {
-    await Notification.create({
-      recipient: req.user.mentor,
-      title: `Submission ready: ${assignment.title}`,
-      message: `${req.user.name} submitted an assignment for review.`,
-      channel: "platform",
-      previewText: req.body.writtenResponse?.slice(0, 160) || "A file submission was uploaded.",
-      type: "assignment",
-      ctaLabel: "Review submission",
-      ctaUrl: "/reviews",
-      readStatus: false
-    });
+    const mentor = await User.findById(req.user.mentor).select("name email role");
+
+    if (mentor) {
+      await notifyUser({
+        recipient: mentor,
+        portalRole: "mentor",
+        notification: {
+          title: `Submission ready: ${assignment.title}`,
+          message: `${req.user.name} submitted an assignment for review.`,
+          channel: "both",
+          previewText: sanitizePlainText(req.body.writtenResponse || "A file submission was uploaded.").slice(0, 160),
+          type: "assignment",
+          ctaLabel: "Review submission",
+          ctaUrl: "/reviews",
+          targetType: "assignment",
+          targetRole: "mentor",
+          targetLabel: assignment.title,
+          readStatus: false
+        }
+      });
+    }
   }
 
   res.status(existingSubmission ? 200 : 201).json({ data: submission });
@@ -299,12 +559,15 @@ export const studentProgress = asyncHandler(async (req, res) => {
 
 export const listStudentMentorAvailability = asyncHandler(async (req, res) => {
   if (!req.user.mentor) {
-    res.json({ data: [] });
+    res.json({ data: [], upcoming: [] });
     return;
   }
 
   const slots = await MentorAvailability.find({ mentor: req.user.mentor, isActive: true }).sort({ dayOfWeek: 1, startTime: 1 });
-  res.json({ data: slots });
+  res.json({
+    data: slots,
+    upcoming: upcomingAvailabilityOptions(slots)
+  });
 });
 
 export const listStudentBookings = asyncHandler(async (req, res) => {
@@ -312,6 +575,7 @@ export const listStudentBookings = asyncHandler(async (req, res) => {
   const [bookings, total] = await Promise.all([
     Booking.find({ student: req.user._id })
       .populate("mentor", "name email")
+      .populate("availabilitySlot", "dayOfWeek startTime endTime isActive")
       .sort({ startsAt: -1 })
       .skip(skip)
       .limit(limit),
@@ -327,32 +591,62 @@ export const createStudentBooking = asyncHandler(async (req, res) => {
   }
 
   const startsAt = new Date(req.body.startsAt);
+  const requestedEndsAt = req.body.endsAt ? new Date(req.body.endsAt) : null;
   if (startsAt < new Date()) {
     throw new ApiError(400, "Choose a future time for your booking");
+  }
+
+  const { slot, endsAt } = await resolveBookingAvailability({
+    mentorId: req.user.mentor,
+    startsAt,
+    requestedEndsAt,
+    availabilitySlotId: req.body.availabilitySlot
+  });
+
+  const existingBooking = await Booking.findOne({
+    mentor: req.user.mentor,
+    startsAt,
+    status: { $in: ["pending", "approved"] }
+  }).select("_id");
+
+  if (existingBooking) {
+    throw new ApiError(409, "That mentor availability slot already has a pending or approved booking");
   }
 
   const booking = await Booking.create({
     student: req.user._id,
     mentor: req.user.mentor,
+    availabilitySlot: slot._id,
     startsAt,
-    endsAt: req.body.endsAt,
+    endsAt,
     reason: sanitizeRichText(req.body.reason),
     status: "pending"
   });
 
-  await Notification.create({
-    recipient: req.user.mentor,
-    title: "New student booking request",
-    message: `${req.user.name} requested a mentor session.`,
-    channel: "platform",
-    previewText: sanitizePlainText(req.body.reason).slice(0, 160),
-    type: "booking",
-    ctaLabel: "Review booking",
-    ctaUrl: "/bookings",
-    readStatus: false
-  });
+  const mentor = await User.findById(req.user.mentor).select("name email role");
+
+  if (mentor) {
+    await notifyUser({
+      recipient: mentor,
+      portalRole: "mentor",
+      notification: {
+        title: "New mentee booking request",
+        message: `${req.user.name} requested a mentor session.`,
+        channel: "both",
+        previewText: sanitizePlainText(req.body.reason).slice(0, 160),
+        type: "booking",
+        ctaLabel: "Review booking",
+        ctaUrl: "/bookings",
+        targetType: "booking",
+        targetRole: "mentor",
+        targetLabel: "Mentee booking request",
+        readStatus: false
+      }
+    });
+  }
 
   await booking.populate("mentor", "name email");
+  await booking.populate("availabilitySlot", "dayOfWeek startTime endTime isActive");
   res.status(201).json({ data: booking });
 });
 
@@ -370,6 +664,28 @@ export const updateStudentBooking = asyncHandler(async (req, res) => {
   booking.status = req.body.status;
   await booking.save();
   await booking.populate("mentor", "name email");
+  await booking.populate("availabilitySlot", "dayOfWeek startTime endTime isActive");
+
+  if (booking.mentor) {
+    await notifyUser({
+      recipient: booking.mentor,
+      portalRole: "mentor",
+      notification: {
+        title: "Booking cancelled",
+        message: `${req.user.name} cancelled a mentor booking.`,
+        channel: "both",
+        previewText: `Cancelled booking for ${new Date(booking.startsAt).toLocaleString()}.`,
+        type: "booking",
+        ctaLabel: "Open bookings",
+        ctaUrl: "/bookings",
+        targetType: "booking",
+        targetRole: "mentor",
+        targetLabel: "Cancelled booking",
+        readStatus: false
+      }
+    });
+  }
+
   res.json({ data: booking });
 });
 
@@ -397,6 +713,32 @@ export const createStudentSupportTicket = asyncHandler(async (req, res) => {
   });
 
   await ticket.populate("assignedTo", "name email");
+
+  const admins = await User.find({
+    role: { $in: ["admin", "adminManager", "superAdmin"] },
+    status: { $ne: "removed" }
+  }).select("name email role");
+
+  if (admins.length) {
+    await notifyUsers({
+      recipients: admins,
+      portalRole: "admin",
+      notification: {
+        title: `New support ticket: ${ticket.subject}`,
+        message: `${req.user.name} opened a support ticket.`,
+        channel: "both",
+        previewText: sanitizePlainText(req.body.message).slice(0, 160),
+        type: "support",
+        ctaLabel: "Open support",
+        ctaUrl: "/support",
+        targetType: "support",
+        targetRole: "admin",
+        targetLabel: ticket.subject,
+        readStatus: false
+      }
+    });
+  }
+
   res.status(201).json({ data: ticket });
 });
 
@@ -415,6 +757,34 @@ export const replyStudentSupportTicket = asyncHandler(async (req, res) => {
   await ticket.save();
   await ticket.populate("assignedTo", "name email");
   await ticket.populate("replies.createdBy", "name role");
+
+  const recipients = ticket.assignedTo
+    ? [ticket.assignedTo]
+    : await User.find({
+      role: { $in: ["admin", "adminManager", "superAdmin"] },
+      status: { $ne: "removed" }
+    }).select("name email role");
+
+  if (recipients.length) {
+    await notifyUsers({
+      recipients,
+      portalRole: "admin",
+      notification: {
+        title: `Support reply: ${ticket.subject}`,
+        message: `${req.user.name} added a reply to a support ticket.`,
+        channel: "both",
+        previewText: sanitizePlainText(req.body.message).slice(0, 160),
+        type: "support",
+        ctaLabel: "Open support",
+        ctaUrl: "/support",
+        targetType: "support",
+        targetRole: "admin",
+        targetLabel: ticket.subject,
+        readStatus: false
+      }
+    });
+  }
+
   res.json({ data: ticket });
 });
 

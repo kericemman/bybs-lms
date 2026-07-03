@@ -39,7 +39,7 @@ export function LoginPage() {
             <LockKeyhole className="h-6 w-6" aria-hidden="true" />
           </span>
           <p className="text-sm font-semibold uppercase text-bybs-blue">BYBS LMS</p>
-          <h1 className="mt-2 text-2xl font-semibold text-bybs-navy">Student login</h1>
+          <h1 className="mt-2 text-2xl font-semibold text-bybs-navy">Mentee login</h1>
           <p className="mt-2 text-sm text-bybs-body">
             Sign in to view your modules, assignments, resources, mentor sessions, and support.
           </p>

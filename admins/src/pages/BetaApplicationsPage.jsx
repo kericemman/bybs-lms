@@ -25,7 +25,7 @@ const statusOptions = [
 ];
 
 const applicantTypeOptions = [
-  { value: "student", label: "Students" },
+  { value: "student", label: "Mentees" },
   { value: "mentor", label: "Mentors" }
 ];
 
@@ -36,7 +36,7 @@ const feedbackStatusOptions = [
 ];
 
 const feedbackRoleOptions = [
-  { value: "student", label: "Students" },
+  { value: "student", label: "Mentees" },
   { value: "mentor", label: "Mentors" }
 ];
 
@@ -88,12 +88,12 @@ function feedbackId(feedback) {
 
 function applicantTypeLabel(value) {
   if (value === "mentor") return "Mentor tester";
-  return "Student tester";
+  return "Mentee tester";
 }
 
 function feedbackRoleLabel(value) {
   if (value === "mentor") return "Mentor";
-  return "Student";
+  return "Mentee";
 }
 
 function feedbackCategoryLabel(value) {
@@ -385,7 +385,7 @@ export function BetaApplicationsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        description="Review student and mentor beta tester applications submitted from the public access page."
+        description="Review mentee and mentor beta tester applications submitted from the public access page."
         title="Beta Applications"
       />
 
@@ -407,14 +407,14 @@ export function BetaApplicationsPage() {
       <section className="grid gap-6 xl:grid-cols-2">
         <div className="space-y-3">
           <div>
-            <p className="text-sm font-semibold uppercase text-bybs-blue">Accepted student testers</p>
-            <p className="mt-1 text-sm text-bybs-body">Students approved for BYBS LMS beta testing.</p>
+            <p className="text-sm font-semibold uppercase text-bybs-blue">Accepted mentee testers</p>
+            <p className="mt-1 text-sm text-bybs-body">Mentees approved for BYBS LMS beta testing.</p>
           </div>
           <DataTable
             columns={[
               {
                 key: "name",
-                header: "Student",
+                header: "Mentee",
                 wrap: true,
                 render: (row) => (
                   <button className="text-left" onClick={() => setSelectedId(applicationId(row))} type="button">
@@ -453,8 +453,8 @@ export function BetaApplicationsPage() {
                 )
               }
             ]}
-            emptyDescription="Accepted student beta testers will appear here after approval."
-            emptyTitle="No accepted students"
+            emptyDescription="Accepted mentee beta testers will appear here after approval."
+            emptyTitle="No accepted mentees"
             rows={acceptedStudents}
           />
         </div>
@@ -725,9 +725,9 @@ export function BetaApplicationsPage() {
             </span>
             <div>
               <p className="text-sm font-semibold uppercase text-bybs-blue">Beta feedback inbox</p>
-              <h2 className="mt-1 text-lg font-semibold text-bybs-navy">Feedback from students and mentors</h2>
+              <h2 className="mt-1 text-lg font-semibold text-bybs-navy">Feedback from mentees and mentors</h2>
               <p className="mt-1 text-sm leading-6 text-bybs-body">
-                Review what testers are experiencing inside the student and mentor portals, then mark items reviewed or resolved.
+                Review what testers are experiencing inside the mentee and mentor portals, then mark items reviewed or resolved.
               </p>
             </div>
           </div>
@@ -807,7 +807,7 @@ export function BetaApplicationsPage() {
               { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} tone={feedbackStatusTone[row.status]} /> },
               { key: "createdAt", header: "Sent", render: (row) => formatDateTime(row.createdAt) }
             ]}
-            emptyDescription="Feedback sent from student and mentor portals will appear here."
+            emptyDescription="Feedback sent from mentee and mentor portals will appear here."
             emptyTitle="No beta feedback yet"
             rows={betaFeedback}
           />

@@ -1,5 +1,8 @@
 import { Assignment } from "../models/Assignment.js";
 import { Booking } from "../models/Booking.js";
+import { Certificate } from "../models/Certificate.js";
+import { env } from "../config/env.js";
+import { Discussion } from "../models/Discussion.js";
 import { MentorAvailability } from "../models/MentorAvailability.js";
 import { Module } from "../models/Module.js";
 import { Notification } from "../models/Notification.js";
@@ -14,6 +17,9 @@ import {
   mentorVisibleModuleFilter,
   mentorVisibleModuleIds
 } from "../services/mentorScopeService.js";
+import { emailConfigured, sendEmail } from "../services/emailService.js";
+import { serializeCertificate } from "../services/certificateService.js";
+import { notifyUser, notifyUsers } from "../services/portalNotificationService.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getPagination, paginatedResponse } from "../utils/pagination.js";
@@ -44,15 +50,23 @@ async function assignedStudents(mentor) {
     .sort({ name: 1 });
 }
 
-async function assertStudentInScope(mentor, studentId) {
+async function findAssignedStudent(mentor, studentId, select = "_id") {
   const student = await User.findOne({
     ...(await assignedStudentFilter(mentor)),
     _id: studentId
-  }).select("_id");
+  })
+    .select(select)
+    .populate("cohort", "title status");
 
   if (!student) {
     throw new ApiError(403, "This student is not assigned to you");
   }
+
+  return student;
+}
+
+async function assertStudentInScope(mentor, studentId) {
+  await findAssignedStudent(mentor, studentId);
 }
 
 async function assertStudentsInScope(mentor, studentIds = []) {
@@ -68,6 +82,33 @@ async function assertStudentsInScope(mentor, studentIds = []) {
   if (denied) {
     throw new ApiError(403, "Report includes a student outside your assigned scope");
   }
+}
+
+function escapeRegExp(value = "") {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function discussionSearchFilter(search = "") {
+  const cleanSearch = sanitizePlainText(search).trim();
+  if (!cleanSearch) return {};
+
+  const pattern = { $regex: escapeRegExp(cleanSearch), $options: "i" };
+  return { $or: [{ title: pattern }, { body: pattern }] };
+}
+
+function populateDiscussion(query) {
+  return query
+    .populate("cohort", "title status")
+    .populate("module", "title status startDate endDate")
+    .populate("createdBy", "name email role profileImage")
+    .populate("comments.createdBy", "name email role profileImage");
+}
+
+async function populateDiscussionDocument(discussion) {
+  await discussion.populate("cohort", "title status");
+  await discussion.populate("module", "title status startDate endDate");
+  await discussion.populate("createdBy", "name email role profileImage");
+  await discussion.populate("comments.createdBy", "name email role profileImage");
 }
 
 function submissionFilter(studentIds, status) {
@@ -125,6 +166,84 @@ function sanitizeResourceLinks(resourceLinks = []) {
   }));
 }
 
+function escapeHtml(value = "") {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function firstName(user) {
+  return (user?.name || "there").trim().split(/\s+/)[0] || "there";
+}
+
+function hasHtml(value = "") {
+  return /<\/?[a-z][\s\S]*>/i.test(value);
+}
+
+function messageHtml(value = "") {
+  const cleanMessage = sanitizeRichText(value);
+  if (!cleanMessage) return "";
+  if (hasHtml(cleanMessage)) return cleanMessage;
+  return `<p style="margin:0;color:#374151;font-size:14px;line-height:1.7;">${escapeHtml(cleanMessage).replace(/\n/g, "<br />")}</p>`;
+}
+
+function studentPortalNotificationUrl() {
+  return `${env.clientStudentUrl.replace(/\/$/, "")}/app/notifications`;
+}
+
+function buildMentorMessageEmail({ mentor, student, title, message }) {
+  const portalUrl = studentPortalNotificationUrl();
+  const mentorName = sanitizePlainText(mentor.name || "Your mentor");
+
+  return `<!doctype html>
+<html>
+  <body style="margin:0;background:#F7F9FC;padding:24px;font-family:Arial,sans-serif;color:#374151;">
+    <div style="max-width:640px;margin:0 auto;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;">
+      <div style="background:#00337C;padding:20px 24px;color:#FFFFFF;">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Build Your Best Self LMS</div>
+        <h1 style="margin:8px 0 0;font-size:22px;line-height:1.3;">Private mentor message</h1>
+      </div>
+      <div style="padding:24px;">
+        <p style="margin:0 0 14px;font-size:14px;line-height:1.7;">Hi ${escapeHtml(firstName(student))},</p>
+        <p style="margin:0 0 18px;font-size:14px;line-height:1.7;">${escapeHtml(mentorName)} sent you a private message in your BYBS mentee portal.</p>
+        <div style="border:1px solid #E5E7EB;border-radius:8px;padding:16px;background:#F5F9FF;">
+          <h2 style="margin:0 0 12px;color:#10233F;font-size:18px;line-height:1.35;">${escapeHtml(title)}</h2>
+          ${message}
+        </div>
+        <a href="${escapeHtml(portalUrl)}" style="display:inline-block;margin-top:22px;background:#00337C;color:#FFFFFF;text-decoration:none;border-radius:6px;padding:12px 16px;font-size:14px;font-weight:700;">Open your notification</a>
+        <p style="margin:20px 0 0;color:#6B7280;font-size:12px;line-height:1.6;">This message was sent through the BYBS LMS so you can keep your learning support in one place.</p>
+      </div>
+    </div>
+  </body>
+</html>`;
+}
+
+async function sendMentorMessageEmail({ mentor, student, title, message }) {
+  if (!emailConfigured()) {
+    return { status: "notConfigured" };
+  }
+
+  try {
+    const mentorName = sanitizePlainText(mentor.name || "Your mentor");
+
+    await sendEmail({
+      to: student.email,
+      subject: `Message from ${mentorName}: ${title}`,
+      html: buildMentorMessageEmail({ mentor, student, title, message })
+    });
+
+    return { status: "sent", sentAt: new Date() };
+  } catch (error) {
+    return {
+      status: "failed",
+      error: error.message?.slice(0, 300) || "Email delivery failed"
+    };
+  }
+}
+
 function buildAssignmentInstructions({ assignmentBreakdown, assignmentSections = {}, resourceLinks = [] }) {
   return [
     sectionBlock("Assignment overview", assignmentSections.overview || assignmentBreakdown),
@@ -172,25 +291,26 @@ async function notifyStudentsAboutAssignment({ assignment, cohortId }) {
     role: "student",
     status: "active",
     cohort: cohortId
-  }).select("_id name");
+  }).select("_id name email role");
 
   if (!students.length) return 0;
 
-  await Notification.insertMany(
-    students.map((student) => ({
-      recipient: student._id,
+  await notifyUsers({
+    recipients: students,
+    portalRole: "student",
+    notification: {
       title: `New assignment: ${assignment.title}`,
       message: `A new assignment has been posted. Submit it by ${new Date(assignment.dueDate).toLocaleDateString()}.`,
-      channel: "platform",
+      channel: "both",
       previewText: assignment.instructions.slice(0, 160),
       ctaLabel: "Open assignment",
-      ctaUrl: "/assignments",
+      ctaUrl: "/app/assignments",
       targetType: "cohort",
       targetLabel: "Assigned cohort",
       type: "assignment",
       readStatus: false
-    }))
-  );
+    }
+  });
 
   return students.length;
 }
@@ -353,6 +473,123 @@ export const listMentorModules = asyncHandler(async (req, res) => {
   res.json(paginatedResponse({ data: modules, total, page, limit }));
 });
 
+export const listMentorDiscussions = asyncHandler(async (req, res) => {
+  const { page, limit, skip } = getPagination(req.query);
+  const filter = {
+    status: req.query.status || { $ne: "archived" },
+    ...discussionSearchFilter(req.query.search)
+  };
+
+  if (req.query.cohort) {
+    filter.cohort = req.query.cohort;
+  }
+
+  if (req.query.module) {
+    filter.module = req.query.module;
+  }
+
+  const [discussions, total] = await Promise.all([
+    populateDiscussion(Discussion.find(filter))
+      .sort({ updatedAt: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    Discussion.countDocuments(filter)
+  ]);
+
+  res.json(paginatedResponse({ data: discussions, total, page, limit }));
+});
+
+export const createMentorDiscussion = asyncHandler(async (req, res) => {
+  const cohortIds = await mentorCohortIds(req.user);
+  let cohort = req.user.cohort || (cohortIds.length === 1 ? cohortIds[0] : undefined);
+
+  if (req.body.cohort) {
+    if (!cohortIds.includes(String(req.body.cohort))) {
+      throw new ApiError(403, "This cohort is not assigned to you");
+    }
+
+    cohort = req.body.cohort;
+  }
+
+  if (req.body.module) {
+    const module = await Module.findOne({
+      _id: req.body.module,
+      cohort: { $in: cohortIds },
+      status: { $ne: "archived" }
+    }).select("cohort status");
+
+    if (!module) {
+      throw new ApiError(403, "This module is not available to you");
+    }
+
+    if (cohort && String(module.cohort) !== String(cohort)) {
+      throw new ApiError(400, "Module does not belong to the selected cohort");
+    }
+
+    cohort = module.cohort;
+  }
+
+  const discussion = await Discussion.create({
+    cohort,
+    module: req.body.module,
+    title: sanitizePlainText(req.body.title),
+    body: sanitizeRichText(req.body.body || ""),
+    createdBy: req.user._id,
+    status: "open"
+  });
+
+  await populateDiscussionDocument(discussion);
+  res.status(201).json({ data: discussion });
+});
+
+export const replyMentorDiscussion = asyncHandler(async (req, res) => {
+  const discussion = await Discussion.findOne({
+    _id: req.params.id,
+    status: "open"
+  });
+
+  if (!discussion) {
+    throw new ApiError(404, "Open discussion not found");
+  }
+
+  const ownerId = discussion.createdBy;
+  const cleanBody = sanitizeRichText(req.body.body);
+
+  discussion.comments.push({
+    body: cleanBody,
+    createdBy: req.user._id
+  });
+  await discussion.save();
+
+  if (String(ownerId) !== String(req.user._id)) {
+    const owner = await User.findById(ownerId).select("name email role");
+    if (owner) {
+      const ownerPortalUrl = owner.role === "student" ? "/app/forum" : owner.role === "mentor" ? "/forum" : "/discussions";
+
+      await notifyUser({
+        recipient: owner,
+        portalRole: owner.role,
+        notification: {
+          title: `New reply: ${discussion.title}`,
+          message: `${req.user.name} replied to your discussion.`,
+          channel: "both",
+          previewText: sanitizePlainText(cleanBody).slice(0, 160),
+          type: "system",
+          ctaLabel: "Open forum",
+          ctaUrl: ownerPortalUrl,
+          targetType: "discussion",
+          targetRole: owner.role,
+          targetLabel: "Forum discussion",
+          readStatus: false
+        }
+      });
+    }
+  }
+
+  await populateDiscussionDocument(discussion);
+  res.status(201).json({ data: discussion });
+});
+
 export const listMentorAssignments = asyncHandler(async (req, res) => {
   const { page, limit, skip } = getPagination(req.query);
   const filter = await mentorAssignmentVisibilityFilter(req.user);
@@ -365,6 +602,7 @@ export const listMentorAssignments = asyncHandler(async (req, res) => {
     Assignment.find(filter)
       .populate("cohort", "title status")
       .populate("module", "title status startDate endDate")
+      .populate("createdBy", "name email")
       .sort({ dueDate: 1 })
       .skip(skip)
       .limit(limit),
@@ -397,27 +635,33 @@ export const createAssignmentReminder = asyncHandler(async (req, res) => {
   const title = req.body.title || `Reminder: ${assignment.title}`;
   const message = sanitizeRichText(req.body.message);
 
-  await Notification.insertMany(
-    recipients.map((student) => ({
-      recipient: student._id,
+  const delivery = await notifyUsers({
+    recipients,
+    portalRole: "student",
+    notification: {
       title: sanitizePlainText(title),
       message,
-      channel: "platform",
-      previewText: message.slice(0, 160),
+      channel: "both",
+      previewText: sanitizePlainText(message).slice(0, 160),
       ctaLabel: "Open assignment",
-      ctaUrl: "/assignments",
+      ctaUrl: "/app/assignments",
       targetType: "assignment",
       targetLabel: assignment.title,
       type: "reminder",
       readStatus: false
-    }))
-  );
+    }
+  });
 
   res.status(201).json({
     data: {
       assignment: assignment._id,
       sent: recipients.length,
-      target: req.body.target
+      target: req.body.target,
+      emailDelivery: {
+        sent: delivery.sent,
+        failed: delivery.failed,
+        notConfigured: delivery.notConfigured
+      }
     }
   });
 });
@@ -553,6 +797,199 @@ export const listMentorStudents = asyncHandler(async (req, res) => {
   res.json(paginatedResponse({ data: rows, total, page, limit }));
 });
 
+export const getMentorStudent = asyncHandler(async (req, res) => {
+  const student = await findAssignedStudent(
+    req.user,
+    req.params.id,
+    "name email phone status cohort mentor lastLogin createdAt profileImage bio expertise"
+  );
+  const assignmentFilter = student.cohort
+    ? { cohort: student.cohort._id || student.cohort, status: { $in: activeAssignmentStatuses } }
+    : { _id: null };
+
+  const [assignments, submissions, recentBookings, graduationCertificate] = await Promise.all([
+    Assignment.find(assignmentFilter)
+      .select("title dueDate maxScore status module createdBy")
+      .populate("module", "title status startDate endDate")
+      .populate("createdBy", "name email")
+      .sort({ dueDate: 1, createdAt: 1 }),
+    Submission.find({ student: student._id })
+      .populate("assignment", "title dueDate maxScore status module")
+      .populate("reviewedBy", "name email")
+      .sort({ submittedAt: -1 }),
+    Booking.find({ mentor: req.user._id, student: student._id })
+      .select("startsAt endsAt reason meetingLink status mentorNotes createdAt")
+      .sort({ startsAt: -1 })
+      .limit(5),
+    Certificate.findOne({ student: student._id })
+      .populate("student", "name email status cohort")
+      .populate("cohort", "title status")
+      .populate("mentorApprovedBy", "name email")
+      .populate("issuedBy", "name email role")
+      .populate("revokedBy", "name email role")
+  ]);
+
+  const submissionsByAssignment = new Map(
+    submissions
+      .filter((submission) => submission.assignment)
+      .map((submission) => [String(submission.assignment._id || submission.assignment), submission])
+  );
+  const assignmentProgress = assignments.map((assignment) => {
+    const submission = submissionsByAssignment.get(String(assignment._id));
+
+    return {
+      id: assignment.id,
+      title: assignment.title,
+      dueDate: assignment.dueDate,
+      maxScore: assignment.maxScore,
+      status: assignment.status,
+      module: assignment.module,
+      postedBy: assignment.createdBy,
+      submissionStatus: submission?.status || "notStarted",
+      submittedAt: submission?.submittedAt || null,
+      score: submission?.score ?? null,
+      reviewedAt: submission?.reviewedAt || null,
+      feedback: submission?.feedback || ""
+    };
+  });
+  const submittedCount = assignmentProgress.filter((assignment) => assignment.submissionStatus !== "notStarted").length;
+  const reviewedCount = assignmentProgress.filter((assignment) => ["reviewed", "approved"].includes(assignment.submissionStatus)).length;
+  const latestSubmission = submissions[0];
+
+  res.json({
+    data: {
+      student: {
+        id: student.id,
+        name: student.name,
+        email: student.email,
+        phone: student.phone,
+        status: student.status,
+        cohort: student.cohort,
+        profileImage: student.profileImage,
+        bio: student.bio,
+        expertise: student.expertise,
+        lastLogin: student.lastLogin,
+        createdAt: student.createdAt
+      },
+      progress: {
+        totalAssignments: assignments.length,
+        submittedCount,
+        reviewedCount,
+        pendingCount: Math.max(assignments.length - submittedCount, 0),
+        progress: assignments.length ? Math.round((submittedCount / assignments.length) * 100) : 0,
+        lastSubmissionAt: latestSubmission?.submittedAt || null,
+        assignmentProgress
+      },
+      recentSubmissions: submissions.slice(0, 5),
+      recentBookings,
+      graduationCertificate: graduationCertificate ? serializeCertificate(graduationCertificate) : null
+    }
+  });
+});
+
+export const sendMentorStudentMessage = asyncHandler(async (req, res) => {
+  const student = await findAssignedStudent(req.user, req.params.id, "name email status cohort");
+  const cleanTitle = sanitizePlainText(req.body.title);
+  const cleanMessageHtml = messageHtml(req.body.message);
+  const mentorName = sanitizePlainText(req.user.name || "Your mentor");
+  const previewText = sanitizePlainText(req.body.message).slice(0, 180);
+  const deliveryRequested = emailConfigured();
+
+  const notification = await Notification.create({
+    recipient: student._id,
+    title: cleanTitle,
+    message: `<p><strong>From ${escapeHtml(mentorName)}</strong></p>${cleanMessageHtml}`,
+    channel: "both",
+    previewText,
+    ctaLabel: "Open notification",
+    ctaUrl: "/app/notifications",
+    targetType: "mentorMessage",
+    targetRole: "student",
+    targetLabel: "Private mentor message",
+    emailDeliveryStatus: deliveryRequested ? "pending" : "notConfigured",
+    type: "system"
+  });
+
+  const emailDelivery = await sendMentorMessageEmail({
+    mentor: req.user,
+    student,
+    title: cleanTitle,
+    message: cleanMessageHtml
+  });
+
+  notification.emailDeliveryStatus = emailDelivery.status;
+  notification.emailDeliveryError = emailDelivery.error;
+  notification.emailSentAt = emailDelivery.sentAt;
+  await notification.save();
+
+  res.status(201).json({
+    data: {
+      notification,
+      emailDeliveryStatus: notification.emailDeliveryStatus,
+      emailDeliveryError: notification.emailDeliveryError
+    }
+  });
+});
+
+export const approveStudentGraduation = asyncHandler(async (req, res) => {
+  const student = await findAssignedStudent(req.user, req.params.id, "name email status cohort mentor");
+  const existingCertificate = await Certificate.findOne({ student: student._id });
+
+  if (existingCertificate?.status === "issued") {
+    throw new ApiError(409, "This mentee already has an issued certificate");
+  }
+
+  if (existingCertificate?.status === "revoked") {
+    throw new ApiError(409, "This certificate request was revoked by admin");
+  }
+
+  const certificate = existingCertificate || new Certificate({
+    student: student._id,
+    cohort: student.cohort?._id || student.cohort,
+    mentorApprovedBy: req.user._id
+  });
+
+  certificate.cohort = student.cohort?._id || student.cohort;
+  certificate.mentorApprovedBy = req.user._id;
+  certificate.mentorApprovedAt = new Date();
+  certificate.mentorNotes = sanitizeRichText(req.body.mentorNotes || "");
+  certificate.status = "mentorApproved";
+  await certificate.save();
+
+  const admins = await User.find({
+    role: { $in: ["admin", "adminManager", "superAdmin"] },
+    status: { $ne: "removed" }
+  }).select("_id name email role");
+
+  if (admins.length) {
+    await notifyUsers({
+      recipients: admins,
+      portalRole: "admin",
+      notification: {
+        title: `Certificate review: ${student.name}`,
+        message: `${req.user.name} recommended ${student.name} for BYBS graduation certificate review.`,
+        channel: "both",
+        previewText: "A mentor submitted a graduation recommendation.",
+        ctaLabel: "Review certificate",
+        ctaUrl: "/certificates",
+        targetType: "certificate",
+        targetRole: "admin",
+        targetLabel: student.name,
+        type: "system",
+        readStatus: false
+      }
+    });
+  }
+
+  await certificate.populate("student", "name email status cohort");
+  await certificate.populate("cohort", "title status");
+  await certificate.populate("mentorApprovedBy", "name email");
+
+  res.status(existingCertificate ? 200 : 201).json({
+    data: serializeCertificate(certificate)
+  });
+});
+
 export const listMentorSubmissions = asyncHandler(async (req, res) => {
   const { page, limit, skip } = getPagination(req.query);
   const students = await assignedStudents(req.user);
@@ -598,6 +1035,24 @@ export const reviewSubmission = asyncHandler(async (req, res) => {
   await submission.populate("student", "name email cohort");
   await submission.populate("assignment", "title dueDate maxScore status");
   await submission.populate("reviewedBy", "name email");
+
+  await notifyUser({
+    recipient: submission.student,
+    portalRole: "student",
+    notification: {
+      title: `Assignment reviewed: ${submission.assignment?.title || "Submission"}`,
+      message: req.body.feedback || `Your submission status is now ${submission.status}.`,
+      channel: "both",
+      previewText: sanitizePlainText(req.body.feedback || `Submission status: ${submission.status}`).slice(0, 160),
+      type: "assignment",
+      ctaLabel: "Open assignments",
+      ctaUrl: "/app/assignments",
+      targetType: "assignment",
+      targetRole: "student",
+      targetLabel: submission.assignment?.title || "Submission review",
+      readStatus: false
+    }
+  });
 
   res.json({ data: submission });
 });
@@ -675,9 +1130,34 @@ export const updateMentorBooking = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Booking not found");
   }
 
+  const previousStatus = booking.status;
+  const previousMeetingLink = booking.meetingLink;
   Object.assign(booking, sanitizeMentorBookingPayload(req.body));
   await booking.save();
   await booking.populate("student", "name email cohort");
+
+  const statusChanged = req.body.status && previousStatus !== booking.status;
+  const meetingLinkAdded = req.body.meetingLink && previousMeetingLink !== booking.meetingLink;
+
+  if (statusChanged || meetingLinkAdded || req.body.mentorNotes) {
+    await notifyUser({
+      recipient: booking.student,
+      portalRole: "student",
+      notification: {
+        title: statusChanged ? `Booking ${booking.status}` : "Booking updated",
+        message: req.body.mentorNotes || `Your mentor booking for ${new Date(booking.startsAt).toLocaleString()} was updated.`,
+        channel: "both",
+        previewText: sanitizePlainText(req.body.mentorNotes || `Booking status: ${booking.status}`).slice(0, 160),
+        type: "booking",
+        ctaLabel: "Open bookings",
+        ctaUrl: "/app/bookings",
+        targetType: "booking",
+        targetRole: "student",
+        targetLabel: "Mentor booking",
+        readStatus: false
+      }
+    });
+  }
 
   res.json({ data: booking });
 });
@@ -689,6 +1169,8 @@ export const listMentorReports = asyncHandler(async (req, res) => {
       .populate("cohort", "title status")
       .populate("studentsDoingWell", "name email")
       .populate("studentsAtRisk", "name email")
+      .populate("adminComments.admin", "name email role")
+      .populate("lastReviewedBy", "name email role")
       .sort({ submittedAt: -1 })
       .skip(skip)
       .limit(limit),
@@ -729,8 +1211,53 @@ export const createMentorReport = asyncHandler(async (req, res) => {
   await report.populate("cohort", "title status");
   await report.populate("studentsDoingWell", "name email");
   await report.populate("studentsAtRisk", "name email");
+  await report.populate("adminComments.admin", "name email role");
+  await report.populate("lastReviewedBy", "name email role");
 
   res.status(201).json({ data: report });
+});
+
+export const updateMentorReport = asyncHandler(async (req, res) => {
+  const report = await Report.findOne({ _id: req.params.id, mentor: req.user._id });
+
+  if (!report) {
+    throw new ApiError(404, "Report not found");
+  }
+
+  const cohortIds = await mentorCohortIds(req.user);
+  const nextCohort = req.body.cohort || report.cohort;
+
+  if (req.body.cohort && !cohortIds.includes(String(req.body.cohort))) {
+    throw new ApiError(403, "You can only update reports for your assigned cohort");
+  }
+
+  await assertStudentsInScope(req.user, [
+    ...(req.body.studentsDoingWell || []),
+    ...(req.body.studentsAtRisk || [])
+  ]);
+
+  const payload = sanitizeMentorReportPayload(req.body, { partial: true });
+
+  if (req.body.cohort) {
+    payload.cohort = req.body.cohort;
+  }
+
+  if (req.body.cohort && !Object.prototype.hasOwnProperty.call(payload, "activeStudentCount")) {
+    payload.activeStudentCount = await User.countDocuments({
+      ...(await assignedStudentFilter(req.user)),
+      cohort: nextCohort
+    });
+  }
+
+  Object.assign(report, payload, { reviewStatus: "submitted" });
+  await report.save();
+  await report.populate("cohort", "title status");
+  await report.populate("studentsDoingWell", "name email");
+  await report.populate("studentsAtRisk", "name email");
+  await report.populate("adminComments.admin", "name email role");
+  await report.populate("lastReviewedBy", "name email role");
+
+  res.json({ data: report });
 });
 
 function sanitizeMentorBookingPayload(payload) {
@@ -743,13 +1270,34 @@ function sanitizeMentorBookingPayload(payload) {
   return nextPayload;
 }
 
-function sanitizeMentorReportPayload(payload) {
-  return {
-    ...payload,
-    assignmentCompletionSummary: sanitizeRichText(payload.assignmentCompletionSummary || ""),
-    attendanceConcerns: sanitizeRichText(payload.attendanceConcerns || ""),
-    observations: sanitizeRichText(payload.observations || ""),
-    recommendations: sanitizeRichText(payload.recommendations || ""),
-    supportNeeded: sanitizeRichText(payload.supportNeeded || "")
-  };
+function sanitizeMentorReportPayload(payload, { partial = false } = {}) {
+  const nextPayload = {};
+  const fields = [
+    "cohort",
+    "period",
+    "activeStudentCount",
+    "studentsDoingWell",
+    "studentsAtRisk"
+  ];
+  const richTextFields = [
+    "assignmentCompletionSummary",
+    "attendanceConcerns",
+    "observations",
+    "recommendations",
+    "supportNeeded"
+  ];
+
+  fields.forEach((field) => {
+    if (!partial || Object.prototype.hasOwnProperty.call(payload, field)) {
+      nextPayload[field] = payload[field];
+    }
+  });
+
+  richTextFields.forEach((field) => {
+    if (!partial || Object.prototype.hasOwnProperty.call(payload, field)) {
+      nextPayload[field] = sanitizeRichText(payload[field] || "");
+    }
+  });
+
+  return nextPayload;
 }

@@ -93,7 +93,7 @@ export function ReviewsPage() {
             <div className="lg:col-span-3">
               <p className="text-sm font-semibold uppercase text-bybs-blue">Reviewing submission</p>
               <h2 className="mt-1 text-lg font-semibold text-bybs-navy">{selectedSubmission.assignment?.title || "Assignment"}</h2>
-              <p className="mt-1 text-sm text-bybs-body">{selectedSubmission.student?.name || "Student"}</p>
+              <p className="mt-1 text-sm text-bybs-body">{selectedSubmission.student?.name || "Mentee"}</p>
             </div>
             <FormField label={`Score${selectedSubmission.assignment?.maxScore ? ` / ${selectedSubmission.assignment.maxScore}` : ""}`}>
               <input
@@ -143,7 +143,7 @@ export function ReviewsPage() {
 
       <DataTable
         columns={[
-          { key: "student", header: "Student", render: (row) => row.student?.name || "Student" },
+          { key: "student", header: "Mentee", render: (row) => row.student?.name || "Mentee" },
           { key: "assignment", header: "Assignment", render: (row) => row.assignment?.title || "Assignment" },
           { key: "submittedAt", header: "Submitted", render: (row) => formatDateTime(row.submittedAt) },
           { key: "score", header: "Score", render: (row) => row.score ?? "Not scored" },
@@ -158,7 +158,7 @@ export function ReviewsPage() {
             )
           }
         ]}
-        emptyDescription="Submitted assignments will appear here once students begin uploading work."
+        emptyDescription="Submitted assignments will appear here once mentees begin uploading work."
         emptyTitle="No submissions waiting"
         rows={submissions}
       />

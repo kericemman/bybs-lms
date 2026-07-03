@@ -10,6 +10,11 @@ import {
   updateBetaFeedback
 } from "../controllers/betaFeedbackController.js";
 import {
+  issueCertificate,
+  listAdminCertificates,
+  revokeCertificate
+} from "../controllers/certificateController.js";
+import {
   createAnnouncement,
   createDiscussion,
   createModule,
@@ -34,12 +39,18 @@ import {
   updateBooking,
   updateDiscussion,
   updateModule,
+  updateReportReview,
   updateResource,
   updateSession,
   updateSupportTicket
 } from "../controllers/adminContentController.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
+import {
+  certificateParamsSchema,
+  listCertificatesSchema,
+  revokeCertificateSchema
+} from "../validators/certificateSchemas.js";
 import {
   announcementParamsSchema,
   createAnnouncementSchema,
@@ -57,6 +68,7 @@ import {
   updateBookingSchema,
   updateDiscussionSchema,
   updateModuleSchema,
+  updateReportReviewSchema,
   updateResourceSchema,
   updateSessionSchema,
   updateSupportTicketSchema
@@ -110,6 +122,11 @@ adminContentRoutes.get("/bookings", validate(listBookingsSchema), listBookings);
 adminContentRoutes.patch("/bookings/:id", validate(updateBookingSchema), updateBooking);
 
 adminContentRoutes.get("/reports", validate(listReportsSchema), listReports);
+adminContentRoutes.patch("/reports/:id/review", validate(updateReportReviewSchema), updateReportReview);
+
+adminContentRoutes.get("/certificates", validate(listCertificatesSchema), listAdminCertificates);
+adminContentRoutes.post("/certificates/:id/issue", validate(certificateParamsSchema), requireRole("admin", "superAdmin"), issueCertificate);
+adminContentRoutes.post("/certificates/:id/revoke", validate(revokeCertificateSchema), requireRole("admin", "superAdmin"), revokeCertificate);
 
 adminContentRoutes.get("/support-tickets", validate(listSupportTicketsSchema), listSupportTickets);
 adminContentRoutes.get("/support-tickets/:id", validate(idParamsSchema), getSupportTicket);

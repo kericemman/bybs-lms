@@ -97,7 +97,7 @@ export function CohortsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        description="Organize students, mentors, modules, sessions, assignments, announcements, and rankings."
+        description="Organize mentees, mentors, modules, sessions, assignments, announcements, and rankings."
         title="Cohorts"
       />
 
@@ -172,7 +172,7 @@ export function CohortsPage() {
       <DataTable
         columns={[
           { key: "title", header: "Cohort" },
-          { key: "students", header: "Students", render: (row) => row.students?.length || 0 },
+          { key: "students", header: "Mentees", render: (row) => row.students?.length || 0 },
           { key: "mentors", header: "Mentors", render: (row) => row.mentors?.length || 0 },
           { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
           {

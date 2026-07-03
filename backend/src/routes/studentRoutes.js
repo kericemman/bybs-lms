@@ -1,7 +1,10 @@
 import { Router } from "express";
+import { listStudentCertificates } from "../controllers/certificateController.js";
 import {
   createStudentBooking,
+  createStudentDiscussion,
   createStudentSupportTicket,
+  listStudentDiscussions,
   listStudentAssignments,
   listStudentBookings,
   listStudentMaterials,
@@ -12,6 +15,7 @@ import {
   listStudentSupportTickets,
   markStudentNotificationRead,
   replyStudentSupportTicket,
+  replyStudentDiscussion,
   studentDashboard,
   studentProgress,
   submitStudentAssignment,
@@ -33,6 +37,11 @@ import {
   updateBookingSchema
 } from "../validators/studentSchemas.js";
 import { createBetaFeedbackSchema, listMyBetaFeedbackSchema } from "../validators/betaFeedbackSchemas.js";
+import {
+  createDiscussionCommentSchema,
+  createPortalDiscussionSchema,
+  discussionListSchema
+} from "../validators/discussionSchemas.js";
 
 export const studentRoutes = Router();
 
@@ -42,9 +51,13 @@ studentRoutes.get("/dashboard", studentDashboard);
 studentRoutes.get("/modules", validate(studentListSchema), listStudentModules);
 studentRoutes.get("/sessions", validate(studentListSchema), listStudentSessions);
 studentRoutes.get("/materials", validate(studentListSchema), listStudentMaterials);
+studentRoutes.get("/discussions", validate(discussionListSchema), listStudentDiscussions);
+studentRoutes.post("/discussions", validate(createPortalDiscussionSchema), createStudentDiscussion);
+studentRoutes.post("/discussions/:id/comments", validate(createDiscussionCommentSchema), replyStudentDiscussion);
 studentRoutes.get("/assignments", validate(studentAssignmentListSchema), listStudentAssignments);
 studentRoutes.post("/assignments/:id/submission", validate(submitAssignmentSchema), submitStudentAssignment);
 studentRoutes.get("/progress", studentProgress);
+studentRoutes.get("/certificates", listStudentCertificates);
 studentRoutes.get("/availability", listStudentMentorAvailability);
 studentRoutes.get("/bookings", validate(studentListSchema), listStudentBookings);
 studentRoutes.post("/bookings", validate(createBookingSchema), createStudentBooking);

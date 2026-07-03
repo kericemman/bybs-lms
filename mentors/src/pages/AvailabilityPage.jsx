@@ -88,7 +88,7 @@ export function AvailabilityPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        description="Set weekly slots students can book for 1:1 mentor sessions."
+        description="Set weekly slots mentees can book for 1:1 mentor sessions."
         title="Availability"
       />
 

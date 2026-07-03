@@ -8,6 +8,7 @@ import { AssignmentsPage } from "./pages/AssignmentsPage.jsx";
 import { AnnouncementsPage } from "./pages/AnnouncementsPage.jsx";
 import { BetaApplicationsPage } from "./pages/BetaApplicationsPage.jsx";
 import { BookingsPage } from "./pages/BookingsPage.jsx";
+import { CertificatesPage } from "./pages/CertificatesPage.jsx";
 import { CohortsPage } from "./pages/CohortsPage.jsx";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { DiscussionsPage } from "./pages/DiscussionsPage.jsx";
@@ -63,6 +64,7 @@ export default function App() {
                   />
                   <Route element={<BookingsPage />} path="/bookings" />
                   <Route element={<ReportsPage />} path="/reports" />
+                  <Route element={<CertificatesPage />} path="/certificates" />
                   <Route element={<DiscussionsPage />} path="/discussions" />
                   <Route element={<AnnouncementsPage />} path="/announcements" />
                   <Route

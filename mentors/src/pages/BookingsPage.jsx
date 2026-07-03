@@ -94,7 +94,7 @@ export function BookingsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        description="Approve, decline, complete, or add notes to student mentor sessions."
+        description="Approve, decline, complete, or add notes to mentee mentor sessions."
         title="Bookings"
       />
 
@@ -103,7 +103,7 @@ export function BookingsPage() {
           <form className="grid gap-4 lg:grid-cols-3" onSubmit={submitUpdate}>
             <div className="lg:col-span-3">
               <p className="text-sm font-semibold uppercase text-bybs-blue">Booking update</p>
-              <h2 className="mt-1 text-lg font-semibold text-bybs-navy">{selectedBooking.student?.name || "Student"}</h2>
+              <h2 className="mt-1 text-lg font-semibold text-bybs-navy">{selectedBooking.student?.name || "Mentee"}</h2>
               <p className="mt-1 text-sm text-bybs-body">{formatDateTime(selectedBooking.startsAt)}</p>
             </div>
             <FormField label="Status">
@@ -144,7 +144,7 @@ export function BookingsPage() {
 
       <DataTable
         columns={[
-          { key: "student", header: "Student", render: (row) => row.student?.name || "Student" },
+          { key: "student", header: "Mentee", render: (row) => row.student?.name || "Mentee" },
           { key: "startsAt", header: "Start", render: (row) => formatDateTime(row.startsAt) },
           { key: "reason", header: "Reason", wrap: true },
           { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
@@ -167,7 +167,7 @@ export function BookingsPage() {
             )
           }
         ]}
-        emptyDescription="Student booking requests will appear here after availability is published."
+        emptyDescription="Mentee booking requests will appear here after availability is published."
         emptyTitle="No bookings yet"
         rows={bookings}
       />

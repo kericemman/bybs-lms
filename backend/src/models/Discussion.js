@@ -11,7 +11,7 @@ const commentSchema = new mongoose.Schema(
 
 const discussionSchema = new mongoose.Schema(
   {
-    cohort: { type: mongoose.Schema.Types.ObjectId, ref: "Cohort", required: true, index: true },
+    cohort: { type: mongoose.Schema.Types.ObjectId, ref: "Cohort", index: true },
     module: { type: mongoose.Schema.Types.ObjectId, ref: "Module", index: true },
     title: { type: String, required: true, trim: true },
     body: { type: String },

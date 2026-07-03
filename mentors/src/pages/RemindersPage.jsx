@@ -6,10 +6,10 @@ import { mentorApi } from "../services/api.js";
 import { formatDate } from "../utils/format.js";
 
 const targetOptions = [
-  { value: "notSubmitted", label: "Students who have not submitted" },
-  { value: "lateSubmission", label: "Students with late submissions" },
-  { value: "needsRevision", label: "Students needing revision" },
-  { value: "allAssigned", label: "All assigned students in the cohort" }
+  { value: "notSubmitted", label: "Mentees who have not submitted" },
+  { value: "lateSubmission", label: "Mentees with late submissions" },
+  { value: "needsRevision", label: "Mentees needing revision" },
+  { value: "allAssigned", label: "All assigned mentees in the cohort" }
 ];
 
 function initialForm() {
@@ -79,7 +79,7 @@ export function RemindersPage() {
         title: form.title.trim(),
         message: form.message.trim()
       });
-      setFeedback(`Reminder sent to ${response.data.sent} student(s).`);
+      setFeedback(`Reminder sent to ${response.data.sent} mentee(s).`);
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -90,7 +90,7 @@ export function RemindersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        description="Send focused reminders so students complete, revise, and submit assignments on time."
+        description="Send focused reminders so mentees complete, revise, and submit assignments on time."
         title="Assignment reminders"
       />
 

@@ -14,7 +14,7 @@ export function AuthProvider({ children }) {
     const response = await api.post("/auth/login", credentials);
 
     if (response.user?.role !== "student") {
-      throw new Error("This portal is only for students.");
+      throw new Error("This portal is only for mentees.");
     }
 
     window.localStorage.setItem("bybs_student_token", response.token);
@@ -26,6 +26,20 @@ export function AuthProvider({ children }) {
 
   async function changePassword(payload) {
     const response = await api.post("/auth/change-password", payload);
+    window.localStorage.setItem("bybs_student_user", JSON.stringify(response.user));
+    setUser(response.user);
+    return response.user;
+  }
+
+  async function updateProfile(payload) {
+    const response = await api.patch("/auth/profile", payload);
+    window.localStorage.setItem("bybs_student_user", JSON.stringify(response.user));
+    setUser(response.user);
+    return response.user;
+  }
+
+  async function uploadProfileImage(formData) {
+    const response = await api.upload("/auth/profile-image", formData);
     window.localStorage.setItem("bybs_student_user", JSON.stringify(response.user));
     setUser(response.user);
     return response.user;
@@ -43,6 +57,8 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(token),
       login,
       changePassword,
+      updateProfile,
+      uploadProfileImage,
       logout,
       token,
       user

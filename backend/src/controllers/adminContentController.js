@@ -20,6 +20,7 @@ import {
   personalizeAnnouncementForRecipient,
   sendAnnouncementEmails
 } from "../services/announcementEmailService.js";
+import { notifyUser } from "../services/portalNotificationService.js";
 
 function searchRegex(search) {
   return { $regex: search, $options: "i" };
@@ -436,6 +437,7 @@ export const listReports = asyncHandler(async (req, res) => {
   if (req.query.cohort) filter.cohort = req.query.cohort;
   if (req.query.mentor) filter.mentor = req.query.mentor;
   if (req.query.period) filter.period = req.query.period;
+  if (req.query.reviewStatus) filter.reviewStatus = req.query.reviewStatus;
   res.json(
     await listCollection({
       model: Report,
@@ -445,11 +447,75 @@ export const listReports = asyncHandler(async (req, res) => {
         { path: "cohort", select: "title status" },
         { path: "mentor", select: "name email" },
         { path: "studentsDoingWell", select: "name email" },
-        { path: "studentsAtRisk", select: "name email" }
+        { path: "studentsAtRisk", select: "name email" },
+        { path: "adminComments.admin", select: "name email role" },
+        { path: "lastReviewedBy", select: "name email role" }
       ],
       sort: { submittedAt: -1 }
     })
   );
+});
+
+export const updateReportReview = asyncHandler(async (req, res) => {
+  const report = await Report.findById(req.params.id);
+
+  if (!report) {
+    throw new ApiError(404, "Report not found");
+  }
+
+  const nextStatus = req.body.reviewStatus || report.reviewStatus;
+  const cleanComment = sanitizeRichText(req.body.comment || "");
+  const statusChanged = req.body.reviewStatus && req.body.reviewStatus !== report.reviewStatus;
+
+  if (req.body.reviewStatus) {
+    report.reviewStatus = req.body.reviewStatus;
+    report.lastReviewedBy = req.user._id;
+    report.reviewedAt = new Date();
+  }
+
+  if (cleanComment || statusChanged) {
+    report.adminComments.push({
+      admin: req.user._id,
+      message: cleanComment || `Status changed to ${nextStatus}.`,
+      status: nextStatus,
+      action:
+        nextStatus === "clarificationRequested"
+          ? "clarification"
+          : statusChanged
+            ? "statusChange"
+            : "comment"
+    });
+  }
+
+  await report.save();
+  await report.populate("cohort", "title status");
+  await report.populate("mentor", "name email");
+  await report.populate("studentsDoingWell", "name email");
+  await report.populate("studentsAtRisk", "name email");
+  await report.populate("adminComments.admin", "name email role");
+  await report.populate("lastReviewedBy", "name email role");
+
+  if (cleanComment || statusChanged) {
+    await notifyUser({
+      recipient: report.mentor,
+      portalRole: "mentor",
+      notification: {
+        title: nextStatus === "clarificationRequested" ? "Clarification requested on your report" : "Admin updated your report",
+        message: cleanComment || `Your report status changed to ${nextStatus}.`,
+        channel: "both",
+        previewText: sanitizePlainText(cleanComment || `Report status: ${nextStatus}`).slice(0, 160),
+        type: "system",
+        ctaLabel: "Open reports",
+        ctaUrl: "/reports",
+        targetType: "report",
+        targetRole: "mentor",
+        targetLabel: "Mentor report",
+        readStatus: false
+      }
+    });
+  }
+
+  res.json({ data: report });
 });
 
 export const listSupportTickets = asyncHandler(async (req, res) => {
@@ -649,16 +715,22 @@ export const updateSupportTicket = asyncHandler(async (req, res) => {
   if (ticket.student && (reply || updates.status)) {
     const statusMessage = updates.status ? `Status changed to ${updates.status}.` : "";
     const notificationMessage = reply ? sanitizeRichText(reply) : statusMessage;
-    await Notification.create({
-      recipient: ticket.student._id || ticket.student,
-      title: `Support update: ${ticket.subject}`,
-      message: notificationMessage,
-      channel: "platform",
-      previewText: notificationMessage.slice(0, 160),
-      type: "support",
-      ctaLabel: "Open support",
-      ctaUrl: "/support",
-      readStatus: false
+    await notifyUser({
+      recipient: ticket.student,
+      portalRole: "student",
+      notification: {
+        title: `Support update: ${ticket.subject}`,
+        message: notificationMessage,
+        channel: "both",
+        previewText: sanitizePlainText(notificationMessage).slice(0, 160),
+        type: "support",
+        ctaLabel: "Open support",
+        ctaUrl: "/app/support",
+        targetType: "support",
+        targetRole: "student",
+        targetLabel: ticket.subject,
+        readStatus: false
+      }
     });
   }
 

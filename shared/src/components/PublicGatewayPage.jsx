@@ -154,7 +154,7 @@ export function PublicGatewayPage({
               </NavLink>
             ))}
             <Button as="a" href={studentLoginUrl} size="sm" variant="secondary">
-              Student login
+              Mentee login
             </Button>
             <Button as="a" href={mentorLoginUrl} size="sm" variant="secondary">
               Mentor login
@@ -185,7 +185,7 @@ export function PublicGatewayPage({
               ))}
               <div className="grid gap-2 pt-1 sm:grid-cols-3">
                 <Button as="a" href={studentLoginUrl} onClick={() => setMenuOpen(false)} size="sm" variant="secondary">
-                  Student login
+                  Mentee login
                 </Button>
                 <Button as="a" href={mentorLoginUrl} onClick={() => setMenuOpen(false)} size="sm" variant="secondary">
                   Mentor login
@@ -221,7 +221,7 @@ export function PublicGatewayPage({
                 LEARNING MANAGEMENT SYSTEM
               </h2>
               <p className="mt-6 max-w-2xl text-base leading-8 text-white/80 sm:text-lg">
-                A digital learning and mentorship platform created to support BYBS students, mentors, and program teams
+                A digital learning and mentorship platform created to support BYBS mentees, mentors, and program teams
                 throughout the fellowship journey.
               </p>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-white/70">
@@ -233,7 +233,7 @@ export function PublicGatewayPage({
                   Visit buildyourbestself.org
                 </Button>
                 <Button as="a" className="w-full sm:w-auto" href={studentLoginUrl} icon={GraduationCap} size="lg">
-                  Student login
+                  Mentee login
                 </Button>
                 <Button as="a" className="w-full sm:w-auto" href={mentorLoginUrl} icon={UserRoundCheck} size="lg" variant="secondary">
                   Mentor login
@@ -242,8 +242,8 @@ export function PublicGatewayPage({
             </div>
 
             <div className="mt-12 grid gap-4 border-t border-white/10 pt-6 sm:grid-cols-3">
-              <Signal title="Students" description="Access resources, submit assignments, track progress, join discussions, and connect with mentors." />
-              <Signal title="Mentors" description="Review submissions, upload resources, manage sessions, send reminders, and report student growth." />
+              <Signal title="Mentees" description="Access resources, submit assignments, track progress, join discussions, and connect with mentors." />
+              <Signal title="Mentors" description="Review submissions, upload resources, manage sessions, send reminders, and report mentee growth." />
               <Signal title="Program teams" description="Manage cohorts, activity, support requests, reports, and the wider fellowship experience." />
             </div>
           </div>
@@ -266,7 +266,7 @@ export function PublicGatewayPage({
 
             <div className="mt-8 grid gap-4 md:grid-cols-3">
               <Pillar
-                description="BYBS helps students dream again through fellowships, coaching, community programs, and personal development resources."
+                description="BYBS helps mentees dream again through fellowships, coaching, community programs, and personal development resources."
                 icon={Target}
                 title="Inspire"
               />
@@ -276,7 +276,7 @@ export function PublicGatewayPage({
                 title="Heal"
               />
               <Pillar
-                description="With guidance, structure, support, and community, students grow into more self-aware and purpose-driven individuals."
+                description="With guidance, structure, support, and community, mentees grow into more self-aware and purpose-driven individuals."
                 icon={CheckCircle2}
                 title="Evolve"
               />
@@ -292,8 +292,8 @@ export function PublicGatewayPage({
                 Growth requires more than motivation. It requires structure.
               </h2>
               <p className="mt-4 text-base leading-8 text-bybs-body">
-                As the fellowship grows, students need one place for materials, assignments, progress, discussions, and
-                mentor connection. Mentors need a clearer way to support students, review submissions, share resources,
+                As the fellowship grows, mentees need one place for materials, assignments, progress, discussions, and
+                mentor connection. Mentors need a clearer way to support mentees, review submissions, share resources,
                 manage sessions, and report development.
               </p>
             </div>
@@ -343,15 +343,15 @@ export function PublicGatewayPage({
 
             <div className="grid gap-4 lg:grid-cols-2">
               <PortalCard
-                action="Open student portal"
+                action="Open mentee portal"
                 description="Continue your BYBS learning journey, complete assignments, track progress, access resources, join discussions, and connect with mentors."
                 href={studentLoginUrl}
                 icon={GraduationCap}
-                title="Student portal"
+                title="Mentee portal"
               />
               <PortalCard
                 action="Open mentor portal"
-                description="Support students, review assignments, upload resources, manage sessions, track growth, and share reports with the BYBS team."
+                description="Support mentees, review assignments, upload resources, manage sessions, track growth, and share reports with the BYBS team."
                 href={mentorLoginUrl}
                 icon={UserRoundCheck}
                 title="Mentor portal"
@@ -370,17 +370,17 @@ export function PublicGatewayPage({
               </h2>
               <p className="mt-4 text-base leading-8 text-bybs-body">
                 Assignments, deadlines, resources, mentor sessions, support requests, and progress updates become visible
-                to the right people. That clarity helps students stay consistent and helps mentors follow up with care.
+                to the right people. That clarity helps mentees stay consistent and helps mentors follow up with care.
               </p>
             </div>
             <div className="grid gap-5 rounded-lg border border-bybs-border bg-white p-5 shadow-sm sm:p-6">
               <FeatureItem
-                description="Students can keep their fellowship materials, tasks, progress, and support activity organized in one place."
+                description="Mentees can keep their fellowship materials, tasks, progress, and support activity organized in one place."
                 icon={GraduationCap}
-                title="For students"
+                title="For mentees"
               />
               <FeatureItem
-                description="Mentors can see student progress, review work, send reminders, upload session materials, and submit reports."
+                description="Mentors can see mentee progress, review work, send reminders, upload session materials, and submit reports."
                 icon={UserRoundCheck}
                 title="For mentors"
               />
@@ -402,7 +402,7 @@ export function PublicGatewayPage({
                   Help shape the final learning experience before launch.
                 </h2>
                 <p className="mt-4 text-base leading-8 text-bybs-body">
-                  Selected students and mentors will be invited to test the system, explore the features, report issues,
+                  Selected mentees and mentors will be invited to test the system, explore the features, report issues,
                   and share honest feedback before the LMS is fully launched.
                 </p>
               </div>
@@ -410,10 +410,10 @@ export function PublicGatewayPage({
                 <Pillar
                   description="Test resources, assignments, submissions, progress tracking, discussions, mentor booking, and support."
                   icon={GraduationCap}
-                  title="Student beta testing"
+                  title="Mentee beta testing"
                 />
                 <Pillar
-                  description="Test student tracking, assignment reviews, uploads, session management, reminders, availability, and reports."
+                  description="Test mentee tracking, assignment reviews, uploads, session management, reminders, availability, and reports."
                   icon={UserRoundCheck}
                   title="Mentor beta testing"
                 />
@@ -464,7 +464,7 @@ export function PublicGatewayPage({
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
             <a className="text-white/80 hover:text-white" href={mainWebsiteUrl}>Main website</a>
-            <a className="text-white/80 hover:text-white" href={studentLoginUrl}>Student login</a>
+            <a className="text-white/80 hover:text-white" href={studentLoginUrl}>Mentee login</a>
             <a className="text-white/80 hover:text-white" href={mentorLoginUrl}>Mentor login</a>
             <a className="text-white/80 hover:text-white" href={betaUrl}>Beta testing</a>
           </div>

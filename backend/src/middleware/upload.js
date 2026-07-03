@@ -31,6 +31,7 @@ const allowedResourceTypes = new Set([
   "video/mp4"
 ]);
 
+const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 const csvTypes = new Set(["text/csv", "application/csv", "application/vnd.ms-excel", "text/plain"]);
 const compressedTypes = new Set(["application/gzip", "application/x-gzip", "application/octet-stream"]);
 const optimizableImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -53,6 +54,7 @@ const allowedResourceExtensions = new Set([
   ".xlsx"
 ]);
 const allowedCsvExtensions = new Set([".csv"]);
+const allowedImageExtensions = new Set([".jpeg", ".jpg", ".png", ".webp"]);
 
 function safeExtension(file) {
   const ext = path.extname(safeOriginalName(file.originalname)).toLowerCase();
@@ -125,6 +127,22 @@ function validateCsvUpload(req, file) {
   return csvTypes.has(mimeType) && allowedCsvExtensions.has(extension);
 }
 
+function validateImageUpload(req, file) {
+  const metadata = compressedFileMetadata(req, file.fieldname);
+  const mimeType = metadata?.originalType || file.mimetype;
+  const extension = uploadExtension(req, file);
+
+  if (env.requireCompressedUploads && !metadata) {
+    return false;
+  }
+
+  if (metadata && !validateCompressedEnvelope(file)) {
+    return false;
+  }
+
+  return allowedImageTypes.has(mimeType) && allowedImageExtensions.has(extension);
+}
+
 function compressedMetadataRequired(req, file) {
   return env.requireCompressedUploads && !compressedFileMetadata(req, file.fieldname);
 }
@@ -168,6 +186,22 @@ function ensureDetectedCsvType({ detected }) {
   if (detected?.mime) {
     throw new ApiError(400, "CSV import must be a plain text CSV file");
   }
+}
+
+function ensureDetectedImageType({ file, detected }) {
+  const detectedMimeType = detected?.mime;
+  const mimeType = detectedMimeType || file.mimetype;
+  const extension = safeExtension(file);
+
+  if (detectedMimeType && !allowedImageTypes.has(detectedMimeType)) {
+    throw new ApiError(400, "Unsupported profile image content");
+  }
+
+  if (!allowedImageTypes.has(mimeType) || !allowedImageExtensions.has(extension)) {
+    throw new ApiError(400, "Please upload a JPG, PNG, or WebP image");
+  }
+
+  return mimeType;
 }
 
 async function optimizeStoredImage(file, mimeType) {
@@ -255,6 +289,31 @@ export const csvUpload = multer({
   }
 });
 
+export const profileImageUpload = multer({
+  storage: resourceStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024
+  },
+  fileFilter(req, file, callback) {
+    try {
+      if (compressedMetadataRequired(req, file)) {
+        callback(new ApiError(400, "Uploads must be compressed by the BYBS uploader"));
+        return;
+      }
+
+      if (!validateImageUpload(req, file)) {
+        callback(new ApiError(400, "Please upload a JPG, PNG, or WebP image"));
+        return;
+      }
+    } catch (error) {
+      callback(error);
+      return;
+    }
+
+    callback(null, true);
+  }
+});
+
 export async function decompressCompressedUpload(req, _res, next) {
   try {
     if (!req.file || !isCompressedUpload(req, req.file)) {
@@ -326,6 +385,31 @@ export async function finalizeCsvUpload(req, _res, next) {
     ensureDetectedCsvType({ detected });
     next();
   } catch (error) {
+    next(error);
+  }
+}
+
+export async function finalizeProfileImageUpload(req, _res, next) {
+  try {
+    if (!req.file) {
+      next();
+      return;
+    }
+
+    req.file.originalname = safeOriginalName(req.file.originalname);
+    const detected = await detectFileType(req.file);
+    const mimeType = ensureDetectedImageType({ file: req.file, detected });
+
+    req.file.detectedMimeType = detected?.mime || "";
+    req.file.mimetype = mimeType;
+
+    await optimizeStoredImage(req.file, mimeType);
+    next();
+  } catch (error) {
+    if (req.file?.path) {
+      await unlink(req.file.path).catch(() => {});
+    }
+
     next(error);
   }
 }

@@ -7,17 +7,36 @@ import { formatDateTime } from "../utils/format.js";
 const inputClassName = "h-10 w-full rounded-md border border-bybs-border px-3 text-sm outline-none focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale";
 const textareaClassName = "min-h-24 w-full rounded-md border border-bybs-border px-3 py-2 text-sm outline-none focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale";
 
-function localDateTimeValue(value) {
-  if (!value) return "";
-  const date = new Date(value);
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+const dayLabels = {
+  monday: "Monday",
+  tuesday: "Tuesday",
+  wednesday: "Wednesday",
+  thursday: "Thursday",
+  friday: "Friday",
+  saturday: "Saturday",
+  sunday: "Sunday"
+};
+
+function emptyForm() {
+  return {
+    selectedOption: "",
+    availabilitySlot: "",
+    startsAt: "",
+    endsAt: "",
+    reason: ""
+  };
+}
+
+function optionKey(option) {
+  return `${option.availabilitySlot}|${option.startsAt}`;
 }
 
 export function BookingsPage() {
   const [bookings, setBookings] = useState([]);
   const [availability, setAvailability] = useState([]);
+  const [upcomingAvailability, setUpcomingAvailability] = useState([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ startsAt: "", reason: "" });
+  const [form, setForm] = useState(() => emptyForm());
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,6 +48,7 @@ export function BookingsPage() {
     ]);
     setBookings(bookingResponse.data);
     setAvailability(availabilityResponse.data);
+    setUpcomingAvailability(availabilityResponse.upcoming || []);
   }
 
   useEffect(() => {
@@ -44,7 +64,7 @@ export function BookingsPage() {
     try {
       await studentApi.createBooking(form);
       setFeedback("Booking request sent.");
-      setForm({ startsAt: "", reason: "" });
+      setForm(emptyForm());
       setShowForm(false);
       await loadBookings();
     } catch (submitError) {
@@ -52,6 +72,18 @@ export function BookingsPage() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function chooseAvailability(optionValue) {
+    const option = upcomingAvailability.find((item) => optionKey(item) === optionValue);
+
+    setForm((current) => ({
+      ...current,
+      selectedOption: optionValue,
+      availabilitySlot: option?.availabilitySlot || "",
+      startsAt: option?.startsAt || "",
+      endsAt: option?.endsAt || ""
+    }));
   }
 
   async function cancelBooking(booking) {
@@ -79,20 +111,26 @@ export function BookingsPage() {
         <section className="rounded-lg border border-bybs-border bg-white p-5 shadow-sm">
           <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
             <label className="block">
-              <span className="text-sm font-medium text-bybs-body">Preferred time</span>
-              <input
+              <span className="text-sm font-medium text-bybs-body">Available time</span>
+              <select
                 className={inputClassName}
-                min={localDateTimeValue(new Date())}
-                onChange={(event) => setForm((current) => ({ ...current, startsAt: event.target.value }))}
+                disabled={!upcomingAvailability.length}
+                onChange={(event) => chooseAvailability(event.target.value)}
                 required
-                type="datetime-local"
-                value={form.startsAt}
-              />
+                value={form.selectedOption}
+              >
+                <option value="">{upcomingAvailability.length ? "Choose a mentor slot" : "No upcoming slots available"}</option>
+                {upcomingAvailability.map((option) => (
+                  <option key={optionKey(option)} value={optionKey(option)}>
+                    {formatDateTime(option.startsAt)} - {formatDateTime(option.endsAt)}
+                  </option>
+                ))}
+              </select>
             </label>
             <div className="rounded-md bg-bybs-pale p-3 text-sm text-bybs-body">
               <p className="font-medium text-bybs-navy">Mentor availability</p>
               {availability.length ? (
-                <p className="mt-1">{availability.map((slot) => `${slot.dayOfWeek} ${slot.startTime}-${slot.endTime}`).join(", ")}</p>
+                <p className="mt-1">{availability.map((slot) => `${dayLabels[slot.dayOfWeek] || slot.dayOfWeek} ${slot.startTime}-${slot.endTime}`).join(", ")}</p>
               ) : (
                 <p className="mt-1">No availability has been published yet.</p>
               )}
@@ -107,7 +145,7 @@ export function BookingsPage() {
               />
             </label>
             <div className="flex flex-wrap gap-2 md:col-span-2">
-              <Button disabled={isSubmitting} type="submit">{isSubmitting ? "Sending..." : "Request booking"}</Button>
+              <Button disabled={isSubmitting || !form.startsAt} type="submit">{isSubmitting ? "Sending..." : "Request booking"}</Button>
               <Button onClick={() => setShowForm(false)} type="button" variant="secondary">Cancel</Button>
             </div>
           </form>

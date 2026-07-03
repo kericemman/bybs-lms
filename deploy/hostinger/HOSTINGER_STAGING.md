@@ -94,7 +94,32 @@ cp mentors/staging.env.example mentors/.env
 cp students/staging.env.example students/.env
 ```
 
-Fill real values for MongoDB, Cloudinary, Resend, `EMAIL_FROM`, admin alerts, and the initial super admin.
+Fill real values for MongoDB, Cloudinary, email delivery, admin alerts, and the initial super admin.
+
+Use either Resend or SMTP for production/staging email delivery. If both are configured, SMTP is preferred.
+
+```txt
+RESEND_API_KEY=...
+EMAIL_FROM=BYBS LMS <verified@buildyourbestself.org>
+
+# Optional SMTP alternative
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=mailer@example.com
+SMTP_PASS=...
+```
+
+Confirm these public URL values are correct because emails, uploaded images, and certificate QR codes depend on them:
+
+```txt
+CLIENT_ADMIN_URL=https://admin.lms.buildyourbestself.org
+CLIENT_MENTOR_URL=https://mentor.lms.buildyourbestself.org
+CLIENT_STUDENT_URL=https://lms.buildyourbestself.org
+PUBLIC_API_URL=https://api.lms.buildyourbestself.org
+EMAIL_LOGO_URL=https://admin.lms.buildyourbestself.org/assets/Logo1.png
+CERTIFICATE_VERIFY_BASE_URL=https://lms.buildyourbestself.org
+```
 
 For the first staging setup only, you can temporarily set:
 
@@ -113,10 +138,8 @@ SEED_SUPER_ADMIN_ON_START=false
 ```bash
 cd /var/www/bybs-lms
 npm ci
-npm run build:admins
-npm run build:mentors
-npm run build:students
-npm --workspace backend test
+npm run build
+npm run test:backend
 ```
 
 If embedded MongoDB is blocked on the VPS, use a staging MongoDB URI and rerun backend integration tests in CI or locally.
@@ -215,7 +238,14 @@ Then test manually:
 - Change temporary password
 - Upload a PDF/image/document and verify it lands in Cloudinary
 - Submit and review a student assignment
+- Send an assignment reminder and confirm the mentee receives an email
+- Create a forum reply and confirm the original author receives an email
+- Request, approve, and cancel a mentor booking
 - Create and resolve a support ticket
+- Mentor recommends a mentee for graduation
+- Admin issues a certificate
+- Mentee downloads the certificate
+- Open the certificate QR/verification link at `https://lms.buildyourbestself.org/verify-certificate/CODE`
 
 ## 11. Updating Staging Later
 
@@ -223,11 +253,10 @@ Then test manually:
 cd /var/www/bybs-lms
 sudo -u bybs git pull
 npm ci
-npm run build:admins
-npm run build:mentors
-npm run build:students
+npm run build
 sudo systemctl restart bybs-lms-api
 sudo systemctl status bybs-lms-api
+bash deploy/hostinger/check-staging.sh
 ```
 
 ## 12. Important

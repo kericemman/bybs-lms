@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { DataTable, PageHeader, ProgressBar, StatusBadge, formatInternationalPhone } from "@bybs/shared";
+import { Link } from "react-router-dom";
+import { Eye } from "lucide-react";
+import { Button, DataTable, PageHeader, ProgressBar, StatusBadge, formatInternationalPhone } from "@bybs/shared";
 import { mentorApi } from "../services/api.js";
 import { formatDate } from "../utils/format.js";
 
@@ -17,13 +19,13 @@ export function StudentsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        description="View assigned students, progress, submissions, attendance, notes, and risk status."
-        title="Assigned students"
+        description="View assigned mentees, progress, submissions, attendance, notes, and risk status."
+        title="Assigned mentees"
       />
       {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
       <DataTable
         columns={[
-          { key: "name", header: "Student" },
+          { key: "name", header: "Mentee" },
           { key: "phone", header: "Phone", render: (row) => formatInternationalPhone(row.phone) },
           { key: "cohort", header: "Cohort", render: (row) => row.cohort?.title || "Unassigned" },
           {
@@ -37,9 +39,18 @@ export function StudentsPage() {
             key: "status",
             header: "Status",
             render: (row) => <StatusBadge status={row.status} />
+          },
+          {
+            key: "actions",
+            header: "Actions",
+            render: (row) => (
+              <Button as={Link} icon={Eye} size="sm" to={`/students/${row.id}`} variant="secondary">
+                View
+              </Button>
+            )
           }
         ]}
-        emptyDescription="Students assigned to you or your cohort will appear here."
+        emptyDescription="Mentees assigned to you or your cohort will appear here."
         rows={students}
       />
     </div>

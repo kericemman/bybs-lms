@@ -24,6 +24,7 @@ export const submitAssignmentSchema = z.object({
 
 export const createBookingSchema = z.object({
   body: z.object({
+    availabilitySlot: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
     startsAt: z.coerce.date(),
     endsAt: z.preprocess(emptyToUndefined, z.coerce.date().optional()),
     reason: z.string().trim().min(5).max(800)

@@ -41,7 +41,7 @@ export function LoginPage() {
           <p className="text-sm font-semibold uppercase text-bybs-blue">BYBS LMS</p>
           <h1 className="mt-2 text-2xl font-semibold text-bybs-navy">Admin login</h1>
           <p className="mt-2 text-sm text-bybs-body">
-            Sign in to manage cohorts, mentors, students, assignments, and reports.
+            Sign in to manage cohorts, mentors, mentees, assignments, and reports.
           </p>
         </div>
 
