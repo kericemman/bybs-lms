@@ -77,17 +77,17 @@ import { uploadResourceFile } from "../controllers/uploadController.js";
 
 export const adminContentRoutes = Router();
 
-adminContentRoutes.use(requireAuth, requireRole("admin", "superAdmin"));
+adminContentRoutes.use(requireAuth, requireRole("admin", "adminManager", "superAdmin"));
 
 adminContentRoutes.get("/modules", validate(listByCohortSchema), listModules);
 adminContentRoutes.post("/modules", validate(createModuleSchema), createModule);
 adminContentRoutes.patch("/modules/:id", validate(updateModuleSchema), updateModule);
-adminContentRoutes.delete("/modules/:id", validate(idParamsSchema), deleteModule);
+adminContentRoutes.delete("/modules/:id", validate(idParamsSchema), requireRole("admin", "superAdmin"), deleteModule);
 
 adminContentRoutes.get("/sessions", validate(listByCohortSchema), listSessions);
 adminContentRoutes.post("/sessions", validate(createSessionSchema), createSession);
 adminContentRoutes.patch("/sessions/:id", validate(updateSessionSchema), updateSession);
-adminContentRoutes.delete("/sessions/:id", validate(idParamsSchema), deleteSession);
+adminContentRoutes.delete("/sessions/:id", validate(idParamsSchema), requireRole("admin", "superAdmin"), deleteSession);
 
 adminContentRoutes.get("/resources", validate(listByCohortSchema), listResources);
 adminContentRoutes.post(
@@ -99,12 +99,12 @@ adminContentRoutes.post(
 );
 adminContentRoutes.post("/resources", validate(createResourceSchema), createResource);
 adminContentRoutes.patch("/resources/:id", validate(updateResourceSchema), updateResource);
-adminContentRoutes.delete("/resources/:id", validate(idParamsSchema), deleteResource);
+adminContentRoutes.delete("/resources/:id", validate(idParamsSchema), requireRole("admin", "superAdmin"), deleteResource);
 
 adminContentRoutes.get("/discussions", validate(listByCohortSchema), listDiscussions);
 adminContentRoutes.post("/discussions", validate(createDiscussionSchema), createDiscussion);
 adminContentRoutes.patch("/discussions/:id", validate(updateDiscussionSchema), updateDiscussion);
-adminContentRoutes.delete("/discussions/:id", validate(idParamsSchema), deleteDiscussion);
+adminContentRoutes.delete("/discussions/:id", validate(idParamsSchema), requireRole("admin", "superAdmin"), deleteDiscussion);
 
 adminContentRoutes.get("/bookings", validate(listBookingsSchema), listBookings);
 adminContentRoutes.patch("/bookings/:id", validate(updateBookingSchema), updateBooking);
@@ -115,17 +115,17 @@ adminContentRoutes.get("/support-tickets", validate(listSupportTicketsSchema), l
 adminContentRoutes.get("/support-tickets/:id", validate(idParamsSchema), getSupportTicket);
 adminContentRoutes.patch("/support-tickets/:id", validate(updateSupportTicketSchema), updateSupportTicket);
 
-adminContentRoutes.get("/notifications", validate(listNotificationsSchema), listNotifications);
+adminContentRoutes.get("/notifications", validate(listNotificationsSchema), requireRole("admin", "superAdmin"), listNotifications);
 adminContentRoutes.get("/announcements", validate(listAnnouncementsSchema), listAnnouncements);
 adminContentRoutes.post("/announcements", validate(createAnnouncementSchema), createAnnouncement);
-adminContentRoutes.delete("/announcements/:id", validate(announcementParamsSchema), deleteAnnouncement);
+adminContentRoutes.delete("/announcements/:id", validate(announcementParamsSchema), requireRole("admin", "superAdmin"), deleteAnnouncement);
 
-adminContentRoutes.get("/system-logs", validate(listSystemLogsSchema), listSystemLogs);
+adminContentRoutes.get("/system-logs", validate(listSystemLogsSchema), requireRole("admin", "superAdmin"), listSystemLogs);
 
 adminContentRoutes.get("/beta-applications", validate(listBetaApplicationsSchema), listBetaApplications);
 adminContentRoutes.patch("/beta-applications/:id", validate(updateBetaApplicationSchema), updateBetaApplication);
 adminContentRoutes.post("/beta-applications/:id/acceptance-email", validate(betaApplicationParamsSchema), sendBetaApplicationAcceptanceEmail);
-adminContentRoutes.delete("/beta-applications/:id", validate(betaApplicationParamsSchema), deleteBetaApplication);
+adminContentRoutes.delete("/beta-applications/:id", validate(betaApplicationParamsSchema), requireRole("admin", "superAdmin"), deleteBetaApplication);
 
 adminContentRoutes.get("/beta-feedback", validate(listBetaFeedbackSchema), listBetaFeedback);
 adminContentRoutes.patch("/beta-feedback/:id", validate(updateBetaFeedbackSchema), updateBetaFeedback);

@@ -3,16 +3,18 @@ import { LogOut } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { adminNavItems } from "../routes/navigation.jsx";
+import { hasRole } from "../utils/permissions.js";
 
 export function AdminLayout({ children }) {
   const { changePassword, logout, user } = useAuth();
   const location = useLocation();
+  const visibleNavItems = adminNavItems.filter((item) => !item.roles || hasRole(user, item.roles));
 
   return (
     <AppShell
       activePath={location.pathname}
-      navItems={adminNavItems}
-      notificationsHref="/notifications"
+      navItems={visibleNavItems}
+      notificationsHref={hasRole(user, ["admin", "superAdmin"]) ? "/notifications" : undefined}
       portalName="Admin Portal"
       sidebarFooter={
         <div>

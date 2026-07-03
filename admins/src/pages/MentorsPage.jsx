@@ -8,6 +8,7 @@ import { FormField, inputClassName, textAreaClassName } from "../components/Form
 import { RowActions } from "../components/RowActions.jsx";
 import { adminApi } from "../services/api.js";
 import { generateTemporaryPassword } from "../utils/passwords.js";
+import { canDeleteOperationalRecords } from "../utils/permissions.js";
 
 const statusOptions = [
   { value: "active", label: "Active" },
@@ -80,7 +81,9 @@ export function MentorsPage() {
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const canDelete = canDeleteOperationalRecords(user);
   const canPermanentlyDelete = user?.role === "superAdmin";
+  const visibleStatusOptions = canDelete ? statusOptions : statusOptions.filter((status) => status.value !== "removed");
 
   async function loadData() {
     const [mentorResponse, cohortResponse] = await Promise.all([
@@ -215,7 +218,7 @@ export function MentorsPage() {
           </FormField>
           <FormField label="Status">
             <select className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))} value={form.status}>
-              {statusOptions.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
+              {visibleStatusOptions.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
             </select>
           </FormField>
           <FormField label="Expertise"><input className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, expertise: event.target.value }))} placeholder="Leadership, finance, strategy" value={form.expertise} /></FormField>
@@ -271,7 +274,7 @@ export function MentorsPage() {
                 <RowActions
                   confirmMessage={`Remove ${row.name}? Their account will be marked as removed.`}
                   deleteLabel="Remove"
-                  onDelete={() => handleDelete(row)}
+                  onDelete={canDelete ? () => handleDelete(row) : undefined}
                   onEdit={() => startEdit(row)}
                 />
                 {canPermanentlyDelete && row.status === "removed" ? (

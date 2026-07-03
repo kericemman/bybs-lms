@@ -1,11 +1,13 @@
 import { Plus, Save, Upload, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button, Card, DataTable, PageHeader, StatusBadge } from "@bybs/shared";
+import { useAuth } from "../auth/AuthContext.jsx";
 import { FilterBar } from "../components/FilterBar.jsx";
 import { FormField, inputClassName, textAreaClassName } from "../components/FormField.jsx";
 import { RowActions } from "../components/RowActions.jsx";
 import { adminApi } from "../services/api.js";
 import { relatedTitle } from "../utils/format.js";
+import { canDeleteOperationalRecords } from "../utils/permissions.js";
 
 const initialForm = {
   title: "",
@@ -25,6 +27,7 @@ const statusOptions = [
 ];
 
 export function ResourcesPage() {
+  const { user } = useAuth();
   const [resources, setResources] = useState([]);
   const [cohorts, setCohorts] = useState([]);
   const [modules, setModules] = useState([]);
@@ -36,6 +39,7 @@ export function ResourcesPage() {
   const [uploadMessage, setUploadMessage] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const canDelete = canDeleteOperationalRecords(user);
 
   async function loadData() {
     const [resourceResponse, cohortResponse, moduleResponse, sessionResponse] = await Promise.all([
@@ -227,7 +231,7 @@ export function ResourcesPage() {
             render: (row) => (
               <RowActions
                 confirmMessage={`Delete ${row.title}? This will remove the resource record.`}
-                onDelete={() => handleDelete(row)}
+                onDelete={canDelete ? () => handleDelete(row) : undefined}
                 onEdit={() => startEdit(row)}
               />
             )

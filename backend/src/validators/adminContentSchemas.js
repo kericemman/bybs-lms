@@ -159,7 +159,7 @@ export const createAnnouncementSchema = z.object({
     ctaUrl: z.preprocess(emptyToUndefined, z.string().trim().url().optional()),
     targetType: z.enum(["all", "cohort", "role", "user"]).default("all"),
     cohort: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
-    role: z.enum(["student", "mentor", "admin", "superAdmin"]).optional(),
+    role: z.enum(["student", "mentor", "admin", "adminManager", "superAdmin"]).optional(),
     recipient: z.preprocess(emptyToUndefined, objectIdSchema.optional())
   })
 });

@@ -19,6 +19,7 @@ const notificationSchema = new mongoose.Schema(
     ctaLabel: { type: String },
     ctaUrl: { type: String },
     targetType: { type: String },
+    targetRole: { type: String },
     targetLabel: { type: String },
     emailDeliveryStatus: {
       type: String,

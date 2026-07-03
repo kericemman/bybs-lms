@@ -3,11 +3,13 @@ import Papa from "papaparse";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button, Card, DataTable, PageHeader, PhoneInput, StatusBadge, formatInternationalPhone } from "@bybs/shared";
+import { useAuth } from "../auth/AuthContext.jsx";
 import { FilterBar } from "../components/FilterBar.jsx";
 import { FormField, inputClassName } from "../components/FormField.jsx";
 import { RowActions } from "../components/RowActions.jsx";
 import { adminApi } from "../services/api.js";
 import { generateTemporaryPassword } from "../utils/passwords.js";
+import { canDeleteOperationalRecords } from "../utils/permissions.js";
 
 const statusOptions = [
   { value: "active", label: "Active" },
@@ -43,6 +45,7 @@ function parseCsvPreview(file) {
 }
 
 export function StudentsPage() {
+  const { user } = useAuth();
   const [students, setStudents] = useState([]);
   const [cohorts, setCohorts] = useState([]);
   const [mentors, setMentors] = useState([]);
@@ -53,6 +56,8 @@ export function StudentsPage() {
   const [feedback, setFeedback] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const canDelete = canDeleteOperationalRecords(user);
+  const visibleStatusOptions = canDelete ? statusOptions : statusOptions.filter((status) => status.value !== "removed");
 
   async function loadData() {
     const [studentResponse, cohortResponse, mentorResponse] = await Promise.all([
@@ -202,7 +207,7 @@ export function StudentsPage() {
           </FormField>
           <FormField label="Status">
             <select className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))} value={form.status}>
-              {statusOptions.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
+              {visibleStatusOptions.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
             </select>
           </FormField>
           {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose lg:col-span-3">{error}</p> : null}
@@ -228,7 +233,7 @@ export function StudentsPage() {
               <RowActions
                 confirmMessage={`Remove ${row.name}? Their account will be marked as removed.`}
                 deleteLabel="Remove"
-                onDelete={() => handleDelete(row)}
+                onDelete={canDelete ? () => handleDelete(row) : undefined}
                 onEdit={() => startEdit(row)}
               />
             )

@@ -2,8 +2,10 @@ import { Eye, Plus, Search, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button, DataTable, SectionHeader, StatusBadge } from "@bybs/shared";
 import { inputClassName } from "./FormField.jsx";
+import { useAuth } from "../auth/AuthContext.jsx";
 import { adminApi } from "../services/api.js";
 import { formatDateTime } from "../utils/format.js";
+import { canDeleteOperationalRecords } from "../utils/permissions.js";
 
 const apiAssetBaseUrl = (import.meta.env.VITE_API_URL || "http://localhost:5050/api").replace(/\/api\/?$/, "");
 
@@ -102,11 +104,13 @@ function renderContent(message = "") {
 }
 
 export function SentAnnouncementsList({ onCreate, refreshKey = 0 }) {
+  const { user } = useAuth();
   const [announcements, setAnnouncements] = useState([]);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
   const [filters, setFilters] = useState({ search: "", channel: "" });
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
+  const canDelete = canDeleteOperationalRecords(user);
 
   async function loadAnnouncements() {
     const response = await adminApi.listAnnouncements(filters);
@@ -183,9 +187,11 @@ export function SentAnnouncementsList({ onCreate, refreshKey = 0 }) {
               <p className="mt-1 text-sm text-bybs-body">{selectedAnnouncement.previewText || "No preview text"}</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button icon={Trash2} onClick={() => deleteAnnouncement(selectedAnnouncement)} type="button" variant="danger">
-                Delete
-              </Button>
+              {canDelete ? (
+                <Button icon={Trash2} onClick={() => deleteAnnouncement(selectedAnnouncement)} type="button" variant="danger">
+                  Delete
+                </Button>
+              ) : null}
               <Button icon={X} onClick={() => setSelectedAnnouncement(null)} type="button" variant="ghost">
                 Close
               </Button>
@@ -244,9 +250,11 @@ export function SentAnnouncementsList({ onCreate, refreshKey = 0 }) {
                 <Button icon={Eye} onClick={() => setSelectedAnnouncement(row)} size="sm" type="button" variant="secondary">
                   View
                 </Button>
-                <Button icon={Trash2} onClick={() => deleteAnnouncement(row)} size="sm" type="button" variant="danger">
-                  Delete
-                </Button>
+                {canDelete ? (
+                  <Button icon={Trash2} onClick={() => deleteAnnouncement(row)} size="sm" type="button" variant="danger">
+                    Delete
+                  </Button>
+                ) : null}
               </div>
             )
           }

@@ -11,8 +11,8 @@ import { idParamsSchema } from "../validators/commonSchemas.js";
 
 export const cohortRoutes = Router();
 
-cohortRoutes.use(requireAuth, requireRole("admin", "superAdmin"));
+cohortRoutes.use(requireAuth, requireRole("admin", "adminManager", "superAdmin"));
 cohortRoutes.get("/", validate(listCohortsSchema), listCohorts);
 cohortRoutes.post("/", validate(createCohortSchema), createCohort);
 cohortRoutes.patch("/:id", validate(updateCohortSchema), updateCohort);
-cohortRoutes.delete("/:id", validate(idParamsSchema), deleteCohort);
+cohortRoutes.delete("/:id", validate(idParamsSchema), requireRole("admin", "superAdmin"), deleteCohort);

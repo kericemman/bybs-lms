@@ -1,10 +1,12 @@
 import { Plus, Save, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button, Card, DataTable, PageHeader, StatusBadge } from "@bybs/shared";
+import { useAuth } from "../auth/AuthContext.jsx";
 import { FilterBar } from "../components/FilterBar.jsx";
 import { FormField, inputClassName, textAreaClassName } from "../components/FormField.jsx";
 import { RowActions } from "../components/RowActions.jsx";
 import { adminApi } from "../services/api.js";
+import { canDeleteOperationalRecords } from "../utils/permissions.js";
 
 const initialForm = {
   title: "",
@@ -26,12 +28,14 @@ function toDateInput(value) {
 }
 
 export function CohortsPage() {
+  const { user } = useAuth();
   const [cohorts, setCohorts] = useState([]);
   const [filters, setFilters] = useState({ search: "", status: "" });
   const [form, setForm] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const canDelete = canDeleteOperationalRecords(user);
 
   async function loadCohorts(nextFilters = filters) {
     const response = await adminApi.listCohorts(nextFilters);
@@ -177,7 +181,7 @@ export function CohortsPage() {
             render: (row) => (
               <RowActions
                 confirmMessage={`Delete ${row.title}? This cannot be undone.`}
-                onDelete={() => handleDelete(row)}
+                onDelete={canDelete ? () => handleDelete(row) : undefined}
                 onEdit={() => startEdit(row)}
               />
             )

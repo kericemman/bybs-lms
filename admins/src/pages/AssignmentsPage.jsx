@@ -1,10 +1,12 @@
 import { Plus, Save, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button, Card, DataTable, PageHeader, StatusBadge } from "@bybs/shared";
+import { useAuth } from "../auth/AuthContext.jsx";
 import { FilterBar } from "../components/FilterBar.jsx";
 import { FormField, inputClassName, textAreaClassName } from "../components/FormField.jsx";
 import { RowActions } from "../components/RowActions.jsx";
 import { adminApi } from "../services/api.js";
+import { canDeleteOperationalRecords } from "../utils/permissions.js";
 
 const initialForm = {
   title: "",
@@ -30,6 +32,7 @@ function toDateTimeInput(value) {
 }
 
 export function AssignmentsPage() {
+  const { user } = useAuth();
   const [assignments, setAssignments] = useState([]);
   const [cohorts, setCohorts] = useState([]);
   const [filters, setFilters] = useState({ search: "", cohort: "", status: "" });
@@ -37,6 +40,7 @@ export function AssignmentsPage() {
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const canDelete = canDeleteOperationalRecords(user);
 
   async function loadData() {
     const [assignmentResponse, cohortResponse] = await Promise.all([
@@ -162,7 +166,7 @@ export function AssignmentsPage() {
             render: (row) => (
               <RowActions
                 confirmMessage={`Delete ${row.title}? Assignments with submissions must be archived instead.`}
-                onDelete={() => handleDelete(row)}
+                onDelete={canDelete ? () => handleDelete(row) : undefined}
                 onEdit={() => startEdit(row)}
               />
             )

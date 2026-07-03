@@ -1,11 +1,13 @@
 import { Plus, Save, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button, Card, DataTable, PageHeader, StatusBadge } from "@bybs/shared";
+import { useAuth } from "../auth/AuthContext.jsx";
 import { FilterBar } from "../components/FilterBar.jsx";
 import { FormField, inputClassName, textAreaClassName } from "../components/FormField.jsx";
 import { RowActions } from "../components/RowActions.jsx";
 import { adminApi } from "../services/api.js";
 import { relatedTitle } from "../utils/format.js";
+import { canDeleteOperationalRecords } from "../utils/permissions.js";
 
 const initialForm = {
   title: "",
@@ -22,6 +24,7 @@ const statusOptions = [
 ];
 
 export function DiscussionsPage() {
+  const { user } = useAuth();
   const [discussions, setDiscussions] = useState([]);
   const [cohorts, setCohorts] = useState([]);
   const [modules, setModules] = useState([]);
@@ -30,6 +33,7 @@ export function DiscussionsPage() {
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const canDelete = canDeleteOperationalRecords(user);
 
   async function loadData() {
     const [discussionResponse, cohortResponse, moduleResponse] = await Promise.all([
@@ -144,7 +148,7 @@ export function DiscussionsPage() {
             render: (row) => (
               <RowActions
                 confirmMessage={`Delete ${row.title}? Discussions with comments must be archived instead.`}
-                onDelete={() => handleDelete(row)}
+                onDelete={canDelete ? () => handleDelete(row) : undefined}
                 onEdit={() => startEdit(row)}
               />
             )

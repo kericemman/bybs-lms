@@ -6,6 +6,7 @@ import { BetaFeedbackPage } from "./pages/BetaFeedbackPage.jsx";
 import { BookingsPage } from "./pages/BookingsPage.jsx";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
+import { ModulesPage } from "./pages/ModulesPage.jsx";
 import { RemindersPage } from "./pages/RemindersPage.jsx";
 import { ReportsPage } from "./pages/ReportsPage.jsx";
 import { ReviewsPage } from "./pages/ReviewsPage.jsx";
@@ -23,6 +24,7 @@ export default function App() {
             <MentorLayout>
               <Routes>
                 <Route element={<DashboardPage />} index />
+                <Route element={<ModulesPage />} path="modules" />
                 <Route element={<StudentsPage />} path="students" />
                 <Route element={<SessionWorkPage />} path="session-work" />
                 <Route element={<RemindersPage />} path="reminders" />

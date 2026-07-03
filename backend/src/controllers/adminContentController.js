@@ -25,6 +25,8 @@ function searchRegex(search) {
   return { $regex: search, $options: "i" };
 }
 
+const ADMIN_MANAGER_ANNOUNCEMENT_ROLES = ["student", "mentor"];
+
 async function listCollection({ model, req, filter = {}, populate = [], sort = { createdAt: -1 } }) {
   const { page, limit, skip } = getPagination(req.query);
   const [data, total] = await Promise.all([
@@ -689,16 +691,37 @@ export const listAnnouncements = asyncHandler(async (req, res) => {
     announcementId: { $exists: true, $ne: null }
   };
 
-  if (req.query.search) {
+  if (req.user.role === "adminManager") {
+    match.type = { $ne: "system" };
     match.$or = [
+      { targetType: "cohort" },
+      { targetRole: { $in: ADMIN_MANAGER_ANNOUNCEMENT_ROLES } }
+    ];
+  }
+
+  if (req.query.search) {
+    const searchFilter = [
       { title: searchRegex(req.query.search) },
       { message: searchRegex(req.query.search) },
       { targetLabel: searchRegex(req.query.search) }
     ];
+
+    if (match.$or) {
+      match.$and = [{ $or: match.$or }, { $or: searchFilter }];
+      delete match.$or;
+    } else {
+      match.$or = searchFilter;
+    }
   }
 
   if (req.query.channel) match.channel = req.query.channel;
-  if (req.query.type) match.type = req.query.type;
+  if (req.query.type) {
+    if (req.user.role === "adminManager" && req.query.type === "system") {
+      throw new ApiError(403, "Admin managers cannot view system announcements");
+    }
+
+    match.type = req.query.type;
+  }
 
   const groupStage = {
     _id: "$announcementId",
@@ -710,6 +733,7 @@ export const listAnnouncements = asyncHandler(async (req, res) => {
     ctaLabel: { $first: "$ctaLabel" },
     ctaUrl: { $first: "$ctaUrl" },
     targetType: { $first: "$targetType" },
+    targetRole: { $first: "$targetRole" },
     targetLabel: { $first: "$targetLabel" },
     emailDeliveryStatuses: { $addToSet: "$emailDeliveryStatus" },
     emailSentCount: { $sum: { $cond: [{ $eq: ["$emailDeliveryStatus", "sent"] }, 1, 0] } },
@@ -765,6 +789,20 @@ export const createAnnouncement = asyncHandler(async (req, res) => {
     throw new ApiError(400, "CTA label and CTA URL must be provided together");
   }
 
+  if (req.user.role === "adminManager") {
+    if (type === "system") {
+      throw new ApiError(403, "Admin managers cannot send system announcements");
+    }
+
+    if (targetType === "all") {
+      throw new ApiError(403, "Admin managers must target a cohort, students, mentors, or one learner/mentor");
+    }
+
+    if (targetType === "role" && !ADMIN_MANAGER_ANNOUNCEMENT_ROLES.includes(role)) {
+      throw new ApiError(403, "Admin managers can only target student and mentor roles");
+    }
+  }
+
   if (targetType === "cohort") {
     if (!cohort) throw new ApiError(400, "Cohort is required for cohort announcements");
     filter.cohort = cohort;
@@ -777,10 +815,17 @@ export const createAnnouncement = asyncHandler(async (req, res) => {
 
   if (targetType === "user") {
     if (!recipient) throw new ApiError(400, "Recipient is required for user announcements");
+    if (req.user.role === "adminManager") {
+      const targetUser = await User.findById(recipient).select("role");
+
+      if (!targetUser || !ADMIN_MANAGER_ANNOUNCEMENT_ROLES.includes(targetUser.role)) {
+        throw new ApiError(403, "Admin managers can only send announcements to students and mentors");
+      }
+    }
     filter._id = recipient;
   }
 
-  const recipients = await User.find(filter).select("_id email name");
+  const recipients = await User.find(filter).select("_id email name role");
 
   if (!recipients.length) {
     throw new ApiError(404, "No recipients matched this announcement target");
@@ -788,6 +833,7 @@ export const createAnnouncement = asyncHandler(async (req, res) => {
 
   const announcementId = crypto.randomUUID();
   const targetLabel = await resolveAnnouncementTargetLabel({ targetType, cohort, role, recipient });
+  const targetRole = targetType === "role" ? role : targetType === "user" ? recipients[0]?.role : undefined;
 
   const notifications = await Notification.insertMany(
     recipients.map((user) => {
@@ -809,6 +855,7 @@ export const createAnnouncement = asyncHandler(async (req, res) => {
         ctaLabel: personalized.ctaLabel,
         ctaUrl,
         targetType,
+        targetRole,
         targetLabel,
         emailDeliveryStatus: ["email", "both"].includes(channel) ? "pending" : "notRequested",
         type,

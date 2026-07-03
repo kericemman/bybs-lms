@@ -1,11 +1,13 @@
 import { Plus, Save, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Button, Card, DataTable, PageHeader, StatusBadge } from "@bybs/shared";
+import { Button, Card, DataTable, PageHeader, RichTextEditor, StatusBadge } from "@bybs/shared";
+import { useAuth } from "../auth/AuthContext.jsx";
 import { FilterBar } from "../components/FilterBar.jsx";
-import { FormField, inputClassName, textAreaClassName } from "../components/FormField.jsx";
+import { FormField, inputClassName } from "../components/FormField.jsx";
 import { RowActions } from "../components/RowActions.jsx";
 import { adminApi } from "../services/api.js";
 import { formatDate, relatedTitle } from "../utils/format.js";
+import { canDeleteOperationalRecords } from "../utils/permissions.js";
 
 const initialForm = {
   title: "",
@@ -30,6 +32,7 @@ function toDateInput(value) {
 }
 
 export function ModulesPage() {
+  const { user } = useAuth();
   const [modules, setModules] = useState([]);
   const [cohorts, setCohorts] = useState([]);
   const [mentors, setMentors] = useState([]);
@@ -38,6 +41,7 @@ export function ModulesPage() {
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const canDelete = canDeleteOperationalRecords(user);
 
   async function loadData() {
     const [moduleResponse, cohortResponse, mentorResponse] = await Promise.all([
@@ -157,9 +161,18 @@ export function ModulesPage() {
             </select>
           </FormField>
           <div className="lg:col-span-4">
-            <FormField label="Description">
-              <textarea className={textAreaClassName} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} value={form.description} />
-            </FormField>
+            <label className="text-sm font-medium text-bybs-body" htmlFor="module-description">
+              Description
+            </label>
+            <p className="mb-2 mt-1 text-xs text-bybs-muted">
+              Add the module outline, key topics, learning outcomes, resources, and what the mentor should cover.
+            </p>
+            <RichTextEditor
+              id="module-description"
+              onChange={(value) => setForm((current) => ({ ...current, description: value }))}
+              placeholder="Describe what this module entails"
+              value={form.description}
+            />
           </div>
           {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose lg:col-span-4">{error}</p> : null}
           <div className="flex flex-wrap gap-2 lg:col-span-4">
@@ -185,7 +198,7 @@ export function ModulesPage() {
             render: (row) => (
               <RowActions
                 confirmMessage={`Delete ${row.title}? This is only allowed when it has no linked content.`}
-                onDelete={() => handleDelete(row)}
+                onDelete={canDelete ? () => handleDelete(row) : undefined}
                 onEdit={() => startEdit(row)}
               />
             )

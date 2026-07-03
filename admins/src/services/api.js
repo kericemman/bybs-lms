@@ -91,6 +91,7 @@ export const adminApi = {
   updateCohort: (id, payload) => api.patch(`/cohorts/${id}`, payload),
   deleteCohort: (id) => api.delete(`/cohorts/${id}`),
   listUsers: (filters = {}) => api.get(`/users${toQueryString({ limit: 100, ...filters })}`),
+  listAdminManagers: (filters = {}) => api.get(`/users${toQueryString({ role: "adminManager", limit: 100, ...filters })}`),
   listStudents: (filters = {}) => api.get(`/users${toQueryString({ role: "student", limit: 100, ...filters })}`),
   listMentors: (filters = {}) => api.get(`/users${toQueryString({ role: "mentor", limit: 100, ...filters })}`),
   createUser: (payload) => api.post("/users", payload),

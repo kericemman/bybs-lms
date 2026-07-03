@@ -11,6 +11,7 @@ export * from "./components/PhoneInput.jsx";
 export * from "./components/ProgressBar.jsx";
 export * from "./components/PublicGatewayPage.jsx";
 export * from "./components/QuickAction.jsx";
+export * from "./components/RichTextEditor.jsx";
 export * from "./components/SectionHeader.jsx";
 export * from "./components/SafeHtml.jsx";
 export * from "./components/StatCard.jsx";

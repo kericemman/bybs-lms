@@ -29,6 +29,18 @@ function portalUrl(role) {
   return env.clientAdminUrl;
 }
 
+function roleLabel(role) {
+  const labels = {
+    admin: "Admin",
+    adminManager: "Admin Manager",
+    mentor: "Mentor",
+    student: "Student",
+    superAdmin: "Super Admin"
+  };
+
+  return labels[role] || role;
+}
+
 function mergeLinks(overrides = {}) {
   return {
     websiteUrl: overrides.websiteUrl || env.publicWebsiteUrl,
@@ -52,45 +64,27 @@ function onboardingLinksForRole(role, links) {
     },
     {
       label: "Join the mentors WhatsApp",
-      href: links.mentorWhatsappUrl,
-      title: "Coordinate quickly with the mentor team",
-      description:
-        "This is the fastest space for mentor coordination, urgent updates, schedule clarifications, and peer support while students are active."
+      href: links.mentorWhatsappUrl
     },
     {
       label: "Join the community channel",
-      href: links.channelUrl,
-      title: "Keep up with official updates",
-      description:
-        "The channel keeps you close to announcements, learning prompts, session reminders, and resources that help you guide students consistently."
+      href: links.channelUrl
     },
     {
       label: "Follow on Instagram",
-      href: links.instagramUrl,
-      title: "See student energy and community moments",
-      description:
-        "Instagram helps you understand the tone of the community, celebrate wins, and stay connected to the public-facing BYBS story."
+      href: links.instagramUrl
     },
     {
       label: "Connect on LinkedIn",
-      href: links.linkedInUrl,
-      title: "Strengthen the professional network",
-      description:
-        "LinkedIn supports mentor credibility, professional visibility, and stronger connections around career growth and leadership development."
+      href: links.linkedInUrl
     },
     {
       label: "Watch on YouTube",
-      href: links.youtubeUrl,
-      title: "Review learning content and context",
-      description:
-        "YouTube gives you access to deeper explanations, replays, and public learning material that can help you guide students with better context."
+      href: links.youtubeUrl
     },
     {
       label: "Follow on Facebook",
-      href: links.facebookUrl,
-      title: "Stay connected to wider community updates",
-      description:
-        "Facebook helps you follow broader community announcements, stories, and reminders that may support student engagement."
+      href: links.facebookUrl
     }
   ];
 
@@ -103,61 +97,56 @@ function onboardingLinksForRole(role, links) {
     },
     {
       label: "Join the community channel",
-      href: links.channelUrl,
-      title: "Follow official updates",
-      description: "The channel keeps you close to announcements, reminders, and shared resources."
+      href: links.channelUrl
     },
     {
       label: "Follow on Instagram",
-      href: links.instagramUrl,
-      title: "Stay connected",
-      description: "Instagram helps you follow community moments, wins, and public BYBS updates."
+      href: links.instagramUrl
     },
     {
       label: "Connect on LinkedIn",
-      href: links.linkedInUrl,
-      title: "Build professional context",
-      description: "LinkedIn helps you stay connected to BYBS professional updates and network growth."
+      href: links.linkedInUrl
     },
     {
       label: "Watch on YouTube",
-      href: links.youtubeUrl,
-      title: "Learn the context",
-      description: "YouTube gives you access to learning content, replays, and program stories."
+      href: links.youtubeUrl
     },
     {
       label: "Follow on Facebook",
-      href: links.facebookUrl,
-      title: "Follow community updates",
-      description: "Facebook helps you keep up with wider community posts and reminders."
+      href: links.facebookUrl
     }
   ];
 
   return role === "mentor" ? mentorLinks : defaultLinks;
 }
 
-function onboardingLinkCard({ label, href, title, description }) {
+function onboardingWebsiteCard({ label, href, title, description }) {
   if (!href) return "";
 
-  return `<tr>
-    <td style="padding:14px 0;border-top:1px solid #E5E7EB;">
+  return `<div style="padding:14px 0 12px;border-top:1px solid #E5E7EB;">
       <p style="margin:0;color:#10233F;font-size:14px;font-weight:700;">${escapeHtml(title)}</p>
       <p style="margin:5px 0 10px;color:#374151;font-size:13px;line-height:1.6;">${escapeHtml(description)}</p>
       <a href="${escapeHtml(href)}" style="display:inline-block;background:#F5F9FF;color:#00337C;text-decoration:none;border:1px solid #E5E7EB;border-radius:6px;padding:9px 12px;font-size:13px;font-weight:700;">${escapeHtml(label)}</a>
-    </td>
-  </tr>`;
+    </div>`;
+}
+
+function compactLinkButton({ label, href }) {
+  if (!href) return "";
+
+  return `<a href="${escapeHtml(href)}" style="display:inline-block;margin:6px 6px 0 0;background:#FFFFFF;color:#00337C;text-decoration:none;border:1px solid #E5E7EB;border-radius:6px;padding:9px 11px;font-size:12px;font-weight:700;">${escapeHtml(label)}</a>`;
 }
 
 function onboardingSection(user, links) {
-  const cards = onboardingLinksForRole(user.role, links).map(onboardingLinkCard).join("");
+  const [websiteLink, ...compactLinks] = onboardingLinksForRole(user.role, links);
+  const websiteCard = onboardingWebsiteCard(websiteLink);
+  const buttons = compactLinks.map(compactLinkButton).join("");
 
-  if (!cards) return "";
+  if (!websiteCard && !buttons) return "";
 
   return `<h2 style="margin:26px 0 8px;color:#10233F;font-size:16px;">Join the right BYBS spaces</h2>
     <p style="margin:0 0 8px;color:#374151;font-size:13px;line-height:1.6;">Each space supports a different part of the mentor journey, from official updates to quick coordination and student encouragement.</p>
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:8px;">
-      ${cards}
-    </table>`;
+    ${websiteCard}
+    ${buttons ? `<div style="margin-top:4px;">${buttons}</div>` : ""}`;
 }
 
 function buildWelcomeHtml({ user, password, links }) {
@@ -172,19 +161,19 @@ function buildWelcomeHtml({ user, password, links }) {
         <td align="center">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:680px;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
             <tr>
-              <td style="background:#00337C;padding:22px 24px;">
+              <td style="background:#00337C;padding:18px 24px;">
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                   <tr>
-                    <td width="88" valign="middle" style="width:88px;vertical-align:middle;">
+                    <td width="54" valign="middle" style="width:54px;vertical-align:middle;">
                       <table role="presentation" cellspacing="0" cellpadding="0" style="background:#FFFFFF;border-radius:8px;">
                         <tr>
-                          <td style="padding:6px;">
-                            <img alt="BYBS" src="${escapeHtml(logoSrc)}" width="64" style="display:block;width:64px;height:auto;border:0;" />
+                          <td style="padding:5px;">
+                            <img alt="BYBS" src="${escapeHtml(logoSrc)}" width="42" style="display:block;width:42px;height:auto;border:0;" />
                           </td>
                         </tr>
                       </table>
                     </td>
-                    <td valign="middle" style="color:#FFFFFF;vertical-align:middle;padding-left:14px;">
+                    <td valign="middle" style="color:#FFFFFF;vertical-align:middle;padding-left:12px;">
                       <div style="font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">Build Your Best Self</div>
                       <div style="margin-top:4px;font-size:20px;font-weight:700;">Welcome to BYBS LMS</div>
                     </td>
@@ -194,7 +183,7 @@ function buildWelcomeHtml({ user, password, links }) {
             </tr>
             <tr>
               <td style="padding:28px;">
-                <h1 style="margin:0 0 10px;color:#10233F;font-size:24px;line-height:1.3;">Hi ${escapeHtml(firstName(user))}, your ${escapeHtml(user.role)} account is ready</h1>
+                <h1 style="margin:0 0 10px;color:#10233F;font-size:24px;line-height:1.3;">Hi ${escapeHtml(firstName(user))}, your ${escapeHtml(roleLabel(user.role))} account is ready</h1>
                 <p style="margin:0 0 18px;color:#374151;font-size:14px;line-height:1.7;">Use the login details below to access your BYBS learning workspace.</p>
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #E5E7EB;border-radius:8px;margin:18px 0;">
                   <tr>
@@ -243,7 +232,7 @@ export async function sendUserWelcomeEmail({ user, password, welcomeEmail = {} }
   try {
     await sendEmail({
       to: user.email,
-      subject: `Your BYBS ${user.role} login details`,
+      subject: `Your BYBS ${roleLabel(user.role)} login details`,
       html: buildWelcomeHtml({ user, password, links })
     });
   } catch (error) {

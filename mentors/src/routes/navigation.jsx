@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   CalendarClock,
   ClipboardCheck,
   FileText,
@@ -12,6 +13,7 @@ import {
 
 export const mentorNavItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/modules", label: "Assigned Modules", icon: BookOpen },
   { href: "/students", label: "Assigned Students", icon: Users },
   { href: "/session-work", label: "Session Work", icon: NotebookPen },
   { href: "/reminders", label: "Reminders", icon: Send },

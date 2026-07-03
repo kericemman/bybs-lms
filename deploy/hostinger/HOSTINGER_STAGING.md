@@ -154,6 +154,49 @@ sudo certbot --nginx \
   -d api.lms.buildyourbestself.org
 ```
 
+If Certbot reports DNS timeouts, stop retrying and fix DNS first. The expected records are:
+
+```txt
+A  lms         VPS_PUBLIC_IP
+A  admin.lms   VPS_PUBLIC_IP
+A  mentor.lms  VPS_PUBLIC_IP
+A  api.lms     VPS_PUBLIC_IP
+```
+
+Remove wrong/conflicting `AAAA` records unless the VPS has working IPv6 and Nginx is listening on IPv6. If a CAA record exists, allow Let's Encrypt:
+
+```txt
+CAA  @    0 issue "letsencrypt.org"
+CAA  lms  0 issue "letsencrypt.org"
+```
+
+Check that you are editing DNS at the active nameserver provider. If the domain uses Cloudflare nameservers, edit Cloudflare DNS. If it uses Hostinger nameservers, edit Hostinger DNS/hPanel. Editing cPanel DNS does nothing unless cPanel is the active DNS authority for the domain.
+
+Verify before retrying:
+
+```bash
+dig +short NS buildyourbestself.org
+dig +short A lms.buildyourbestself.org @1.1.1.1
+dig +short A admin.lms.buildyourbestself.org @1.1.1.1
+dig +short A mentor.lms.buildyourbestself.org @1.1.1.1
+dig +short A api.lms.buildyourbestself.org @1.1.1.1
+dig +short CAA lms.buildyourbestself.org @1.1.1.1
+curl -I http://lms.buildyourbestself.org
+curl -I http://api.lms.buildyourbestself.org/health
+```
+
+Then test Certbot with:
+
+```bash
+sudo certbot certonly --nginx --dry-run \
+  -d lms.buildyourbestself.org \
+  -d admin.lms.buildyourbestself.org \
+  -d mentor.lms.buildyourbestself.org \
+  -d api.lms.buildyourbestself.org
+```
+
+Only run the real certificate command after the dry run succeeds.
+
 ## 10. Smoke Test
 
 ```bash

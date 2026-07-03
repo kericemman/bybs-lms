@@ -1,11 +1,13 @@
 import { Plus, Save, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button, Card, DataTable, PageHeader, StatusBadge } from "@bybs/shared";
+import { useAuth } from "../auth/AuthContext.jsx";
 import { FilterBar } from "../components/FilterBar.jsx";
 import { FormField, inputClassName, textAreaClassName } from "../components/FormField.jsx";
 import { RowActions } from "../components/RowActions.jsx";
 import { adminApi } from "../services/api.js";
 import { formatDateTime, relatedTitle } from "../utils/format.js";
+import { canDeleteOperationalRecords } from "../utils/permissions.js";
 
 const initialForm = {
   title: "",
@@ -33,6 +35,7 @@ function toDateTimeInput(value) {
 }
 
 export function SessionsPage() {
+  const { user } = useAuth();
   const [sessions, setSessions] = useState([]);
   const [cohorts, setCohorts] = useState([]);
   const [modules, setModules] = useState([]);
@@ -41,6 +44,7 @@ export function SessionsPage() {
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const canDelete = canDeleteOperationalRecords(user);
 
   async function loadData() {
     const [sessionResponse, cohortResponse, moduleResponse] = await Promise.all([
@@ -165,7 +169,7 @@ export function SessionsPage() {
             render: (row) => (
               <RowActions
                 confirmMessage={`Delete ${row.title}? Sessions with resources or attendance must be cancelled instead.`}
-                onDelete={() => handleDelete(row)}
+                onDelete={canDelete ? () => handleDelete(row) : undefined}
                 onEdit={() => startEdit(row)}
               />
             )

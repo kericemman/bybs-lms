@@ -10,9 +10,11 @@ import {
   StatusBadge,
   formatInternationalPhone
 } from "@bybs/shared";
+import { useAuth } from "../auth/AuthContext.jsx";
 import { FormField, inputClassName, textAreaClassName } from "../components/FormField.jsx";
 import { adminApi } from "../services/api.js";
 import { formatDateTime } from "../utils/format.js";
+import { canDeleteOperationalRecords } from "../utils/permissions.js";
 
 const statusOptions = [
   { value: "new", label: "New" },
@@ -132,6 +134,7 @@ function DetailRow({ label, value, children }) {
 }
 
 export function BetaApplicationsPage() {
+  const { user } = useAuth();
   const [applications, setApplications] = useState([]);
   const [acceptedStudents, setAcceptedStudents] = useState([]);
   const [acceptedMentors, setAcceptedMentors] = useState([]);
@@ -148,6 +151,7 @@ export function BetaApplicationsPage() {
   const [acceptingId, setAcceptingId] = useState("");
   const [emailingId, setEmailingId] = useState("");
   const [isFeedbackSaving, setIsFeedbackSaving] = useState(false);
+  const canDelete = canDeleteOperationalRecords(user);
 
   const selectedApplication = useMemo(
     () =>
@@ -594,9 +598,11 @@ export function BetaApplicationsPage() {
                   <Button icon={UserCheck} onClick={() => setSelectedId(applicationId(row))} size="sm" type="button" variant="secondary">
                     Review
                   </Button>
-                  <Button icon={Trash2} onClick={() => deleteApplication(row)} size="sm" type="button" variant="danger">
-                    Delete
-                  </Button>
+                  {canDelete ? (
+                    <Button icon={Trash2} onClick={() => deleteApplication(row)} size="sm" type="button" variant="danger">
+                      Delete
+                    </Button>
+                  ) : null}
                 </div>
               )
             }

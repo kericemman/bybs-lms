@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, useState } from "react";
 import { api } from "../services/api.js";
+import { ADMIN_PORTAL_ROLES } from "../utils/permissions.js";
 
 const AuthContext = createContext(null);
 
@@ -14,7 +15,7 @@ export function AuthProvider({ children }) {
     const response = await api.post("/auth/login", credentials);
     const role = response.user?.role;
 
-    if (!["admin", "superAdmin"].includes(role)) {
+    if (!ADMIN_PORTAL_ROLES.includes(role)) {
       throw new Error("This portal is only for admins.");
     }
 

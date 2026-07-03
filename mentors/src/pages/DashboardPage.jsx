@@ -1,6 +1,8 @@
 import {
+  BookOpen,
   CalendarCheck,
   ClipboardCheck,
+  Eye,
   FileText,
   Send,
   Users
@@ -72,6 +74,11 @@ export function DashboardPage() {
 
       <Card>
         <SectionHeader
+          action={
+            <Button as="a" href="/modules" icon={BookOpen} size="sm" variant="secondary">
+              Open modules
+            </Button>
+          }
           description="Modules assigned by Admin, with dates to guide sessions, assignments, and progress tracking."
           title="My modules"
         />
@@ -80,7 +87,16 @@ export function DashboardPage() {
             { key: "title", header: "Module" },
             { key: "cohort", header: "Cohort", render: (row) => row.cohort?.title || "Cohort" },
             { key: "dates", header: "Dates", render: (row) => row.startDate || row.endDate ? `${formatDate(row.startDate)} - ${formatDate(row.endDate)}` : "Not set" },
-            { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> }
+            { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
+            {
+              key: "actions",
+              header: "Actions",
+              render: (row) => (
+                <Button as="a" href={`/modules?module=${row._id}`} icon={Eye} size="sm" variant="secondary">
+                  View
+                </Button>
+              )
+            }
           ]}
           emptyDescription="Modules assigned to you by Admin will appear here."
           emptyTitle="No modules assigned"

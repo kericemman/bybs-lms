@@ -16,8 +16,8 @@ import { idParamsSchema } from "../validators/commonSchemas.js";
 
 export const assignmentRoutes = Router();
 
-assignmentRoutes.use(requireAuth, requireRole("admin", "superAdmin", "mentor"));
+assignmentRoutes.use(requireAuth, requireRole("admin", "adminManager", "superAdmin", "mentor"));
 assignmentRoutes.get("/", validate(listAssignmentsSchema), listAssignments);
 assignmentRoutes.post("/", validate(createAssignmentSchema), createAssignment);
 assignmentRoutes.patch("/:id", validate(updateAssignmentSchema), updateAssignment);
-assignmentRoutes.delete("/:id", validate(idParamsSchema), deleteAssignment);
+assignmentRoutes.delete("/:id", validate(idParamsSchema), requireRole("admin", "superAdmin", "mentor"), deleteAssignment);

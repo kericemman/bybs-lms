@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@bybs/shared";
+import { useAuth } from "../auth/AuthContext.jsx";
 import { FormField, inputClassName, textAreaClassName } from "./FormField.jsx";
 import { adminApi } from "../services/api.js";
 
@@ -189,6 +190,14 @@ function safeImageAlt(value = "Announcement image") {
   return value.replace(/[\[\]()]/g, "").slice(0, 80) || "Announcement image";
 }
 
+function managerSafeInitialForm() {
+  return {
+    ...initialForm,
+    targetType: "role",
+    role: "student"
+  };
+}
+
 function deliveryFeedback(data) {
   if (data.emailDeliveryStatus === "sent") {
     return ` Email sent to ${data.emailSent || data.created} recipient(s).`;
@@ -210,6 +219,7 @@ function deliveryFeedback(data) {
 }
 
 export function AnnouncementComposer({ title = "Compose email announcement", onCancel, onSent }) {
+  const { user } = useAuth();
   const editorRef = useRef(null);
   const fileInputRef = useRef(null);
   const [cohorts, setCohorts] = useState([]);
@@ -219,6 +229,7 @@ export function AnnouncementComposer({ title = "Compose email announcement", onC
   const [error, setError] = useState("");
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isAdminManager = user?.role === "adminManager";
 
   useEffect(() => {
     let isMounted = true;
@@ -238,12 +249,23 @@ export function AnnouncementComposer({ title = "Compose email announcement", onC
     };
   }, []);
 
+  useEffect(() => {
+    if (!isAdminManager) return;
+
+    setForm((current) => ({
+      ...current,
+      targetType: current.targetType === "all" ? "role" : current.targetType,
+      role: ["student", "mentor"].includes(current.role) ? current.role : "student",
+      type: current.type === "system" ? "announcement" : current.type
+    }));
+  }, [isAdminManager]);
+
   function updateField(name, value) {
     setForm((current) => ({ ...current, [name]: value }));
   }
 
   function resetForm() {
-    setForm(initialForm);
+    setForm(isAdminManager ? managerSafeInitialForm() : initialForm);
     setFeedback("");
     setError("");
   }
@@ -322,6 +344,9 @@ export function AnnouncementComposer({ title = "Compose email announcement", onC
   function validateForm() {
     if (form.targetType === "cohort" && !form.cohort) return "Choose a cohort.";
     if (form.targetType === "user" && !form.recipient) return "Choose a recipient.";
+    if (isAdminManager && form.targetType === "all") return "Admin managers must choose students, mentors, a cohort, or one recipient.";
+    if (isAdminManager && form.targetType === "role" && !["student", "mentor"].includes(form.role)) return "Admin managers can only target students or mentors.";
+    if (isAdminManager && form.type === "system") return "Admin managers cannot send system announcements.";
     if (form.ctaLabel && !form.ctaUrl) return "Add a CTA link or remove the CTA label.";
     if (form.ctaUrl && !form.ctaLabel) return "Add a CTA label or remove the CTA link.";
     return "";
@@ -351,7 +376,7 @@ export function AnnouncementComposer({ title = "Compose email announcement", onC
       });
 
       setFeedback(`Announcement created for ${response.data.created} recipient(s).${deliveryFeedback(response.data)}`);
-      setForm(initialForm);
+      setForm(isAdminManager ? managerSafeInitialForm() : initialForm);
       onSent?.(response.data);
     } catch (requestError) {
       setError(requestError.message);
@@ -397,7 +422,7 @@ export function AnnouncementComposer({ title = "Compose email announcement", onC
               <option value="booking">Booking</option>
               <option value="support">Support</option>
               <option value="reminder">Reminder</option>
-              <option value="system">System</option>
+              {!isAdminManager ? <option value="system">System</option> : null}
             </select>
           </FormField>
           <FormField
@@ -416,7 +441,7 @@ export function AnnouncementComposer({ title = "Compose email announcement", onC
               onChange={(event) => updateField("targetType", event.target.value)}
               value={form.targetType}
             >
-              <option value="all">All active users</option>
+              {!isAdminManager ? <option value="all">All active users</option> : null}
               <option value="cohort">Cohort</option>
               <option value="role">Role</option>
               <option value="user">One user</option>
@@ -439,8 +464,9 @@ export function AnnouncementComposer({ title = "Compose email announcement", onC
               <select className={inputClassName} onChange={(event) => updateField("role", event.target.value)} value={form.role}>
                 <option value="student">Students</option>
                 <option value="mentor">Mentors</option>
-                <option value="admin">Admins</option>
-                <option value="superAdmin">Super admins</option>
+                {!isAdminManager ? <option value="admin">Admins</option> : null}
+                {!isAdminManager ? <option value="adminManager">Admin managers</option> : null}
+                {!isAdminManager ? <option value="superAdmin">Super admins</option> : null}
               </select>
             </FormField>
           ) : null}

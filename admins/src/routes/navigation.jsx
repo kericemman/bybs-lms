@@ -14,6 +14,7 @@ import {
   Settings,
   ShieldAlert,
   UserCircle,
+  UserCog,
   UserCheck,
   Users
 } from "lucide-react";
@@ -27,14 +28,15 @@ export const adminNavItems = [
   { href: "/assignments", label: "Assignments", icon: ClipboardList },
   { href: "/students", label: "Students", icon: GraduationCap },
   { href: "/mentors", label: "Mentors", icon: Users },
+  { href: "/admin-managers", label: "Admin Managers", icon: UserCog, roles: ["superAdmin"] },
   { href: "/bookings", label: "Bookings", icon: UserCheck },
   { href: "/reports", label: "Reports", icon: ScrollText },
   { href: "/discussions", label: "Discussions", icon: MessageSquare },
   { href: "/announcements", label: "Announcements", icon: Megaphone },
-  { href: "/notifications", label: "Notifications", icon: Megaphone },
+  { href: "/notifications", label: "Notifications", icon: Megaphone, roles: ["admin", "superAdmin"] },
   { href: "/support", label: "Support Tickets", icon: LifeBuoy },
   { href: "/beta-applications", label: "Beta Applications", icon: ClipboardCheck },
-  { href: "/system-logs", label: "System Logs", icon: ShieldAlert },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/system-logs", label: "System Logs", icon: ShieldAlert, roles: ["admin", "superAdmin"] },
+  { href: "/settings", label: "Settings", icon: Settings, roles: ["admin", "superAdmin"] },
   { href: "/profile", label: "Profile", icon: UserCircle }
 ];

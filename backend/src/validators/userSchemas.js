@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { emptyToUndefined, objectIdSchema, paginationQuerySchema } from "./commonSchemas.js";
 
-const roleSchema = z.enum(["student", "mentor", "admin", "superAdmin"]);
+const roleSchema = z.enum(["student", "mentor", "admin", "adminManager", "superAdmin"]);
 const statusSchema = z.enum(["active", "inactive", "suspended", "removed", "completed"]);
 const optionalUrlSchema = z.preprocess(emptyToUndefined, z.string().trim().url().optional());
 

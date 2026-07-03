@@ -19,6 +19,9 @@ import { parseCsv } from "../utils/csv.js";
 import { getPagination, paginatedResponse } from "../utils/pagination.js";
 import { sanitizePlainText, sanitizeRichText } from "../utils/sanitizeRichText.js";
 
+const ADMIN_LEVEL_ROLES = ["admin", "adminManager", "superAdmin"];
+const ADMIN_MANAGER_VISIBLE_ROLES = ["student", "mentor"];
+
 function cleanUser(user) {
   return {
     id: user.id,
@@ -148,7 +151,16 @@ export const listUsers = asyncHandler(async (req, res) => {
   const { page, limit, skip } = getPagination(req.query);
   const filter = {};
 
-  if (req.query.role) filter.role = req.query.role;
+  if (req.user.role === "adminManager") {
+    if (req.query.role && !ADMIN_MANAGER_VISIBLE_ROLES.includes(req.query.role)) {
+      throw new ApiError(403, "Admin managers can only view student and mentor accounts");
+    }
+
+    filter.role = req.query.role || { $in: ADMIN_MANAGER_VISIBLE_ROLES };
+  } else if (req.query.role) {
+    filter.role = req.query.role;
+  }
+
   if (req.query.status) filter.status = req.query.status;
   if (req.query.cohort) filter.cohort = req.query.cohort;
   if (req.query.search) {
@@ -172,8 +184,12 @@ export const listUsers = asyncHandler(async (req, res) => {
 });
 
 export const createUser = asyncHandler(async (req, res) => {
-  if (["admin", "superAdmin"].includes(req.body.role) && req.user.role !== "superAdmin") {
+  if (ADMIN_LEVEL_ROLES.includes(req.body.role) && req.user.role !== "superAdmin") {
     throw new ApiError(403, "Only a super admin can create admin-level accounts");
+  }
+
+  if (req.user.role === "adminManager" && req.body.status === "removed") {
+    throw new ApiError(403, "Admin managers can create active or suspended accounts, but cannot create removed accounts");
   }
 
   const existingUser = await User.findOne({ email: req.body.email.toLowerCase() });
@@ -200,7 +216,7 @@ export const createUser = asyncHandler(async (req, res) => {
   let welcomeEmailStatus = "notRequested";
   let welcomeEmailError = "";
 
-  if (["mentor", "admin", "superAdmin"].includes(user.role) && welcomeEmail?.send !== false) {
+  if (["mentor", "admin", "adminManager", "superAdmin"].includes(user.role) && welcomeEmail?.send !== false) {
     const delivery = await sendUserWelcomeEmail({ user: populatedUser, password, welcomeEmail });
     welcomeEmailStatus = delivery.status;
     welcomeEmailError = delivery.error || "";
@@ -250,6 +266,11 @@ export const importStudents = asyncHandler(async (req, res) => {
         continue;
       }
 
+      if (req.user.role === "adminManager" && row.status === "removed") {
+        errors.push({ row: rowNumber, email, message: "Admin managers cannot import removed accounts" });
+        continue;
+      }
+
       const user = await User.create({
         name: sanitizePlainText(row.name),
         email,
@@ -286,8 +307,18 @@ export const updateUser = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User not found");
   }
 
-  if (["admin", "superAdmin"].includes(user.role) && req.user.role !== "superAdmin") {
+  if (ADMIN_LEVEL_ROLES.includes(user.role) && req.user.role !== "superAdmin") {
     throw new ApiError(403, "Only a super admin can update admin-level accounts");
+  }
+
+  if (req.user.role === "adminManager") {
+    if (!ADMIN_MANAGER_VISIBLE_ROLES.includes(user.role)) {
+      throw new ApiError(403, "Admin managers can only update student and mentor accounts");
+    }
+
+    if (req.body.status === "removed") {
+      throw new ApiError(403, "Admin managers can suspend accounts, but only admins can remove them");
+    }
   }
 
   if (isSameUser(user._id, req.user._id) && req.body.status && req.body.status !== user.status) {
@@ -343,7 +374,7 @@ export const deleteUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, "You cannot remove your own account");
   }
 
-  if (["admin", "superAdmin"].includes(user.role) && req.user.role !== "superAdmin") {
+  if (ADMIN_LEVEL_ROLES.includes(user.role) && req.user.role !== "superAdmin") {
     throw new ApiError(403, "Only a super admin can remove admin-level accounts");
   }
 

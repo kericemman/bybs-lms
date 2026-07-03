@@ -35,7 +35,7 @@ function sanitize(value, depth = 0) {
 
 function shouldAudit(req) {
   if (!MUTATING_METHODS.has(req.method)) return false;
-  if (!req.user || !["admin", "superAdmin"].includes(req.user.role)) return false;
+  if (!req.user || !["admin", "adminManager", "superAdmin"].includes(req.user.role)) return false;
   return req.originalUrl?.startsWith("/api/");
 }
 
