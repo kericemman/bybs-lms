@@ -179,13 +179,6 @@ function messageStartsWithGreeting(message = "") {
   return /^(hi|hello|dear)\b/i.test(firstLine || "");
 }
 
-function fieldLabel(form) {
-  if (form.targetType === "all") return "All active users";
-  if (form.targetType === "cohort") return "Selected cohort";
-  if (form.targetType === "role") return `${ROLE_LABELS[form.role] || form.role} role`;
-  return "Selected user";
-}
-
 function roleLabel(role) {
   return ROLE_LABELS[role] || role;
 }
@@ -595,12 +588,13 @@ export function AnnouncementComposer({ title = "Compose email announcement", onC
             Email preview
           </div>
           <div className="overflow-hidden rounded-md border border-bybs-border bg-white">
-            <div className="bg-bybs-blue px-6 py-5 text-white">
+            <div className="border-b border-bybs-border bg-white px-6 py-5 text-bybs-navy">
               <div className="flex items-center gap-3">
                 <img alt="BYBS" className="h-14 w-14 rounded-md bg-white object-contain p-1" src={logoSrc} />
                 <div>
-                  <p className="text-xs font-semibold uppercase">Build Your Best Self</p>
-                  <p className="text-sm text-white/85">{fieldLabel(form)}</p>
+                  <p className="text-sm font-bold">Build Your Best Self</p>
+                  <p className="text-xs font-bold text-bybs-rose">Inspire, Heal, Evolve</p>
+                  <p className="text-xs font-bold uppercase tracking-wide text-bybs-muted">Learning Management System</p>
                 </div>
               </div>
             </div>

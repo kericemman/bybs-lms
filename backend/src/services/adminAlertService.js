@@ -48,15 +48,16 @@ function buildAlertHtml(alert) {
         <td align="center">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
             <tr>
-              <td style="background:#00337C;padding:24px;">
+              <td style="background:#FFFFFF;border-bottom:1px solid #E5E7EB;padding:24px;">
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                   <tr>
                     <td style="width:64px;">
                       <img alt="BYBS" src="${escapeHtml(logoUrl)}" width="56" height="56" style="display:block;border-radius:8px;background:#FFFFFF;object-fit:contain;padding:4px;" />
                     </td>
-                    <td style="color:#FFFFFF;">
-                      <div style="font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">BYBS LMS Alert</div>
-                      <div style="margin-top:4px;font-size:20px;font-weight:700;">${escapeHtml(alert.title)}</div>
+                    <td style="color:#10233F;padding-left:12px;">
+                      <div style="font-size:15px;font-weight:700;">Build Your Best Self</div>
+                      <div style="margin-top:4px;font-size:13px;color:#B76E79;font-weight:700;">Inspire, Heal, Evolve</div>
+                      <div style="margin-top:4px;font-size:12px;color:#6B7280;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">Learning Management System</div>
                     </td>
                   </tr>
                 </table>
@@ -64,6 +65,7 @@ function buildAlertHtml(alert) {
             </tr>
             <tr>
               <td style="padding:24px;">
+                <h1 style="margin:0 0 12px;color:#10233F;font-size:22px;line-height:1.3;">${escapeHtml(alert.title)}</h1>
                 <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">${escapeHtml(alert.message)}</p>
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #E5E7EB;border-radius:8px;margin-top:16px;">
                   <tr>

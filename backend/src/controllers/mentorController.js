@@ -387,19 +387,41 @@ function studentPortalNotificationUrl() {
   return `${env.clientStudentUrl.replace(/\/$/, "")}/app/notifications`;
 }
 
+function emailLogoSrc() {
+  return env.emailLogoUrl || `${env.clientAdminUrl.replace(/\/$/, "")}/assets/Logo1.png`;
+}
+
 function buildMentorMessageEmail({ mentor, student, title, message }) {
   const portalUrl = studentPortalNotificationUrl();
   const mentorName = sanitizePlainText(mentor.name || "Your mentor");
+  const logoSrc = emailLogoSrc();
 
   return `<!doctype html>
 <html>
   <body style="margin:0;background:#F7F9FC;padding:24px;font-family:Arial,sans-serif;color:#374151;">
     <div style="max-width:640px;margin:0 auto;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;">
-      <div style="background:#00337C;padding:20px 24px;color:#FFFFFF;">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Build Your Best Self LMS</div>
-        <h1 style="margin:8px 0 0;font-size:22px;line-height:1.3;">Private mentor message</h1>
+      <div style="background:#FFFFFF;border-bottom:1px solid #E5E7EB;padding:20px 24px;color:#10233F;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+          <tr>
+            <td width="72" valign="middle" style="width:72px;vertical-align:middle;">
+              <table role="presentation" cellspacing="0" cellpadding="0" style="background:#FFFFFF;border-radius:8px;">
+                <tr>
+                  <td style="padding:5px;">
+                    <img alt="BYBS" src="${escapeHtml(logoSrc)}" width="54" style="display:block;width:54px;height:auto;border:0;" />
+                  </td>
+                </tr>
+              </table>
+            </td>
+            <td valign="middle" style="color:#10233F;vertical-align:middle;padding-left:12px;">
+              <div style="font-size:15px;font-weight:700;">Build Your Best Self</div>
+              <div style="margin-top:4px;font-size:13px;color:#B76E79;font-weight:700;">Inspire, Heal, Evolve</div>
+              <div style="margin-top:4px;font-size:12px;color:#6B7280;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">Learning Management System</div>
+            </td>
+          </tr>
+        </table>
       </div>
       <div style="padding:24px;">
+        <h1 style="margin:0 0 14px;color:#10233F;font-size:22px;line-height:1.3;">Private mentor message</h1>
         <p style="margin:0 0 14px;font-size:14px;line-height:1.7;">Hi ${escapeHtml(firstName(student))},</p>
         <p style="margin:0 0 18px;font-size:14px;line-height:1.7;">${escapeHtml(mentorName)} sent you a private message in your BYBS mentee portal.</p>
         <div style="border:1px solid #E5E7EB;border-radius:8px;padding:16px;background:#F5F9FF;">

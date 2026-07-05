@@ -55,7 +55,6 @@ async function sendNotificationEmail({ notification, recipient, portalRole }) {
       title: notification.templateTitle || notification.title,
       previewText: notification.templatePreviewText || notification.previewText,
       message: emailMessage(notification),
-      targetLabel: notification.targetLabel || "BYBS LMS",
       type: notification.type || "system",
       ctaLabel: notification.ctaLabel,
       ctaUrl: absoluteCtaUrl(notification.ctaUrl, targetRole),

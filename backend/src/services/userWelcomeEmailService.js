@@ -161,7 +161,7 @@ function buildWelcomeHtml({ user, password, links }) {
         <td align="center">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:680px;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
             <tr>
-              <td style="background:#00337C;padding:18px 24px;">
+              <td style="background:#FFFFFF;border-bottom:1px solid #E5E7EB;padding:18px 24px;">
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                   <tr>
                     <td width="54" valign="middle" style="width:54px;vertical-align:middle;">
@@ -173,9 +173,10 @@ function buildWelcomeHtml({ user, password, links }) {
                         </tr>
                       </table>
                     </td>
-                    <td valign="middle" style="color:#FFFFFF;vertical-align:middle;padding-left:12px;">
-                      <div style="font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">Build Your Best Self</div>
-                      <div style="margin-top:4px;font-size:20px;font-weight:700;">Welcome to BYBS LMS</div>
+                    <td valign="middle" style="color:#10233F;vertical-align:middle;padding-left:12px;">
+                      <div style="font-size:15px;font-weight:700;">Build Your Best Self</div>
+                      <div style="margin-top:4px;font-size:13px;color:#B76E79;font-weight:700;">Inspire, Heal, Evolve</div>
+                      <div style="margin-top:4px;font-size:12px;color:#6B7280;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">Learning Management System</div>
                     </td>
                   </tr>
                 </table>
