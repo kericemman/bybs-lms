@@ -80,6 +80,18 @@ export const createAssignmentReminderSchema = z.object({
   })
 });
 
+export const updateAssignmentReminderSchema = z.object({
+  params: z.object({
+    id: objectIdSchema
+  }),
+  body: z.object({
+    title: z.preprocess(emptyToUndefined, z.string().trim().min(2).max(120).optional()),
+    message: z.preprocess(emptyToUndefined, z.string().trim().min(10).max(1200).optional())
+  }).refine((body) => body.title || body.message, {
+    message: "Update the title or message"
+  })
+});
+
 const sessionMaterialSchema = z
   .object({
     title: z.preprocess(emptyToUndefined, z.string().trim().min(2).max(160).optional()),

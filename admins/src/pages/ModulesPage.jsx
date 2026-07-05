@@ -39,6 +39,7 @@ export function ModulesPage() {
   const [filters, setFilters] = useState({ search: "", cohort: "", status: "" });
   const [form, setForm] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const canDelete = canDeleteOperationalRecords(user);
@@ -61,10 +62,12 @@ export function ModulesPage() {
   function resetForm() {
     setForm(initialForm);
     setEditingId(null);
+    setIsFormOpen(false);
   }
 
   function startEdit(module) {
     setEditingId(module._id);
+    setIsFormOpen(true);
     setForm({
       title: module.title || "",
       description: module.description || "",
@@ -117,6 +120,11 @@ export function ModulesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        actions={
+          <Button icon={isFormOpen ? X : Plus} onClick={() => (isFormOpen ? resetForm() : setIsFormOpen(true))} type="button" variant={isFormOpen ? "secondary" : "primary"}>
+            {isFormOpen ? "Close form" : "Create module"}
+          </Button>
+        }
         description="Create learning modules inside each cohort before adding sessions, resources, and assignments."
         title="Modules"
       />
@@ -129,6 +137,9 @@ export function ModulesPage() {
         statuses={statusOptions}
       />
 
+      {!isFormOpen && error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
+
+      {isFormOpen ? (
       <Card>
         <form className="grid min-w-0 max-w-full gap-4 overflow-hidden lg:grid-cols-4" onSubmit={handleSubmit}>
           <FormField label="Title">
@@ -183,6 +194,7 @@ export function ModulesPage() {
           </div>
         </form>
       </Card>
+      ) : null}
 
       <DataTable
         columns={[

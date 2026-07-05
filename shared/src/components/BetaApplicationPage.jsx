@@ -212,7 +212,7 @@ export function BetaApplicationPage({
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-bybs-page font-sans text-bybs-text">
+    <div className="flex min-h-screen flex-col overflow-x-hidden bg-bybs-page font-sans text-bybs-text">
       <header className="fixed inset-x-0 top-0 z-50 border-b border-bybs-border bg-white">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           <a className="flex min-w-0 max-w-[calc(100%-3.25rem)] items-center gap-3 lg:max-w-none" href={homeUrl}>
@@ -257,7 +257,7 @@ export function BetaApplicationPage({
         ) : null}
       </header>
 
-      <main className="pt-16">
+      <main className="flex-1 pt-16">
         <section className="border-b border-bybs-border bg-white">
           <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 py-8 sm:px-6 sm:py-10 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] lg:gap-8 lg:px-8 lg:py-14">
             <div className="min-w-0 lg:sticky lg:top-24 lg:self-start">
@@ -447,6 +447,7 @@ export function BetaApplicationPage({
             <a className="text-white/80 hover:text-white" href={studentLoginUrl}>Mentee login</a>
             <a className="text-white/80 hover:text-white" href={mentorLoginUrl}>Mentor login</a>
           </div>
+          <p className="text-sm text-white/70">Designed and maintained by TDAG.</p>
         </div>
       </footer>
     </div>

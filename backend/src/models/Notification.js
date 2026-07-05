@@ -9,6 +9,7 @@ const notificationSchema = new mongoose.Schema(
     templateTitle: { type: String },
     templateMessage: { type: String },
     templatePreviewText: { type: String },
+    reminder: { type: mongoose.Schema.Types.ObjectId, ref: "Reminder", index: true },
     channel: {
       type: String,
       enum: ["platform", "email", "both"],
@@ -35,7 +36,9 @@ const notificationSchema = new mongoose.Schema(
       default: "system",
       index: true
     },
-    readStatus: { type: Boolean, default: false, index: true }
+    readStatus: { type: Boolean, default: false, index: true },
+    archivedAt: { type: Date },
+    archivedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }
   },
   { timestamps: true }
 );

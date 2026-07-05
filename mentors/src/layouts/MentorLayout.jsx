@@ -12,7 +12,9 @@ export function MentorLayout({ children }) {
     <AppShell
       activePath={location.pathname}
       navItems={mentorNavItems}
+      notificationsHref="/notifications"
       portalName="Mentor Portal"
+      profileHref="/profile"
       sidebarFooter={
         <div>
           <p className="mb-3 text-sm font-medium text-bybs-navy">Cohort health</p>

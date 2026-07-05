@@ -1,9 +1,11 @@
 import { Router } from "express";
 import { listStudentCertificates } from "../controllers/certificateController.js";
 import {
+  archiveStudentDiscussion,
   createStudentBooking,
   createStudentDiscussion,
   createStudentSupportTicket,
+  deleteStudentDiscussionComment,
   listStudentDiscussions,
   listStudentAssignments,
   listStudentBookings,
@@ -16,6 +18,8 @@ import {
   markStudentNotificationRead,
   replyStudentSupportTicket,
   replyStudentDiscussion,
+  updateStudentDiscussion,
+  updateStudentDiscussionComment,
   studentDashboard,
   studentProgress,
   submitStudentAssignment,
@@ -26,6 +30,7 @@ import { createBetaFeedback, listMyBetaFeedback } from "../controllers/betaFeedb
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { decompressCompressedUpload, finalizeResourceUpload, resourceUpload } from "../middleware/upload.js";
 import { validate } from "../middleware/validate.js";
+import { idParamsSchema } from "../validators/commonSchemas.js";
 import {
   createBookingSchema,
   createSupportTicketSchema,
@@ -40,7 +45,10 @@ import { createBetaFeedbackSchema, listMyBetaFeedbackSchema } from "../validator
 import {
   createDiscussionCommentSchema,
   createPortalDiscussionSchema,
-  discussionListSchema
+  discussionCommentParamsSchema,
+  discussionListSchema,
+  updateDiscussionCommentSchema,
+  updatePortalDiscussionSchema
 } from "../validators/discussionSchemas.js";
 
 export const studentRoutes = Router();
@@ -53,7 +61,11 @@ studentRoutes.get("/sessions", validate(studentListSchema), listStudentSessions)
 studentRoutes.get("/materials", validate(studentListSchema), listStudentMaterials);
 studentRoutes.get("/discussions", validate(discussionListSchema), listStudentDiscussions);
 studentRoutes.post("/discussions", validate(createPortalDiscussionSchema), createStudentDiscussion);
+studentRoutes.patch("/discussions/:id", validate(updatePortalDiscussionSchema), updateStudentDiscussion);
+studentRoutes.delete("/discussions/:id", validate(idParamsSchema), archiveStudentDiscussion);
 studentRoutes.post("/discussions/:id/comments", validate(createDiscussionCommentSchema), replyStudentDiscussion);
+studentRoutes.patch("/discussions/:id/comments/:commentId", validate(updateDiscussionCommentSchema), updateStudentDiscussionComment);
+studentRoutes.delete("/discussions/:id/comments/:commentId", validate(discussionCommentParamsSchema), deleteStudentDiscussionComment);
 studentRoutes.get("/assignments", validate(studentAssignmentListSchema), listStudentAssignments);
 studentRoutes.post("/assignments/:id/submission", validate(submitAssignmentSchema), submitStudentAssignment);
 studentRoutes.get("/progress", studentProgress);

@@ -36,6 +36,7 @@ export function DiscussionsPage() {
   const [filters, setFilters] = useState({ search: "", cohort: "", status: "" });
   const [form, setForm] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const canDelete = canDeleteOperationalRecords(user);
@@ -58,10 +59,12 @@ export function DiscussionsPage() {
   function resetForm() {
     setForm(initialForm);
     setEditingId(null);
+    setIsFormOpen(false);
   }
 
   function startEdit(discussion) {
     setEditingId(discussion._id);
+    setIsFormOpen(true);
     setForm({
       title: discussion.title || "",
       body: discussion.body || "",
@@ -108,43 +111,65 @@ export function DiscussionsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader description="Create and moderate structured cohort/module discussion threads." title="Discussions" />
+      <PageHeader
+        actions={
+          <Button
+            icon={isFormOpen ? X : Plus}
+            onClick={() => {
+              if (isFormOpen) {
+                resetForm();
+              } else {
+                setIsFormOpen(true);
+                setError("");
+              }
+            }}
+            type="button"
+            variant={isFormOpen ? "secondary" : "primary"}
+          >
+            {isFormOpen ? "Close form" : "Create discussion"}
+          </Button>
+        }
+        description="Create and moderate structured cohort/module discussion threads."
+        title="Discussions"
+      />
 
       <FilterBar cohorts={cohorts} filters={filters} onChange={setFilters} onReset={() => setFilters({ search: "", cohort: "", status: "" })} statuses={statusOptions} />
+      {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
 
-      <Card>
-        <form className="grid gap-4 lg:grid-cols-4" onSubmit={handleSubmit}>
-          <FormField label="Title"><input className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} required value={form.title} /></FormField>
-          <FormField label="Cohort">
-            <select className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, cohort: event.target.value, module: "" }))} required value={form.cohort}>
-              <option value="">Choose cohort</option>
-              {cohorts.map((cohort) => <option key={cohort._id} value={cohort._id}>{cohort.title}</option>)}
-            </select>
-          </FormField>
-          <FormField label="Module">
-            <select className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, module: event.target.value }))} value={form.module}>
-              <option value="">No module</option>
-              {filteredModules.map((module) => <option key={module._id} value={module._id}>{module.title}</option>)}
-            </select>
-          </FormField>
-          <FormField label="Status">
-            <select className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))} value={form.status}>
-              {statusOptions.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
-            </select>
-          </FormField>
-          <FormField label="Who can see this?">
-            <select className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, audience: event.target.value }))} value={form.audience}>
-              {DISCUSSION_AUDIENCE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-          </FormField>
-          <div className="lg:col-span-4"><FormField label="Prompt"><textarea className={textAreaClassName} onChange={(event) => setForm((current) => ({ ...current, body: event.target.value }))} value={form.body} /></FormField></div>
-          {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose lg:col-span-4">{error}</p> : null}
-          <div className="flex flex-wrap gap-2 lg:col-span-4">
-            <Button disabled={isSubmitting} icon={editingId ? Save : Plus} type="submit">{isSubmitting ? "Saving..." : editingId ? "Update discussion" : "Create discussion"}</Button>
-            {editingId ? <Button icon={X} onClick={resetForm} type="button" variant="secondary">Cancel edit</Button> : null}
-          </div>
-        </form>
-      </Card>
+      {isFormOpen ? (
+        <Card>
+          <form className="grid gap-4 lg:grid-cols-4" onSubmit={handleSubmit}>
+            <FormField label="Title"><input className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} required value={form.title} /></FormField>
+            <FormField label="Cohort">
+              <select className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, cohort: event.target.value, module: "" }))} required value={form.cohort}>
+                <option value="">Choose cohort</option>
+                {cohorts.map((cohort) => <option key={cohort._id} value={cohort._id}>{cohort.title}</option>)}
+              </select>
+            </FormField>
+            <FormField label="Module">
+              <select className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, module: event.target.value }))} value={form.module}>
+                <option value="">No module</option>
+                {filteredModules.map((module) => <option key={module._id} value={module._id}>{module.title}</option>)}
+              </select>
+            </FormField>
+            <FormField label="Status">
+              <select className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))} value={form.status}>
+                {statusOptions.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
+              </select>
+            </FormField>
+            <FormField label="Who can see this?">
+              <select className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, audience: event.target.value }))} value={form.audience}>
+                {DISCUSSION_AUDIENCE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </FormField>
+            <div className="lg:col-span-4"><FormField label="Prompt"><textarea className={textAreaClassName} onChange={(event) => setForm((current) => ({ ...current, body: event.target.value }))} value={form.body} /></FormField></div>
+            <div className="flex flex-wrap gap-2 lg:col-span-4">
+              <Button disabled={isSubmitting} icon={editingId ? Save : Plus} type="submit">{isSubmitting ? "Saving..." : editingId ? "Update discussion" : "Create discussion"}</Button>
+              <Button icon={X} onClick={resetForm} type="button" variant="secondary">{editingId ? "Cancel edit" : "Cancel"}</Button>
+            </div>
+          </form>
+        </Card>
+      ) : null}
 
       <DataTable
         columns={[

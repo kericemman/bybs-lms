@@ -82,6 +82,7 @@ export function StudentsPage() {
   const [filters, setFilters] = useState({ search: "", cohort: "", status: "" });
   const [form, setForm] = useState(() => createInitialForm());
   const [editingId, setEditingId] = useState(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -112,10 +113,12 @@ export function StudentsPage() {
   function resetForm() {
     setForm(createInitialForm());
     setEditingId(null);
+    setIsFormOpen(false);
   }
 
   function startEdit(student) {
     setEditingId(student.id);
+    setIsFormOpen(true);
     setForm({
       name: student.name || "",
       email: student.email || "",
@@ -233,11 +236,16 @@ export function StudentsPage() {
     <div className="space-y-6">
       <PageHeader
         actions={
-          <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-md border border-bybs-border bg-white px-4 text-sm font-medium text-bybs-text shadow-sm hover:bg-bybs-pale">
-            <Upload className="h-4 w-4" aria-hidden="true" />
-            {isImporting ? "Importing..." : "Import CSV"}
-            <input accept=".csv,text/csv" className="sr-only" disabled={isImporting} onChange={handleImport} type="file" />
-          </label>
+          <>
+            <Button icon={isFormOpen ? X : Plus} onClick={() => (isFormOpen ? resetForm() : setIsFormOpen(true))} type="button" variant={isFormOpen ? "secondary" : "primary"}>
+              {isFormOpen ? "Close form" : "Add mentee"}
+            </Button>
+            <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-md border border-bybs-border bg-white px-4 text-sm font-medium text-bybs-text shadow-sm hover:bg-bybs-pale">
+              <Upload className="h-4 w-4" aria-hidden="true" />
+              {isImporting ? "Importing..." : "Import CSV"}
+              <input accept=".csv,text/csv" className="sr-only" disabled={isImporting} onChange={handleImport} type="file" />
+            </label>
+          </>
         }
         description="Add mentees, assign cohorts and mentors, view progress, and manage account access."
         title="Mentees"
@@ -245,6 +253,10 @@ export function StudentsPage() {
 
       <FilterBar cohorts={cohorts} filters={filters} onChange={setFilters} onReset={() => setFilters({ search: "", cohort: "", status: "" })} statuses={statusOptions} />
 
+      {!isFormOpen && error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
+      {!isFormOpen && feedback ? <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue">{feedback}</p> : null}
+
+      {isFormOpen ? (
       <Card>
         <form className="grid gap-4 lg:grid-cols-3" onSubmit={handleSubmit}>
           <FormField label="Name"><input className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required value={form.name} /></FormField>
@@ -292,6 +304,7 @@ export function StudentsPage() {
           </div>
         </form>
       </Card>
+      ) : null}
 
       <DataTable
         columns={[

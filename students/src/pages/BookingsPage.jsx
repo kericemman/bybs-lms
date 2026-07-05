@@ -1,6 +1,6 @@
 import { CalendarCheck, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Button, EmptyState, PageHeader, StatusBadge } from "@bybs/shared";
+import { AddToCalendarButton, Button, EmptyState, PageHeader, StatusBadge } from "@bybs/shared";
 import { studentApi } from "../services/api.js";
 import { formatDateTime } from "../utils/format.js";
 
@@ -38,6 +38,20 @@ function mentorName(mentor) {
 
 function slotLabel(slot) {
   return `${mentorName(slot.mentor)}: ${dayLabels[slot.dayOfWeek] || slot.dayOfWeek} ${slot.startTime}-${slot.endTime}`;
+}
+
+function bookingCalendarEvent(booking) {
+  const mentor = booking.mentor?.name || "BYBS mentor";
+
+  return {
+    id: booking._id,
+    title: `BYBS 1:1 session with ${mentor}`,
+    description: booking.reason || "BYBS mentor booking.",
+    startsAt: booking.startsAt,
+    endsAt: booking.endsAt,
+    location: booking.meetingLink || "BYBS LMS",
+    url: booking.meetingLink || ""
+  };
 }
 
 export function BookingsPage() {
@@ -194,6 +208,7 @@ export function BookingsPage() {
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge status={booking.status} />
+                  <AddToCalendarButton event={bookingCalendarEvent(booking)} fileName={`bybs-booking-${booking._id}`} />
                   {["pending", "approved"].includes(booking.status) ? (
                     <Button onClick={() => cancelBooking(booking)} size="sm" type="button" variant="secondary">Cancel</Button>
                   ) : null}

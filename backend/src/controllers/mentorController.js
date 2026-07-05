@@ -6,6 +6,7 @@ import { Discussion } from "../models/Discussion.js";
 import { MentorAvailability } from "../models/MentorAvailability.js";
 import { Module } from "../models/Module.js";
 import { Notification } from "../models/Notification.js";
+import { Reminder } from "../models/Reminder.js";
 import { Report } from "../models/Report.js";
 import { Resource } from "../models/Resource.js";
 import { Session } from "../models/Session.js";
@@ -319,6 +320,7 @@ function cleanStudentRow(student, stats) {
     phone: student.phone,
     cohort: student.cohort,
     status: student.status,
+    profileImage: student.profileImage,
     progress: totalAssignments ? Math.round((submittedCount / totalAssignments) * 100) : 0,
     submittedCount,
     reviewedCount: stats.reviewedCount || 0,
@@ -584,6 +586,25 @@ async function reminderRecipients({ mentor, assignment, target }) {
   const targetStudentIds = new Set(submissions.map((submission) => String(submission.student)));
 
   return scopedStudents.filter((student) => targetStudentIds.has(String(student._id)));
+}
+
+function reminderDeliveryStats(delivery) {
+  return {
+    sent: delivery?.sent || 0,
+    failed: delivery?.failed || 0,
+    notConfigured: delivery?.notConfigured || 0
+  };
+}
+
+async function populateReminder(reminder) {
+  await reminder.populate("assignment", "title dueDate status module");
+  await reminder.populate({
+    path: "assignment",
+    populate: { path: "module", select: "title status" }
+  });
+  await reminder.populate("cohort", "title status");
+  await reminder.populate("recipients", "name email role");
+  return reminder;
 }
 
 export const mentorDashboard = asyncHandler(async (req, res) => {
@@ -919,6 +940,50 @@ export const createMentorDiscussion = asyncHandler(async (req, res) => {
   res.status(201).json({ data: discussion });
 });
 
+export const updateMentorDiscussion = asyncHandler(async (req, res) => {
+  const discussion = await Discussion.findOne({
+    _id: req.params.id,
+    createdBy: req.user._id,
+    status: { $ne: "archived" },
+    $and: [discussionAudienceFilter(mentorDiscussionAudiences)]
+  });
+
+  if (!discussion) {
+    throw new ApiError(404, "Discussion not found");
+  }
+
+  if (Object.prototype.hasOwnProperty.call(req.body, "title")) {
+    discussion.title = sanitizePlainText(req.body.title);
+  }
+  if (Object.prototype.hasOwnProperty.call(req.body, "body")) {
+    discussion.body = sanitizeRichText(req.body.body || "");
+  }
+  if (req.body.audience) {
+    discussion.audience = req.body.audience;
+  }
+
+  await discussion.save();
+  await populateDiscussionDocument(discussion);
+  res.json({ data: discussion });
+});
+
+export const archiveMentorDiscussion = asyncHandler(async (req, res) => {
+  const discussion = await Discussion.findOne({
+    _id: req.params.id,
+    createdBy: req.user._id,
+    status: { $ne: "archived" },
+    $and: [discussionAudienceFilter(mentorDiscussionAudiences)]
+  });
+
+  if (!discussion) {
+    throw new ApiError(404, "Discussion not found");
+  }
+
+  discussion.status = "archived";
+  await discussion.save();
+  res.json({ data: { id: req.params.id, archived: true } });
+});
+
 export const replyMentorDiscussion = asyncHandler(async (req, res) => {
   const discussion = await Discussion.findOne({
     _id: req.params.id,
@@ -966,6 +1031,50 @@ export const replyMentorDiscussion = asyncHandler(async (req, res) => {
 
   await populateDiscussionDocument(discussion);
   res.status(201).json({ data: discussion });
+});
+
+export const updateMentorDiscussionComment = asyncHandler(async (req, res) => {
+  const discussion = await Discussion.findOne({
+    _id: req.params.id,
+    status: "open",
+    $and: [discussionAudienceFilter(mentorDiscussionAudiences)]
+  });
+
+  if (!discussion) {
+    throw new ApiError(404, "Open discussion not found");
+  }
+
+  const comment = discussion.comments.id(req.params.commentId);
+  if (!comment || String(comment.createdBy) !== String(req.user._id)) {
+    throw new ApiError(404, "Reply not found");
+  }
+
+  comment.body = sanitizeRichText(req.body.body);
+  await discussion.save();
+  await populateDiscussionDocument(discussion);
+  res.json({ data: discussion });
+});
+
+export const deleteMentorDiscussionComment = asyncHandler(async (req, res) => {
+  const discussion = await Discussion.findOne({
+    _id: req.params.id,
+    status: "open",
+    $and: [discussionAudienceFilter(mentorDiscussionAudiences)]
+  });
+
+  if (!discussion) {
+    throw new ApiError(404, "Open discussion not found");
+  }
+
+  const comment = discussion.comments.id(req.params.commentId);
+  if (!comment || String(comment.createdBy) !== String(req.user._id)) {
+    throw new ApiError(404, "Reply not found");
+  }
+
+  discussion.comments.pull({ _id: req.params.commentId });
+  await discussion.save();
+  await populateDiscussionDocument(discussion);
+  res.json({ data: discussion });
 });
 
 export const listMentorAssignments = asyncHandler(async (req, res) => {
@@ -1030,18 +1139,123 @@ export const createAssignmentReminder = asyncHandler(async (req, res) => {
     }
   });
 
+  const notificationIds = (delivery.notifications || []).map((notification) => notification._id);
+  const reminder = await Reminder.create({
+    mentor: req.user._id,
+    assignment: assignment._id,
+    cohort: assignment.cohort?._id || assignment.cohort,
+    target: req.body.target,
+    title: sanitizePlainText(title),
+    message,
+    recipients: recipients.map((recipient) => recipient._id),
+    recipientCount: recipients.length,
+    notificationIds,
+    emailDelivery: reminderDeliveryStats(delivery),
+    status: "sent"
+  });
+
+  if (notificationIds.length) {
+    await Notification.updateMany(
+      { _id: { $in: notificationIds } },
+      { $set: { reminder: reminder._id } }
+    );
+  }
+
+  await populateReminder(reminder);
+
   res.status(201).json({
     data: {
+      reminder,
       assignment: assignment._id,
       sent: recipients.length,
       target: req.body.target,
-      emailDelivery: {
-        sent: delivery.sent,
-        failed: delivery.failed,
-        notConfigured: delivery.notConfigured
-      }
+      emailDelivery: reminder.emailDelivery
     }
   });
+});
+
+export const listAssignmentReminders = asyncHandler(async (req, res) => {
+  const { page, limit, skip } = getPagination(req.query);
+  const filter = { mentor: req.user._id, status: { $ne: "archived" } };
+
+  const [reminders, total] = await Promise.all([
+    Reminder.find(filter)
+      .populate({
+        path: "assignment",
+        select: "title dueDate status module",
+        populate: { path: "module", select: "title status" }
+      })
+      .populate("cohort", "title status")
+      .populate("recipients", "name email role")
+      .sort({ sentAt: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    Reminder.countDocuments(filter)
+  ]);
+
+  res.json(paginatedResponse({ data: reminders, total, page, limit }));
+});
+
+export const updateAssignmentReminder = asyncHandler(async (req, res) => {
+  const reminder = await Reminder.findOne({
+    _id: req.params.id,
+    mentor: req.user._id,
+    status: { $ne: "archived" }
+  });
+
+  if (!reminder) {
+    throw new ApiError(404, "Reminder not found");
+  }
+
+  if (Object.prototype.hasOwnProperty.call(req.body, "title")) {
+    reminder.title = sanitizePlainText(req.body.title);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(req.body, "message")) {
+    reminder.message = sanitizeRichText(req.body.message);
+  }
+
+  reminder.editedAt = new Date();
+  await reminder.save();
+
+  await Notification.updateMany(
+    { _id: { $in: reminder.notificationIds }, archivedAt: { $exists: false } },
+    {
+      $set: {
+        title: reminder.title,
+        message: reminder.message,
+        previewText: sanitizePlainText(reminder.message).slice(0, 160)
+      }
+    }
+  );
+
+  await populateReminder(reminder);
+  res.json({ data: reminder });
+});
+
+export const archiveAssignmentReminder = asyncHandler(async (req, res) => {
+  const reminder = await Reminder.findOne({
+    _id: req.params.id,
+    mentor: req.user._id,
+    status: { $ne: "archived" }
+  });
+
+  if (!reminder) {
+    throw new ApiError(404, "Reminder not found");
+  }
+
+  const archivedAt = new Date();
+  reminder.status = "archived";
+  reminder.archivedAt = archivedAt;
+  reminder.archivedBy = req.user._id;
+  await reminder.save();
+
+  await Notification.updateMany(
+    { _id: { $in: reminder.notificationIds }, archivedAt: { $exists: false } },
+    { $set: { archivedAt, archivedBy: req.user._id } }
+  );
+
+  res.json({ data: { id: req.params.id, archived: true } });
 });
 
 export const createSessionWork = asyncHandler(async (req, res) => {
@@ -1143,7 +1357,7 @@ export const listMentorStudents = asyncHandler(async (req, res) => {
   const filter = await assignedStudentFilter(req.user);
   const [students, total] = await Promise.all([
     User.find(filter)
-      .select("name email phone status cohort mentor lastLogin createdAt")
+      .select("name email phone status cohort mentor lastLogin createdAt profileImage")
       .populate("cohort", "title status")
       .sort({ name: 1 })
       .skip(skip)
@@ -1587,10 +1801,37 @@ export const updateMentorBooking = asyncHandler(async (req, res) => {
   res.json({ data: booking });
 });
 
+export const listMentorNotifications = asyncHandler(async (req, res) => {
+  const { page, limit, skip } = getPagination(req.query);
+  const [notifications, total] = await Promise.all([
+    Notification.find({ recipient: req.user._id, archivedAt: { $exists: false } })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    Notification.countDocuments({ recipient: req.user._id, archivedAt: { $exists: false } })
+  ]);
+
+  res.json(paginatedResponse({ data: notifications, total, page, limit }));
+});
+
+export const markMentorNotificationRead = asyncHandler(async (req, res) => {
+  const notification = await Notification.findOneAndUpdate(
+    { _id: req.params.id, recipient: req.user._id, archivedAt: { $exists: false } },
+    { readStatus: true },
+    { new: true }
+  );
+
+  if (!notification) {
+    throw new ApiError(404, "Notification not found");
+  }
+
+  res.json({ data: notification });
+});
+
 export const listMentorReports = asyncHandler(async (req, res) => {
   const { page, limit, skip } = getPagination(req.query);
   const [reports, total] = await Promise.all([
-    Report.find({ mentor: req.user._id })
+    Report.find({ mentor: req.user._id, archivedAt: { $exists: false } })
       .populate("cohort", "title status")
       .populate("studentsDoingWell", "name email")
       .populate("studentsAtRisk", "name email")
@@ -1599,7 +1840,7 @@ export const listMentorReports = asyncHandler(async (req, res) => {
       .sort({ submittedAt: -1 })
       .skip(skip)
       .limit(limit),
-    Report.countDocuments({ mentor: req.user._id })
+    Report.countDocuments({ mentor: req.user._id, archivedAt: { $exists: false } })
   ]);
 
   res.json(paginatedResponse({ data: reports, total, page, limit }));
@@ -1643,7 +1884,7 @@ export const createMentorReport = asyncHandler(async (req, res) => {
 });
 
 export const updateMentorReport = asyncHandler(async (req, res) => {
-  const report = await Report.findOne({ _id: req.params.id, mentor: req.user._id });
+  const report = await Report.findOne({ _id: req.params.id, mentor: req.user._id, archivedAt: { $exists: false } });
 
   if (!report) {
     throw new ApiError(404, "Report not found");
@@ -1683,6 +1924,21 @@ export const updateMentorReport = asyncHandler(async (req, res) => {
   await report.populate("lastReviewedBy", "name email role");
 
   res.json({ data: report });
+});
+
+export const archiveMentorReport = asyncHandler(async (req, res) => {
+  const report = await Report.findOne({ _id: req.params.id, mentor: req.user._id, archivedAt: { $exists: false } });
+
+  if (!report) {
+    throw new ApiError(404, "Report not found");
+  }
+
+  report.archivedAt = new Date();
+  report.archivedBy = req.user._id;
+  report.archiveReason = "Archived by mentor from the mentor portal";
+  await report.save();
+
+  res.json({ data: { id: req.params.id, archived: true } });
 });
 
 function sanitizeMentorBookingPayload(payload) {

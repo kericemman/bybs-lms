@@ -30,3 +30,33 @@ export const createDiscussionCommentSchema = z.object({
     body: z.string().trim().min(2).max(5000)
   })
 });
+
+export const updatePortalDiscussionSchema = z.object({
+  params: z.object({
+    id: objectIdSchema
+  }),
+  body: z.object({
+    title: z.preprocess(emptyToUndefined, z.string().trim().min(2).max(160).optional()),
+    body: z.preprocess(emptyToUndefined, z.string().trim().max(5000).optional()),
+    audience: discussionAudienceSchema.optional()
+  }).refine((body) => body.title || body.body || body.audience, {
+    message: "Update the title, message, or audience"
+  })
+});
+
+export const discussionCommentParamsSchema = z.object({
+  params: z.object({
+    id: objectIdSchema,
+    commentId: objectIdSchema
+  })
+});
+
+export const updateDiscussionCommentSchema = z.object({
+  params: z.object({
+    id: objectIdSchema,
+    commentId: objectIdSchema
+  }),
+  body: z.object({
+    body: z.string().trim().min(2).max(5000)
+  })
+});

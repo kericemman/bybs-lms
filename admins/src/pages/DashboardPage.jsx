@@ -115,7 +115,7 @@ export function DashboardPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard icon={GraduationCap} label="Active mentees" tone="blue" value={summary.students} />
         <StatCard icon={Users} label="Mentors" tone="blue" value={summary.mentors} />
         <StatCard icon={BookOpen} label="Current cohorts" tone="blue" value={summary.cohorts} />

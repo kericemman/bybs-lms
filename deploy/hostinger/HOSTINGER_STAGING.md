@@ -262,3 +262,5 @@ bash deploy/hostinger/check-staging.sh
 ## 12. Important
 
 Do not use local `/uploads` as permanent staging storage. If Cloudinary is not configured, uploads will fall back locally only for development-style testing.
+
+

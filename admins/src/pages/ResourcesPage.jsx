@@ -35,6 +35,7 @@ export function ResourcesPage() {
   const [filters, setFilters] = useState({ search: "", cohort: "", status: "" });
   const [form, setForm] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [error, setError] = useState("");
   const [uploadMessage, setUploadMessage] = useState("");
   const [isUploading, setIsUploading] = useState(false);
@@ -61,11 +62,13 @@ export function ResourcesPage() {
   function resetForm() {
     setForm(initialForm);
     setEditingId(null);
+    setIsFormOpen(false);
     setUploadMessage("");
   }
 
   function startEdit(resource) {
     setEditingId(resource._id);
+    setIsFormOpen(true);
     setForm({
       title: resource.title || "",
       description: resource.description || "",
@@ -148,10 +151,22 @@ export function ResourcesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader description="Publish slides, PDFs, recordings, templates, readings, videos, and external links." title="Resources" />
+      <PageHeader
+        actions={
+          <Button icon={isFormOpen ? X : Plus} onClick={() => (isFormOpen ? resetForm() : setIsFormOpen(true))} type="button" variant={isFormOpen ? "secondary" : "primary"}>
+            {isFormOpen ? "Close form" : "Create resource"}
+          </Button>
+        }
+        description="Publish slides, PDFs, recordings, templates, readings, videos, and external links."
+        title="Resources"
+      />
 
       <FilterBar cohorts={cohorts} filters={filters} onChange={setFilters} onReset={() => setFilters({ search: "", cohort: "", status: "" })} statuses={statusOptions} />
 
+      {!isFormOpen && error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
+      {!isFormOpen && uploadMessage ? <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue">{uploadMessage}</p> : null}
+
+      {isFormOpen ? (
       <Card>
         <form className="grid gap-4 lg:grid-cols-4" onSubmit={handleSubmit}>
           <FormField label="Title"><input className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} required value={form.title} /></FormField>
@@ -217,6 +232,7 @@ export function ResourcesPage() {
           </div>
         </form>
       </Card>
+      ) : null}
 
       <DataTable
         columns={[

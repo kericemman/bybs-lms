@@ -1,6 +1,6 @@
 import { ClipboardCheck, Eye, Link, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Button, Card, DataTable, PageHeader, RichTextEditor, SafeHtml, StatusBadge } from "@bybs/shared";
+import { AddToCalendarButton, Button, Card, DataTable, PageHeader, RichTextEditor, SafeHtml, StatusBadge } from "@bybs/shared";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { FormField, inputClassName } from "../components/FormField.jsx";
 import { mentorApi } from "../services/api.js";
@@ -58,6 +58,28 @@ function toDateInput(value) {
 
 function sessionMentorName(session) {
   return session?.module?.assignedMentor?.name || session?.module?.assignedMentor?.email || "Assigned mentor";
+}
+
+function assignmentCalendarEvent(assignment) {
+  return {
+    allDay: true,
+    id: assignment._id,
+    title: `BYBS assignment due: ${assignment.title}`,
+    description: `${assignment.module?.title || "Assignment"} deadline for mentees.`,
+    startsAt: assignment.dueDate
+  };
+}
+
+function sessionCalendarEvent(session) {
+  return {
+    id: session._id,
+    title: `BYBS session: ${session.title}`,
+    description: `${session.module?.title || "Module session"} with ${sessionMentorName(session)}.`,
+    startsAt: session.startsAt,
+    endsAt: session.endsAt,
+    location: session.zoomLink || "BYBS LMS",
+    url: session.zoomLink || ""
+  };
 }
 
 function resourceLinksForForm(resourceLinks = []) {
@@ -827,6 +849,11 @@ export function SessionWorkPage() {
             { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
             { key: "createdBy", header: "Posted by", render: (row) => row.createdBy?.name || "BYBS team" },
             {
+              key: "calendar",
+              header: "Calendar",
+              render: (row) => <AddToCalendarButton event={assignmentCalendarEvent(row)} fileName={`bybs-assignment-${row._id}`} />
+            },
+            {
               key: "actions",
               header: "Actions",
               render: (row) => (
@@ -863,6 +890,11 @@ export function SessionWorkPage() {
           { key: "mentor", header: "Mentor", render: (row) => sessionMentorName(row) },
           { key: "moduleDates", header: "Module dates", render: (row) => row.module?.startDate || row.module?.endDate ? `${formatDate(row.module?.startDate)} - ${formatDate(row.module?.endDate)}` : "Not set" },
           { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
+          {
+            key: "calendar",
+            header: "Calendar",
+            render: (row) => <AddToCalendarButton event={sessionCalendarEvent(row)} fileName={`bybs-session-${row._id}`} />
+          },
           {
             key: "attendance",
             header: "Attendance",

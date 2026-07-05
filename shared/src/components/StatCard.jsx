@@ -9,15 +9,15 @@ export function StatCard({ label, value, hint, icon: Icon, tone = "primary" }) {
   };
 
   return (
-    <div className="rounded-lg border border-bybs-border bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm text-bybs-body">{label}</p>
-          <p className="mt-2 text-2xl font-semibold text-bybs-navy">{value}</p>
+    <div className="rounded-lg border border-bybs-border bg-white p-3 shadow-sm sm:p-4">
+      <div className="flex items-start justify-between gap-2 sm:gap-3">
+        <div className="min-w-0">
+          <p className="text-xs leading-5 text-bybs-body sm:text-sm">{label}</p>
+          <p className="mt-1 text-xl font-semibold text-bybs-navy sm:mt-2 sm:text-2xl">{value}</p>
         </div>
         {Icon ? (
-          <span className={cn("inline-flex h-10 w-10 items-center justify-center rounded-md", tones[tone])}>
-            <Icon className="h-5 w-5" aria-hidden="true" />
+          <span className={cn("inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md sm:h-9 sm:w-9", tones[tone])}>
+            <Icon className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
           </span>
         ) : null}
       </div>

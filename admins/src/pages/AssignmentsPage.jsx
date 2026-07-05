@@ -38,6 +38,7 @@ export function AssignmentsPage() {
   const [filters, setFilters] = useState({ search: "", cohort: "", status: "" });
   const [form, setForm] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const canDelete = canDeleteOperationalRecords(user);
@@ -58,10 +59,12 @@ export function AssignmentsPage() {
   function resetForm() {
     setForm(initialForm);
     setEditingId(null);
+    setIsFormOpen(false);
   }
 
   function startEdit(assignment) {
     setEditingId(assignment._id);
+    setIsFormOpen(true);
     setForm({
       title: assignment.title || "",
       instructions: assignment.instructions || "",
@@ -109,12 +112,20 @@ export function AssignmentsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        actions={
+          <Button icon={isFormOpen ? X : Plus} onClick={() => (isFormOpen ? resetForm() : setIsFormOpen(true))} type="button" variant={isFormOpen ? "secondary" : "primary"}>
+            {isFormOpen ? "Close form" : "Create assignment"}
+          </Button>
+        }
         description="Create assignments, attach templates, set deadlines, and monitor submissions."
         title="Assignments"
       />
 
       <FilterBar cohorts={cohorts} filters={filters} onChange={setFilters} onReset={() => setFilters({ search: "", cohort: "", status: "" })} statuses={statusOptions} />
 
+      {!isFormOpen && error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
+
+      {isFormOpen ? (
       <Card>
         <form className="grid gap-4 lg:grid-cols-4" onSubmit={handleSubmit}>
           <FormField label="Title">
@@ -153,6 +164,7 @@ export function AssignmentsPage() {
           </div>
         </form>
       </Card>
+      ) : null}
 
       <DataTable
         columns={[

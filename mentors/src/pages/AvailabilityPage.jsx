@@ -1,4 +1,4 @@
-import { CalendarClock, Plus, Trash2 } from "lucide-react";
+import { CalendarClock, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button, Card, DataTable, PageHeader, StatusBadge } from "@bybs/shared";
 import { FormField, inputClassName } from "../components/FormField.jsx";
@@ -26,6 +26,7 @@ function initialForm() {
 export function AvailabilityPage() {
   const [slots, setSlots] = useState([]);
   const [form, setForm] = useState(() => initialForm());
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -49,6 +50,7 @@ export function AvailabilityPage() {
       await mentorApi.createAvailability(form);
       setFeedback("Availability slot added.");
       setForm(initialForm());
+      setIsFormOpen(false);
       await loadSlots();
     } catch (requestError) {
       setError(requestError.message);
@@ -88,30 +90,62 @@ export function AvailabilityPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        actions={
+          <Button
+            icon={isFormOpen ? X : Plus}
+            onClick={() => {
+              if (isFormOpen) {
+                setForm(initialForm());
+                setIsFormOpen(false);
+              } else {
+                setIsFormOpen(true);
+              }
+              setError("");
+              setFeedback("");
+            }}
+            type="button"
+            variant={isFormOpen ? "secondary" : "primary"}
+          >
+            {isFormOpen ? "Close form" : "Add availability"}
+          </Button>
+        }
         description="Set weekly slots mentees can book for 1:1 mentor sessions."
         title="Availability"
       />
 
-      <Card>
-        <form className="grid gap-4 md:grid-cols-4" onSubmit={handleSubmit}>
-          <FormField label="Day">
-            <select className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, dayOfWeek: event.target.value }))} value={form.dayOfWeek}>
-              {days.map((day) => <option key={day.value} value={day.value}>{day.label}</option>)}
-            </select>
-          </FormField>
-          <FormField label="Start time">
-            <input className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, startTime: event.target.value }))} required type="time" value={form.startTime} />
-          </FormField>
-          <FormField label="End time">
-            <input className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, endTime: event.target.value }))} required type="time" value={form.endTime} />
-          </FormField>
-          <div className="flex items-end">
-            <Button className="w-full" disabled={isSubmitting} icon={Plus} type="submit">
-              {isSubmitting ? "Adding..." : "Add slot"}
-            </Button>
-          </div>
-        </form>
-      </Card>
+      {isFormOpen ? (
+        <Card>
+          <form className="grid gap-4 md:grid-cols-4" onSubmit={handleSubmit}>
+            <FormField label="Day">
+              <select className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, dayOfWeek: event.target.value }))} value={form.dayOfWeek}>
+                {days.map((day) => <option key={day.value} value={day.value}>{day.label}</option>)}
+              </select>
+            </FormField>
+            <FormField label="Start time">
+              <input className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, startTime: event.target.value }))} required type="time" value={form.startTime} />
+            </FormField>
+            <FormField label="End time">
+              <input className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, endTime: event.target.value }))} required type="time" value={form.endTime} />
+            </FormField>
+            <div className="flex flex-wrap items-end gap-2 md:col-span-4">
+              <Button disabled={isSubmitting} icon={Plus} type="submit">
+                {isSubmitting ? "Adding..." : "Add slot"}
+              </Button>
+              <Button
+                icon={X}
+                onClick={() => {
+                  setForm(initialForm());
+                  setIsFormOpen(false);
+                }}
+                type="button"
+                variant="secondary"
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </Card>
+      ) : null}
 
       {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
       {feedback ? <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue">{feedback}</p> : null}

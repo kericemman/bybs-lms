@@ -25,7 +25,7 @@ export function ProgressPage() {
 
       {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard icon={ClipboardList} label="Total assignments" value={data.totalAssignments || 0} />
         <StatCard icon={ClipboardCheck} label="Submitted" value={`${data.submittedCount || 0}/${data.totalAssignments || 0}`} />
         <StatCard icon={RotateCcw} label="Needs revision" tone="gold" value={data.needsRevisionCount || 0} />

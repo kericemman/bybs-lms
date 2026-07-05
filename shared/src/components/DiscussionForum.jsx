@@ -1,5 +1,5 @@
-import { MessageSquare, Plus, RefreshCw, Search, Send, UserRound, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Link as LinkIcon, MessageSquare, Pencil, Plus, RefreshCw, Search, Send, Trash2, Upload, UserRound, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "./Button.jsx";
 import { Card } from "./Card.jsx";
 import { EmptyState } from "./EmptyState.jsx";
@@ -115,6 +115,33 @@ function chatTextToHtml(value = "") {
     .join("<br />");
 }
 
+function htmlToChatText(value = "") {
+  const html = String(value || "");
+  if (!html) return "";
+
+  if (typeof document === "undefined") {
+    return html.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").trim();
+  }
+
+  const element = document.createElement("div");
+  element.innerHTML = html;
+  element.querySelectorAll("br").forEach((node) => node.replaceWith("\n"));
+  element.querySelectorAll("a").forEach((node) => node.replaceWith(node.getAttribute("href") || node.textContent || ""));
+  return element.textContent.trim();
+}
+
+function appendLine(current = "", next = "") {
+  const cleanCurrent = String(current || "").trimEnd();
+  const cleanNext = String(next || "").trim();
+  if (!cleanNext) return cleanCurrent;
+  return cleanCurrent ? `${cleanCurrent}\n${cleanNext}` : cleanNext;
+}
+
+function uploadedFileLine(file = {}) {
+  const label = file.originalName || file.fileName || "Uploaded file";
+  return file.url ? `${label}: ${file.url}` : "";
+}
+
 function uniqueCohorts({ modules = [], discussions = [] }) {
   const cohorts = new Map();
 
@@ -225,24 +252,33 @@ export function DiscussionForum({
   api,
   canChooseAudience = false,
   createDescription = "Start a focused thread for cohort questions, reflections, resources, and support.",
+  currentUser,
   description,
   emptyDescription = "Forum discussions will appear here once someone starts a thread.",
   showCohortField = false,
   showModuleField = false,
   title = "Forum"
 }) {
+  const fileInputRef = useRef(null);
   const [discussions, setDiscussions] = useState([]);
   const [modules, setModules] = useState([]);
   const [filters, setFilters] = useState({ search: "", status: "", cohort: "", module: "" });
   const [form, setForm] = useState(() => emptyForm());
+  const [isComposerOpen, setIsComposerOpen] = useState(false);
+  const [editingDiscussion, setEditingDiscussion] = useState(null);
+  const [activeActionTarget, setActiveActionTarget] = useState("");
   const [activeReplyId, setActiveReplyId] = useState("");
   const [replyBody, setReplyBody] = useState("");
+  const [editingComment, setEditingComment] = useState(null);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [uploadTarget, setUploadTarget] = useState(null);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const [profileUser, setProfileUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   async function loadData() {
     setIsLoading(true);
@@ -299,7 +335,89 @@ export function DiscussionForum({
     });
   }
 
-  async function createDiscussion(event) {
+  function isOwner(entity) {
+    return idFor(entity?.createdBy) && idFor(entity?.createdBy) === idFor(currentUser);
+  }
+
+  function setActionTarget(target) {
+    setActiveActionTarget((current) => (current === target ? "" : target));
+  }
+
+  function appendToTarget(target, line) {
+    if (target?.type === "reply") {
+      setReplyBody((current) => appendLine(current, line));
+      return;
+    }
+
+    if (target?.type === "comment") {
+      setCommentDraft((current) => appendLine(current, line));
+      return;
+    }
+
+    setForm((current) => ({ ...current, body: appendLine(current.body, line) }));
+  }
+
+  function addLink(target) {
+    const url = window.prompt("Paste the link URL");
+    if (!url) return;
+    const label = window.prompt("Optional link label") || "";
+    appendToTarget(target, label ? `${label}: ${url}` : url);
+  }
+
+  function chooseUpload(target) {
+    if (!api.uploadFile) {
+      setError("File upload is not available here.");
+      return;
+    }
+
+    setUploadTarget(target);
+    fileInputRef.current?.click();
+  }
+
+  async function uploadFile(event) {
+    const file = event.target.files?.[0];
+    if (!file || !uploadTarget) return;
+
+    setError("");
+    setFeedback("");
+    setIsUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await api.uploadFile(formData);
+      appendToTarget(uploadTarget, uploadedFileLine(response.data));
+      setFeedback("File uploaded and added to your message.");
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setIsUploading(false);
+      setUploadTarget(null);
+      event.target.value = "";
+    }
+  }
+
+  function startDiscussionEdit(discussion) {
+    setEditingDiscussion(discussion);
+    setForm({
+      title: discussion.title || "",
+      body: htmlToChatText(discussion.body),
+      cohort: idFor(discussion.cohort),
+      module: idFor(discussion.module),
+      audience: discussion.audience || "all"
+    });
+    setIsComposerOpen(true);
+    setActiveActionTarget("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function resetComposer() {
+    setEditingDiscussion(null);
+    setForm(emptyForm());
+    setIsComposerOpen(false);
+  }
+
+  async function submitDiscussion(event) {
     event.preventDefault();
     setError("");
     setFeedback("");
@@ -314,14 +432,35 @@ export function DiscussionForum({
       if (showCohortField && form.cohort) payload.cohort = form.cohort;
       if (canChooseAudience) payload.audience = form.audience || "all";
 
-      await api.createDiscussion(payload);
-      setForm(emptyForm());
-      setFeedback("Discussion started.");
+      if (editingDiscussion) {
+        await api.updateDiscussion(idFor(editingDiscussion), payload);
+        setFeedback("Discussion updated.");
+      } else {
+        await api.createDiscussion(payload);
+        setFeedback("Discussion started.");
+      }
+
+      resetComposer();
       await loadData();
     } catch (requestError) {
       setError(requestError.message);
     } finally {
       setIsCreating(false);
+    }
+  }
+
+  async function deleteDiscussion(discussion) {
+    if (!window.confirm(`Delete "${discussion.title}" from the forum?`)) return;
+
+    setError("");
+    setFeedback("");
+
+    try {
+      await api.deleteDiscussion(idFor(discussion));
+      setFeedback("Discussion deleted.");
+      await loadData();
+    } catch (requestError) {
+      setError(requestError.message);
     }
   }
 
@@ -343,13 +482,74 @@ export function DiscussionForum({
     }
   }
 
+  function startCommentEdit(discussion, comment) {
+    setEditingComment({ discussionId: idFor(discussion), commentId: idFor(comment) });
+    setCommentDraft(htmlToChatText(comment.body));
+    setActiveActionTarget("");
+  }
+
+  async function updateComment() {
+    if (!editingComment) return;
+
+    setError("");
+    setFeedback("");
+    setIsReplying(true);
+
+    try {
+      await api.updateDiscussionComment(editingComment.discussionId, editingComment.commentId, {
+        body: chatTextToHtml(commentDraft)
+      });
+      setEditingComment(null);
+      setCommentDraft("");
+      setFeedback("Reply updated.");
+      await loadData();
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setIsReplying(false);
+    }
+  }
+
+  async function deleteComment(discussion, comment) {
+    if (!window.confirm("Delete this reply?")) return;
+
+    setError("");
+    setFeedback("");
+
+    try {
+      await api.deleteDiscussionComment(idFor(discussion), idFor(comment));
+      setFeedback("Reply deleted.");
+      await loadData();
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         actions={
-          <Button icon={RefreshCw} onClick={() => loadData().catch((requestError) => setError(requestError.message))} type="button" variant="secondary">
-            Refresh
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              icon={isComposerOpen ? X : Plus}
+              onClick={() => {
+                if (isComposerOpen) {
+                  resetComposer();
+                } else {
+                  setIsComposerOpen(true);
+                }
+                setError("");
+                setFeedback("");
+              }}
+              type="button"
+              variant={isComposerOpen ? "secondary" : "primary"}
+            >
+              {isComposerOpen ? "Close form" : "Create discussion"}
+            </Button>
+            <Button icon={RefreshCw} onClick={() => loadData().catch((requestError) => setError(requestError.message))} type="button" variant="secondary">
+              Refresh
+            </Button>
+          </div>
         }
         description={description}
         title={title}
@@ -358,71 +558,91 @@ export function DiscussionForum({
       {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
       {feedback ? <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue">{feedback}</p> : null}
 
-      <Card>
-        <form className="grid gap-4 lg:grid-cols-4" onSubmit={createDiscussion}>
-          <div className="lg:col-span-4">
-            <p className="text-sm font-semibold text-bybs-navy">Start a discussion</p>
-            <p className="mt-1 text-sm text-bybs-body">{createDescription}</p>
-          </div>
-          <label className={!showCohortField && !showModuleField && !canChooseAudience ? "block lg:col-span-4" : "block lg:col-span-2"}>
-            <span className="text-sm font-medium text-bybs-body">Title</span>
-            <input
-              className={`${inputClassName} mt-1`}
-              onChange={(event) => updateForm("title", event.target.value)}
-              required
-              value={form.title}
-            />
-          </label>
-          {canChooseAudience ? (
-            <label className="block">
-              <span className="text-sm font-medium text-bybs-body">Who can see this?</span>
-              <select className={`${inputClassName} mt-1`} onChange={(event) => updateForm("audience", event.target.value)} value={form.audience}>
-                {DISCUSSION_AUDIENCE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          {showCohortField ? (
-            <label className="block">
-              <span className="text-sm font-medium text-bybs-body">Cohort</span>
-              <select className={`${inputClassName} mt-1`} onChange={(event) => updateForm("cohort", event.target.value)} value={form.cohort}>
-                <option value="">Auto / choose cohort</option>
-                {cohorts.map((cohort) => (
-                  <option key={idFor(cohort)} value={idFor(cohort)}>{cohort.title || "Cohort"}</option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          {showModuleField ? (
-            <label className={showCohortField ? "block" : "block lg:col-span-2"}>
-              <span className="text-sm font-medium text-bybs-body">Module</span>
-              <select className={`${inputClassName} mt-1`} onChange={(event) => updateForm("module", event.target.value)} value={form.module}>
-                <option value="">General discussion</option>
-                {formModules.map((module) => (
-                  <option key={idFor(module)} value={idFor(module)}>{module.title}</option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          <div className="lg:col-span-4">
-            <label className="block">
-              <span className="text-sm font-medium text-bybs-body">Message</span>
-              <textarea
-                className={`${textAreaClassName} mt-1`}
-                onChange={(event) => updateForm("body", event.target.value)}
-                placeholder="Share the question, update, reflection, or resource."
-                value={form.body}
+      <input className="sr-only" onChange={uploadFile} ref={fileInputRef} type="file" />
+
+      {isComposerOpen ? (
+        <Card>
+          <form className="grid gap-4 lg:grid-cols-4" onSubmit={submitDiscussion}>
+            <div className="lg:col-span-4">
+              <p className="text-sm font-semibold text-bybs-navy">{editingDiscussion ? "Edit discussion" : "Start a discussion"}</p>
+              <p className="mt-1 text-sm text-bybs-body">{createDescription}</p>
+            </div>
+            <label className={!showCohortField && !showModuleField && !canChooseAudience ? "block lg:col-span-4" : "block lg:col-span-2"}>
+              <span className="text-sm font-medium text-bybs-body">Title</span>
+              <input
+                className={`${inputClassName} mt-1`}
+                onChange={(event) => updateForm("title", event.target.value)}
+                required
+                value={form.title}
               />
             </label>
-          </div>
-          <div className="lg:col-span-4">
-            <Button disabled={isCreating} icon={Plus} type="submit">
-              {isCreating ? "Starting..." : "Start discussion"}
-            </Button>
-          </div>
-        </form>
-      </Card>
+            {canChooseAudience ? (
+              <label className="block">
+                <span className="text-sm font-medium text-bybs-body">Who can see this?</span>
+                <select className={`${inputClassName} mt-1`} onChange={(event) => updateForm("audience", event.target.value)} value={form.audience}>
+                  {DISCUSSION_AUDIENCE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {showCohortField ? (
+              <label className="block">
+                <span className="text-sm font-medium text-bybs-body">Cohort</span>
+                <select className={`${inputClassName} mt-1`} onChange={(event) => updateForm("cohort", event.target.value)} value={form.cohort}>
+                  <option value="">Auto / choose cohort</option>
+                  {cohorts.map((cohort) => (
+                    <option key={idFor(cohort)} value={idFor(cohort)}>{cohort.title || "Cohort"}</option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {showModuleField ? (
+              <label className={showCohortField ? "block" : "block lg:col-span-2"}>
+                <span className="text-sm font-medium text-bybs-body">Module</span>
+                <select className={`${inputClassName} mt-1`} onChange={(event) => updateForm("module", event.target.value)} value={form.module}>
+                  <option value="">General discussion</option>
+                  {formModules.map((module) => (
+                    <option key={idFor(module)} value={idFor(module)}>{module.title}</option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            <div className="lg:col-span-4">
+              <label className="block">
+                <span className="text-sm font-medium text-bybs-body">Message</span>
+                <textarea
+                  className={`${textAreaClassName} mt-1`}
+                  onChange={(event) => updateForm("body", event.target.value)}
+                  placeholder="Share the question, update, reflection, or resource."
+                  value={form.body}
+                />
+              </label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button icon={LinkIcon} onClick={() => addLink({ type: "discussion" })} size="sm" type="button" variant="secondary">
+                  Add link
+                </Button>
+                <Button disabled={isUploading || !api.uploadFile} icon={Upload} onClick={() => chooseUpload({ type: "discussion" })} size="sm" type="button" variant="secondary">
+                  {isUploading && uploadTarget?.type === "discussion" ? "Uploading..." : "Upload"}
+                </Button>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 lg:col-span-4">
+              <Button disabled={isCreating} icon={Plus} type="submit">
+                {isCreating ? "Saving..." : editingDiscussion ? "Update discussion" : "Start discussion"}
+              </Button>
+              <Button
+                icon={X}
+                onClick={resetComposer}
+                type="button"
+                variant="secondary"
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </Card>
+      ) : null}
 
       <div className="grid gap-3 rounded-lg border border-bybs-border bg-white p-4 md:grid-cols-4">
         <label className="block md:col-span-2">
@@ -477,8 +697,13 @@ export function DiscussionForum({
         <EmptyState description={emptyDescription} icon={MessageSquare} title="No discussions yet" />
       ) : (
         <div className="space-y-4">
-          {discussions.map((discussion) => (
-            <article className="rounded-lg border border-bybs-border bg-white p-5 shadow-sm" key={idFor(discussion)}>
+          {discussions.map((discussion) => {
+            const discussionId = idFor(discussion);
+            const discussionActionTarget = `discussion:${discussionId}`;
+            const canEditDiscussion = isOwner(discussion) && api.updateDiscussion && api.deleteDiscussion;
+
+            return (
+            <article className="rounded-lg border border-bybs-border bg-white p-5 shadow-sm" key={discussionId}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -501,19 +726,101 @@ export function DiscussionForum({
                 </span>
               </div>
 
-              {discussion.body ? <SafeHtml className={`mt-4 ${contentClassName}`} html={discussion.body} /> : null}
+              {discussion.body ? (
+                <div
+                  className="mt-4 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bybs-pale"
+                  onClick={() => canEditDiscussion ? setActionTarget(discussionActionTarget) : undefined}
+                  onKeyDown={(event) => {
+                    if (canEditDiscussion && (event.key === "Enter" || event.key === " ")) {
+                      event.preventDefault();
+                      setActionTarget(discussionActionTarget);
+                    }
+                  }}
+                  role={canEditDiscussion ? "button" : undefined}
+                  tabIndex={canEditDiscussion ? 0 : undefined}
+                >
+                  <SafeHtml className={contentClassName} html={discussion.body} />
+                </div>
+              ) : null}
+
+              {canEditDiscussion && activeActionTarget === discussionActionTarget ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button icon={Pencil} onClick={() => startDiscussionEdit(discussion)} size="sm" type="button" variant="secondary">
+                    Edit
+                  </Button>
+                  <Button icon={Trash2} onClick={() => deleteDiscussion(discussion)} size="sm" type="button" variant="danger">
+                    Delete
+                  </Button>
+                </div>
+              ) : null}
 
               {discussion.comments?.length ? (
                 <div className="mt-5 space-y-3 border-t border-bybs-border pt-4">
-                  {discussion.comments.map((comment) => (
-                    <div className="rounded-md bg-bybs-pale p-4" key={comment._id || comment.createdAt}>
+                  {discussion.comments.map((comment) => {
+                    const commentId = idFor(comment);
+                    const commentActionTarget = `comment:${commentId}`;
+                    const canEditComment = isOwner(comment) && api.updateDiscussionComment && api.deleteDiscussionComment;
+                    const isEditingComment = editingComment?.discussionId === discussionId && editingComment?.commentId === commentId;
+
+                    return (
+                    <div className="rounded-md bg-bybs-pale p-4" key={commentId || comment.createdAt}>
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <AuthorButton user={comment.createdBy}>{setProfileUser}</AuthorButton>
                         <p className="text-xs text-bybs-muted">{formatDateTime(comment.createdAt)}</p>
                       </div>
-                      <SafeHtml className={`mt-2 ${contentClassName}`} html={comment.body} />
+                      {isEditingComment ? (
+                        <div className="mt-3 space-y-3">
+                          <textarea
+                            className={textAreaClassName}
+                            onChange={(event) => setCommentDraft(event.target.value)}
+                            value={commentDraft}
+                          />
+                          <div className="flex flex-wrap gap-2">
+                            <Button icon={LinkIcon} onClick={() => addLink({ type: "comment" })} size="sm" type="button" variant="secondary">
+                              Add link
+                            </Button>
+                            <Button disabled={isUploading || !api.uploadFile} icon={Upload} onClick={() => chooseUpload({ type: "comment" })} size="sm" type="button" variant="secondary">
+                              {isUploading && uploadTarget?.type === "comment" ? "Uploading..." : "Upload"}
+                            </Button>
+                            <Button disabled={isReplying} icon={Pencil} onClick={updateComment} size="sm" type="button">
+                              {isReplying ? "Saving..." : "Save reply"}
+                            </Button>
+                            <Button icon={X} onClick={() => { setEditingComment(null); setCommentDraft(""); }} size="sm" type="button" variant="secondary">
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div
+                            className="mt-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bybs-pale"
+                            onClick={() => canEditComment ? setActionTarget(commentActionTarget) : undefined}
+                            onKeyDown={(event) => {
+                              if (canEditComment && (event.key === "Enter" || event.key === " ")) {
+                                event.preventDefault();
+                                setActionTarget(commentActionTarget);
+                              }
+                            }}
+                            role={canEditComment ? "button" : undefined}
+                            tabIndex={canEditComment ? 0 : undefined}
+                          >
+                            <SafeHtml className={contentClassName} html={comment.body} />
+                          </div>
+                          {canEditComment && activeActionTarget === commentActionTarget ? (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <Button icon={Pencil} onClick={() => startCommentEdit(discussion, comment)} size="sm" type="button" variant="secondary">
+                                Edit
+                              </Button>
+                              <Button icon={Trash2} onClick={() => deleteComment(discussion, comment)} size="sm" type="button" variant="danger">
+                                Delete
+                              </Button>
+                            </div>
+                          ) : null}
+                        </>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : null}
 
@@ -528,6 +835,12 @@ export function DiscussionForum({
                         value={replyBody}
                       />
                       <div className="flex flex-wrap gap-2">
+                        <Button icon={LinkIcon} onClick={() => addLink({ type: "reply" })} type="button" variant="secondary">
+                          Add link
+                        </Button>
+                        <Button disabled={isUploading || !api.uploadFile} icon={Upload} onClick={() => chooseUpload({ type: "reply" })} type="button" variant="secondary">
+                          {isUploading && uploadTarget?.type === "reply" ? "Uploading..." : "Upload"}
+                        </Button>
                         <Button disabled={isReplying} icon={Send} onClick={() => sendReply(discussion)} type="button">
                           {isReplying ? "Posting..." : "Post reply"}
                         </Button>
@@ -544,7 +857,8 @@ export function DiscussionForum({
                 </div>
               ) : null}
             </article>
-          ))}
+            );
+          })}
         </div>
       )}
       <ProfileModal onClose={() => setProfileUser(null)} user={profileUser} />

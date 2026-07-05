@@ -190,7 +190,7 @@ export function CertificatesPage() {
       {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
       {feedback ? <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue">{feedback}</p> : null}
 
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
         <StatCard icon={Award} label="Total" value={counts.total} />
         <StatCard icon={ShieldCheck} label="Awaiting admin" value={counts.pending} />
         <StatCard icon={CheckCircle2} label="System ready" value={counts.ready} />

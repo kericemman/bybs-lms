@@ -23,6 +23,7 @@ export function StudentLayout({ children }) {
       navItems={studentNavItems}
       notificationsHref="/app/notifications"
       portalName="Mentee Portal"
+      profileHref="/app/profile"
       sidebarFooter={
         <div>
           <p className="mb-3 text-sm font-medium text-bybs-navy">Fellowship progress</p>

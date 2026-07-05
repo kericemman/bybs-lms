@@ -264,7 +264,7 @@ export function StudentDetailPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard label="Progress" value={`${progress?.progress || 0}%`} />
         <StatCard label="Submitted" value={`${progress?.submittedCount || 0}/${progress?.totalAssignments || 0}`} />
         <StatCard label="Reviewed" value={progress?.reviewedCount || 0} />

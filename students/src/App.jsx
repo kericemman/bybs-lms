@@ -1,3 +1,4 @@
+import { GlobalLoader } from "@bybs/shared";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext.jsx";
 import { ProtectedRoute } from "./auth/ProtectedRoute.jsx";
@@ -22,38 +23,41 @@ import { VerifyCertificatePage } from "./pages/VerifyCertificatePage.jsx";
 export default function App() {
   return (
     <AuthProvider>
-      <Routes>
-        <Route element={<PublicPage />} path="/" />
-        <Route element={<BetaTestingPage />} path="/beta-testing" />
-        <Route element={<VerifyCertificatePage />} path="/verify-certificate/:code" />
-        <Route element={<VerifyCertificatePage />} path="/v/:code" />
-        <Route element={<LoginPage />} path="/login" />
-        <Route element={<AdminAccessRedirect />} path="/admin-access" />
-        <Route
-          element={
-            <ProtectedRoute>
-              <StudentLayout>
-                <Routes>
-                  <Route element={<DashboardPage />} index />
-                  <Route element={<MaterialsPage />} path="materials" />
-                  <Route element={<DiscussionsPage />} path="forum" />
-                  <Route element={<AssignmentsPage />} path="assignments" />
-                  <Route element={<ProgressPage />} path="progress" />
-                  <Route element={<CertificatesPage />} path="certificates" />
-                  <Route element={<BookingsPage />} path="bookings" />
-                  <Route element={<NotificationsPage />} path="notifications" />
-                  <Route element={<ProfilePage />} path="profile" />
-                  <Route element={<BetaFeedbackPage />} path="beta-feedback" />
-                  <Route element={<SupportPage />} path="support" />
-                  <Route element={<Navigate to="/app" replace />} path="*" />
-                </Routes>
-              </StudentLayout>
-            </ProtectedRoute>
-          }
-          path="/app/*"
-        />
-        <Route element={<Navigate to="/" replace />} path="*" />
-      </Routes>
+      <>
+        <GlobalLoader />
+        <Routes>
+          <Route element={<PublicPage />} path="/" />
+          <Route element={<BetaTestingPage />} path="/beta-testing" />
+          <Route element={<VerifyCertificatePage />} path="/verify-certificate/:code" />
+          <Route element={<VerifyCertificatePage />} path="/v/:code" />
+          <Route element={<LoginPage />} path="/login" />
+          <Route element={<AdminAccessRedirect />} path="/admin-access" />
+          <Route
+            element={
+              <ProtectedRoute>
+                <StudentLayout>
+                  <Routes>
+                    <Route element={<DashboardPage />} index />
+                    <Route element={<MaterialsPage />} path="materials" />
+                    <Route element={<DiscussionsPage />} path="forum" />
+                    <Route element={<AssignmentsPage />} path="assignments" />
+                    <Route element={<ProgressPage />} path="progress" />
+                    <Route element={<CertificatesPage />} path="certificates" />
+                    <Route element={<BookingsPage />} path="bookings" />
+                    <Route element={<NotificationsPage />} path="notifications" />
+                    <Route element={<ProfilePage />} path="profile" />
+                    <Route element={<BetaFeedbackPage />} path="beta-feedback" />
+                    <Route element={<SupportPage />} path="support" />
+                    <Route element={<Navigate to="/app" replace />} path="*" />
+                  </Routes>
+                </StudentLayout>
+              </ProtectedRoute>
+            }
+            path="/app/*"
+          />
+          <Route element={<Navigate to="/" replace />} path="*" />
+        </Routes>
+      </>
     </AuthProvider>
   );
 }

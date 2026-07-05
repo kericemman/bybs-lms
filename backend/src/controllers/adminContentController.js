@@ -600,7 +600,7 @@ export const updateBooking = asyncHandler(async (req, res) => {
 });
 
 export const listReports = asyncHandler(async (req, res) => {
-  const filter = {};
+  const filter = { archivedAt: { $exists: false } };
   if (req.query.cohort) filter.cohort = req.query.cohort;
   if (req.query.mentor) filter.mentor = req.query.mentor;
   if (req.query.period) filter.period = req.query.period;
@@ -805,7 +805,7 @@ export const getSupportTicket = asyncHandler(async (req, res) => {
       .limit(6),
     SupportTicket.countDocuments({ student: student._id, status: { $in: ["open", "inProgress"] } }),
     student.cohort ? Resource.countDocuments({ cohort: student.cohort._id || student.cohort, visibility: "published" }) : 0,
-    Notification.find({ recipient: student._id })
+    Notification.find({ recipient: student._id, archivedAt: { $exists: false } })
       .sort({ createdAt: -1 })
       .limit(6),
     SystemLog.find({
@@ -905,7 +905,7 @@ export const updateSupportTicket = asyncHandler(async (req, res) => {
 });
 
 export const listNotifications = asyncHandler(async (req, res) => {
-  const filter = {};
+  const filter = { archivedAt: { $exists: false } };
   if (req.query.type) filter.type = req.query.type;
   if (req.query.recipient) filter.recipient = req.query.recipient;
   if (req.query.search) {

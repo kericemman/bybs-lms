@@ -317,8 +317,8 @@ export const studentDashboard = asyncHandler(async (req, res) => {
     Submission.countDocuments({ student: req.user._id, status: { $in: submittedStatuses } }),
     Assignment.countDocuments(assignmentFilter(req.user, { dueDate: { $gte: now } })),
     Session.countDocuments({ cohort: cohortId, status: "scheduled", startsAt: { $gte: now } }),
-    Notification.countDocuments({ recipient: req.user._id, readStatus: false }),
-    Notification.find({ recipient: req.user._id })
+    Notification.countDocuments({ recipient: req.user._id, readStatus: false, archivedAt: { $exists: false } }),
+    Notification.find({ recipient: req.user._id, archivedAt: { $exists: false } })
       .sort({ createdAt: -1 })
       .limit(5),
     Session.find({ cohort: cohortId, status: "scheduled", startsAt: { $gte: now } })
@@ -461,6 +461,47 @@ export const createStudentDiscussion = asyncHandler(async (req, res) => {
   res.status(201).json({ data: discussion });
 });
 
+export const updateStudentDiscussion = asyncHandler(async (req, res) => {
+  const discussion = await Discussion.findOne({
+    _id: req.params.id,
+    createdBy: req.user._id,
+    status: { $ne: "archived" },
+    $and: [discussionAudienceFilter(studentDiscussionAudiences)]
+  });
+
+  if (!discussion) {
+    throw new ApiError(404, "Discussion not found");
+  }
+
+  if (Object.prototype.hasOwnProperty.call(req.body, "title")) {
+    discussion.title = sanitizePlainText(req.body.title);
+  }
+  if (Object.prototype.hasOwnProperty.call(req.body, "body")) {
+    discussion.body = sanitizeRichText(req.body.body || "");
+  }
+
+  await discussion.save();
+  await populateDiscussionDocument(discussion);
+  res.json({ data: discussion });
+});
+
+export const archiveStudentDiscussion = asyncHandler(async (req, res) => {
+  const discussion = await Discussion.findOne({
+    _id: req.params.id,
+    createdBy: req.user._id,
+    status: { $ne: "archived" },
+    $and: [discussionAudienceFilter(studentDiscussionAudiences)]
+  });
+
+  if (!discussion) {
+    throw new ApiError(404, "Discussion not found");
+  }
+
+  discussion.status = "archived";
+  await discussion.save();
+  res.json({ data: { id: req.params.id, archived: true } });
+});
+
 export const replyStudentDiscussion = asyncHandler(async (req, res) => {
   const discussion = await Discussion.findOne({
     _id: req.params.id,
@@ -509,6 +550,50 @@ export const replyStudentDiscussion = asyncHandler(async (req, res) => {
 
   await populateDiscussionDocument(discussion);
   res.status(201).json({ data: discussion });
+});
+
+export const updateStudentDiscussionComment = asyncHandler(async (req, res) => {
+  const discussion = await Discussion.findOne({
+    _id: req.params.id,
+    status: "open",
+    $and: [discussionAudienceFilter(studentDiscussionAudiences)]
+  });
+
+  if (!discussion) {
+    throw new ApiError(404, "Open discussion not found");
+  }
+
+  const comment = discussion.comments.id(req.params.commentId);
+  if (!comment || String(comment.createdBy) !== String(req.user._id)) {
+    throw new ApiError(404, "Reply not found");
+  }
+
+  comment.body = sanitizeRichText(req.body.body);
+  await discussion.save();
+  await populateDiscussionDocument(discussion);
+  res.json({ data: discussion });
+});
+
+export const deleteStudentDiscussionComment = asyncHandler(async (req, res) => {
+  const discussion = await Discussion.findOne({
+    _id: req.params.id,
+    status: "open",
+    $and: [discussionAudienceFilter(studentDiscussionAudiences)]
+  });
+
+  if (!discussion) {
+    throw new ApiError(404, "Open discussion not found");
+  }
+
+  const comment = discussion.comments.id(req.params.commentId);
+  if (!comment || String(comment.createdBy) !== String(req.user._id)) {
+    throw new ApiError(404, "Reply not found");
+  }
+
+  discussion.comments.pull({ _id: req.params.commentId });
+  await discussion.save();
+  await populateDiscussionDocument(discussion);
+  res.json({ data: discussion });
 });
 
 export const listStudentAssignments = asyncHandler(async (req, res) => {
@@ -865,11 +950,11 @@ export const replyStudentSupportTicket = asyncHandler(async (req, res) => {
 export const listStudentNotifications = asyncHandler(async (req, res) => {
   const { page, limit, skip } = getPagination(req.query);
   const [notifications, total] = await Promise.all([
-    Notification.find({ recipient: req.user._id })
+    Notification.find({ recipient: req.user._id, archivedAt: { $exists: false } })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit),
-    Notification.countDocuments({ recipient: req.user._id })
+    Notification.countDocuments({ recipient: req.user._id, archivedAt: { $exists: false } })
   ]);
 
   res.json(paginatedResponse({ data: notifications, total, page, limit }));
@@ -877,7 +962,7 @@ export const listStudentNotifications = asyncHandler(async (req, res) => {
 
 export const markStudentNotificationRead = asyncHandler(async (req, res) => {
   const notification = await Notification.findOneAndUpdate(
-    { _id: req.params.id, recipient: req.user._id },
+    { _id: req.params.id, recipient: req.user._id, archivedAt: { $exists: false } },
     { readStatus: true },
     { new: true }
   );

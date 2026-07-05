@@ -16,6 +16,7 @@ export function AppShell({
   user,
   children,
   notificationsHref,
+  profileHref,
   sidebarFooter
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -60,7 +61,7 @@ export function AppShell({
         </div>
       </aside>
 
-      <div className="min-w-0 pt-16 lg:pl-72">
+      <div className="flex min-h-screen min-w-0 flex-col lg:pl-72">
         <header className="fixed inset-x-0 top-0 z-40 border-b border-bybs-border bg-white/95 backdrop-blur lg:left-72">
           <div className="flex h-16 min-w-0 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-3">
@@ -95,29 +96,35 @@ export function AppShell({
                   <Bell className="h-5 w-5" aria-hidden="true" />
                 </Button>
               ) : null}
-              {user?.profileImage ? (
-                <img
-                  alt={user.name || "Profile"}
-                  className="h-10 w-10 rounded-full border border-bybs-border object-cover"
-                  src={user.profileImage}
-                />
-              ) : (
-                <div className="hidden h-10 w-10 items-center justify-center rounded-full border border-bybs-border bg-bybs-pale text-sm font-semibold text-bybs-blue sm:flex">
-                  {initials(user?.name || "BYBS User")}
+              <a
+                aria-label="Open profile"
+                className="flex min-w-0 items-center gap-3 rounded-md px-1 py-1 transition hover:bg-bybs-pale focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bybs-pale"
+                href={profileHref || "#"}
+              >
+                {user?.profileImage ? (
+                  <img
+                    alt={user.name || "Profile"}
+                    className="h-10 w-10 rounded-full border border-bybs-border object-cover"
+                    src={user.profileImage}
+                  />
+                ) : (
+                  <div className="hidden h-10 w-10 items-center justify-center rounded-full border border-bybs-border bg-bybs-pale text-sm font-semibold text-bybs-blue sm:flex">
+                    {initials(user?.name || "BYBS User")}
+                  </div>
+                )}
+                <div className="hidden min-w-0 text-right sm:block">
+                  <p className="truncate text-sm font-medium text-bybs-navy">{user?.name || "BYBS User"}</p>
+                  <p className="truncate text-xs text-bybs-muted">{roleLabel}</p>
                 </div>
-              )}
-              <div className="hidden text-right sm:block">
-                <p className="text-sm font-medium text-bybs-navy">{user?.name || "BYBS User"}</p>
-                <p className="text-xs text-bybs-muted">{roleLabel}</p>
-              </div>
+              </a>
             </div>
           </div>
         </header>
 
-        <main className="min-w-0 max-w-full overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        <main className="min-w-0 max-w-full flex-1 overflow-x-hidden px-4 pb-6 pt-[5.5rem] sm:px-6 lg:px-8">{children}</main>
         <footer className="border-t border-bybs-border bg-white px-4 py-5 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-2 text-sm text-bybs-muted sm:flex-row sm:items-center sm:justify-between">
-            <p>&copy; {currentYear} Build Your Best Self. All rights reserved.</p>
+            <p>&copy; {currentYear} Build Your Best Self. Designed and maintained by TDAG.</p>
             <p className="font-medium text-bybs-navy">{portalName}</p>
           </div>
         </footer>

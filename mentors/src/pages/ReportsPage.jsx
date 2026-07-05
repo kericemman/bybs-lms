@@ -1,4 +1,4 @@
-import { Eye, Pencil, Plus, X } from "lucide-react";
+import { Eye, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button, Card, DataTable, PageHeader, SafeHtml, StatusBadge } from "@bybs/shared";
 import { FormField, inputClassName, textAreaClassName } from "../components/FormField.jsx";
@@ -126,6 +126,23 @@ export function ReportsPage() {
     }
   }
 
+  async function archiveReport(report) {
+    setError("");
+    setFeedback("");
+
+    if (!window.confirm(`Archive this ${report.period || "mentor"} report? This removes it from your list but keeps the audit record for admins.`)) return;
+
+    try {
+      await mentorApi.deleteReport(report._id);
+      setFeedback("Report archived.");
+      setViewingReport((current) => (current?._id === report._id ? null : current));
+      setEditingReport((current) => (current?._id === report._id ? null : current));
+      await loadData();
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -220,6 +237,9 @@ export function ReportsPage() {
               <Button icon={Pencil} onClick={() => startEdit(viewingReport)} size="sm" type="button" variant="secondary">
                 Edit
               </Button>
+              <Button icon={Trash2} onClick={() => archiveReport(viewingReport)} size="sm" type="button" variant="danger">
+                Delete
+              </Button>
               <Button icon={X} onClick={() => setViewingReport(null)} size="sm" type="button" variant="ghost">
                 Close
               </Button>
@@ -292,6 +312,9 @@ export function ReportsPage() {
                 </Button>
                 <Button icon={Pencil} onClick={() => startEdit(row)} size="sm" type="button" variant="secondary">
                   Edit
+                </Button>
+                <Button icon={Trash2} onClick={() => archiveReport(row)} size="sm" type="button" variant="danger">
+                  Delete
                 </Button>
               </div>
             )

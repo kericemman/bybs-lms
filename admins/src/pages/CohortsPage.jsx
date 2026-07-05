@@ -33,6 +33,7 @@ export function CohortsPage() {
   const [filters, setFilters] = useState({ search: "", status: "" });
   const [form, setForm] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [ranking, setRanking] = useState(null);
   const [rankingLoading, setRankingLoading] = useState(false);
   const [error, setError] = useState("");
@@ -51,10 +52,12 @@ export function CohortsPage() {
   function resetForm() {
     setForm(initialForm);
     setEditingId(null);
+    setIsFormOpen(false);
   }
 
   function startEdit(cohort) {
     setEditingId(cohort._id);
+    setIsFormOpen(true);
     setForm({
       title: cohort.title || "",
       description: cohort.description || "",
@@ -114,6 +117,11 @@ export function CohortsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        actions={
+          <Button icon={isFormOpen ? X : Plus} onClick={() => (isFormOpen ? resetForm() : setIsFormOpen(true))} type="button" variant={isFormOpen ? "secondary" : "primary"}>
+            {isFormOpen ? "Close form" : "Create cohort"}
+          </Button>
+        }
         description="Organize mentees, mentors, modules, sessions, assignments, announcements, and rankings."
         title="Cohorts"
       />
@@ -125,6 +133,9 @@ export function CohortsPage() {
         statuses={statusOptions}
       />
 
+      {!isFormOpen && error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
+
+      {isFormOpen ? (
       <Card>
         <form className="grid gap-4 lg:grid-cols-4" onSubmit={handleSubmit}>
           <FormField label="Cohort title">
@@ -185,6 +196,7 @@ export function CohortsPage() {
           </div>
         </form>
       </Card>
+      ) : null}
 
       {ranking ? (
         <Card>

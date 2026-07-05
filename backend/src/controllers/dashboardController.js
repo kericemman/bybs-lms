@@ -81,7 +81,7 @@ export const adminSummary = asyncHandler(async (_req, res) => {
       .populate("createdBy", "name email")
       .sort({ createdAt: -1 })
       .limit(5),
-    Report.find()
+    Report.find({ archivedAt: { $exists: false } })
       .populate("mentor", "name email")
       .sort({ updatedAt: -1 })
       .limit(5),

@@ -78,6 +78,7 @@ export function SessionsPage() {
   const [filters, setFilters] = useState({ search: "", cohort: "", status: "" });
   const [form, setForm] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -101,10 +102,12 @@ export function SessionsPage() {
   function resetForm() {
     setForm(initialForm);
     setEditingId(null);
+    setIsFormOpen(false);
   }
 
   function startEdit(session) {
     setEditingId(session._id);
+    setIsFormOpen(true);
     setForm({
       title: session.title || "",
       description: session.description || "",
@@ -198,10 +201,22 @@ export function SessionsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader description="Schedule cohort sessions and attach meeting, recording, and slides links." title="Sessions" />
+      <PageHeader
+        actions={
+          <Button icon={isFormOpen ? X : Plus} onClick={() => (isFormOpen ? resetForm() : setIsFormOpen(true))} type="button" variant={isFormOpen ? "secondary" : "primary"}>
+            {isFormOpen ? "Close form" : "Create session"}
+          </Button>
+        }
+        description="Schedule cohort sessions and attach meeting, recording, and slides links."
+        title="Sessions"
+      />
 
       <FilterBar cohorts={cohorts} filters={filters} onChange={setFilters} onReset={() => setFilters({ search: "", cohort: "", status: "" })} statuses={statusOptions} />
 
+      {!isFormOpen && error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
+      {!isFormOpen && feedback ? <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue">{feedback}</p> : null}
+
+      {isFormOpen ? (
       <Card>
         <form className="grid gap-4 lg:grid-cols-3" onSubmit={handleSubmit}>
           <FormField label="Title"><input className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} required value={form.title} /></FormField>
@@ -248,6 +263,7 @@ export function SessionsPage() {
           </div>
         </form>
       </Card>
+      ) : null}
 
       <DataTable
         columns={[

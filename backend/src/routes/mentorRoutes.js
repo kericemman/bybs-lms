@@ -4,16 +4,22 @@ import {
   createMentorDiscussion,
   createMentorReport,
   createAssignmentReminder,
+  archiveAssignmentReminder,
   createSessionWork,
+  archiveMentorDiscussion,
   deleteMentorAvailability,
+  deleteMentorDiscussionComment,
+  archiveMentorReport,
   getMentorStudent,
   getMentorSessionAttendance,
   approveStudentGraduation,
   listMentorAvailability,
   listMentorAssignments,
+  listAssignmentReminders,
   listMentorBookings,
   listMentorDiscussions,
   listMentorModules,
+  listMentorNotifications,
   listMentorReports,
   listMentorSessions,
   listMentorStudents,
@@ -21,7 +27,11 @@ import {
   mentorDashboard,
   reviewSubmission,
   replyMentorDiscussion,
+  markMentorNotificationRead,
   sendMentorStudentMessage,
+  updateMentorDiscussion,
+  updateMentorDiscussionComment,
+  updateAssignmentReminder,
   updateMentorAvailability,
   updateMentorBooking,
   updateMentorSessionAttendance,
@@ -39,6 +49,7 @@ import {
 import {
   createAvailabilitySchema,
   createAssignmentReminderSchema,
+  updateAssignmentReminderSchema,
   createMentorReportSchema,
   createSessionWorkSchema,
   mentorSessionAttendanceSchema,
@@ -59,7 +70,10 @@ import { createBetaFeedbackSchema, listMyBetaFeedbackSchema } from "../validator
 import {
   createDiscussionCommentSchema,
   createPortalDiscussionSchema,
-  discussionListSchema
+  discussionCommentParamsSchema,
+  discussionListSchema,
+  updateDiscussionCommentSchema,
+  updatePortalDiscussionSchema
 } from "../validators/discussionSchemas.js";
 
 export const mentorRoutes = Router();
@@ -73,9 +87,16 @@ mentorRoutes.get("/sessions/:id/attendance", validate(mentorSessionAttendanceSch
 mentorRoutes.patch("/sessions/:id/attendance", validate(updateMentorSessionAttendanceSchema), updateMentorSessionAttendance);
 mentorRoutes.get("/discussions", validate(discussionListSchema), listMentorDiscussions);
 mentorRoutes.post("/discussions", validate(createPortalDiscussionSchema), createMentorDiscussion);
+mentorRoutes.patch("/discussions/:id", validate(updatePortalDiscussionSchema), updateMentorDiscussion);
+mentorRoutes.delete("/discussions/:id", validate(idParamsSchema), archiveMentorDiscussion);
 mentorRoutes.post("/discussions/:id/comments", validate(createDiscussionCommentSchema), replyMentorDiscussion);
+mentorRoutes.patch("/discussions/:id/comments/:commentId", validate(updateDiscussionCommentSchema), updateMentorDiscussionComment);
+mentorRoutes.delete("/discussions/:id/comments/:commentId", validate(discussionCommentParamsSchema), deleteMentorDiscussionComment);
 mentorRoutes.get("/assignments", validate(mentorAssignmentListSchema), listMentorAssignments);
+mentorRoutes.get("/assignment-reminders", validate(mentorListSchema), listAssignmentReminders);
 mentorRoutes.post("/assignment-reminders", validate(createAssignmentReminderSchema), createAssignmentReminder);
+mentorRoutes.patch("/assignment-reminders/:id", validate(updateAssignmentReminderSchema), updateAssignmentReminder);
+mentorRoutes.delete("/assignment-reminders/:id", validate(idParamsSchema), archiveAssignmentReminder);
 mentorRoutes.post("/uploads", resourceUpload.single("file"), decompressCompressedUpload, finalizeResourceUpload, uploadResourceFile);
 mentorRoutes.post("/session-work", validate(createSessionWorkSchema), createSessionWork);
 mentorRoutes.get("/students", validate(mentorListSchema), listMentorStudents);
@@ -93,9 +114,13 @@ mentorRoutes.delete("/availability/:id", validate(idParamsSchema), deleteMentorA
 mentorRoutes.get("/bookings", validate(mentorBookingListSchema), listMentorBookings);
 mentorRoutes.patch("/bookings/:id", validate(updateMentorBookingSchema), updateMentorBooking);
 
+mentorRoutes.get("/notifications", validate(mentorListSchema), listMentorNotifications);
+mentorRoutes.patch("/notifications/:id/read", validate(idParamsSchema), markMentorNotificationRead);
+
 mentorRoutes.get("/reports", validate(mentorListSchema), listMentorReports);
 mentorRoutes.post("/reports", validate(createMentorReportSchema), createMentorReport);
 mentorRoutes.patch("/reports/:id", validate(updateMentorReportSchema), updateMentorReport);
+mentorRoutes.delete("/reports/:id", validate(idParamsSchema), archiveMentorReport);
 
 mentorRoutes.get("/beta-feedback", validate(listMyBetaFeedbackSchema), listMyBetaFeedback);
 mentorRoutes.post("/beta-feedback", validate(createBetaFeedbackSchema), createBetaFeedback);

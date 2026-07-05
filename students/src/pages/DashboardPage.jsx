@@ -9,6 +9,7 @@ import {
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  AddToCalendarButton,
   Button,
   Card,
   EmptyState,
@@ -32,6 +33,28 @@ function mentorName(mentor) {
 
 function sessionMentorName(session) {
   return mentorName(session?.module?.assignedMentor);
+}
+
+function sessionCalendarEvent(session) {
+  return {
+    id: session._id,
+    title: `BYBS session: ${session.title}`,
+    description: `${titleFor(session.module, "Module session")} with ${sessionMentorName(session)}.`,
+    startsAt: session.startsAt,
+    endsAt: session.endsAt,
+    location: session.zoomLink || "BYBS LMS",
+    url: session.zoomLink || ""
+  };
+}
+
+function assignmentCalendarEvent(assignment) {
+  return {
+    allDay: true,
+    id: assignment._id,
+    title: `BYBS assignment due: ${assignment.title}`,
+    description: `${titleFor(assignment.module, "No module")} assignment posted by ${postedBy(assignment)}.`,
+    startsAt: assignment.dueDate
+  };
 }
 
 export function DashboardPage() {
@@ -73,7 +96,7 @@ export function DashboardPage() {
 
       {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard icon={BookOpen} label="Assignments" tone="blue" value={summary.totalAssignments || 0} />
         <StatCard icon={CalendarCheck} label="Upcoming sessions" tone="blue" value={summary.upcomingSessions || 0} />
         <StatCard icon={ClipboardList} label="Pending assignments" tone="gold" value={summary.pendingAssignments || 0} />
@@ -161,6 +184,9 @@ export function DashboardPage() {
                       Join session
                     </a>
                   ) : null}
+                  <div className="mt-3">
+                    <AddToCalendarButton event={sessionCalendarEvent(session)} fileName={`bybs-session-${session._id}`} />
+                  </div>
                 </div>
               ))}
             </div>
@@ -178,6 +204,9 @@ export function DashboardPage() {
                   <p className="font-medium text-bybs-navy">{assignment.title}</p>
                   <p className="mt-1 text-sm text-bybs-body">{titleFor(assignment.module, "No module")} · Due {formatDate(assignment.dueDate)}</p>
                   <p className="mt-1 text-sm text-bybs-muted">Posted by {postedBy(assignment)}</p>
+                  <div className="mt-3">
+                    <AddToCalendarButton event={assignmentCalendarEvent(assignment)} fileName={`bybs-assignment-${assignment._id}`} />
+                  </div>
                 </div>
               ))}
             </div>

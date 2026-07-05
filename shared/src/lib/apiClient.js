@@ -1,4 +1,5 @@
 import { compressUploadFormData } from "./uploadCompression.js";
+import { emitGlobalLoading } from "../components/GlobalLoader.jsx";
 
 export function createApiClient({ baseUrl, getToken }) {
   async function request(path, options = {}) {
@@ -13,23 +14,29 @@ export function createApiClient({ baseUrl, getToken }) {
       headers.set("Authorization", `Bearer ${token}`);
     }
 
-    const response = await fetch(`${baseUrl}${path}`, {
-      ...options,
-      headers
-    });
+    emitGlobalLoading("start");
 
-    const isJson = response.headers.get("content-type")?.includes("application/json");
-    const data = isJson ? await response.json() : null;
+    try {
+      const response = await fetch(`${baseUrl}${path}`, {
+        ...options,
+        headers
+      });
 
-    if (!response.ok) {
-      const message = data?.message || "Request failed";
-      const error = new Error(message);
-      error.status = response.status;
-      error.details = data?.details || null;
-      throw error;
+      const isJson = response.headers.get("content-type")?.includes("application/json");
+      const data = isJson ? await response.json() : null;
+
+      if (!response.ok) {
+        const message = data?.message || "Request failed";
+        const error = new Error(message);
+        error.status = response.status;
+        error.details = data?.details || null;
+        throw error;
+      }
+
+      return data;
+    } finally {
+      emitGlobalLoading("end");
     }
-
-    return data;
   }
 
   return {

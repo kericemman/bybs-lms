@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  Bell,
   CalendarClock,
   ClipboardList,
   ClipboardCheck,
@@ -24,6 +25,7 @@ export const mentorNavItems = [
   { href: "/reviews", label: "Review Submissions", icon: ClipboardCheck },
   { href: "/availability", label: "Availability", icon: CalendarClock },
   { href: "/bookings", label: "Bookings", icon: UserCheck },
+  { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/reports", label: "Reports", icon: FileText },
   { href: "/beta-feedback", label: "Beta Feedback", icon: MessageSquareText },
   { href: "/profile", label: "Profile", icon: UserCircle }

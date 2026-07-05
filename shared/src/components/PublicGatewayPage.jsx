@@ -134,7 +134,7 @@ export function PublicGatewayPage({
   }
 
   return (
-    <div className="min-h-screen bg-bybs-page font-sans text-bybs-text">
+    <div className="flex min-h-screen flex-col bg-bybs-page font-sans text-bybs-text">
       <header className="fixed inset-x-0 top-0 z-50 border-b border-bybs-border bg-white">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <a className="flex min-w-0 items-center gap-3" href="#top">
@@ -199,7 +199,7 @@ export function PublicGatewayPage({
         ) : null}
       </header>
 
-      <main id="top" className="pt-16">
+      <main id="top" className="flex-1 pt-16">
         <section className="relative isolate overflow-hidden bg-bybs-navy text-white">
           <img
             alt=""
@@ -468,6 +468,7 @@ export function PublicGatewayPage({
             <a className="text-white/80 hover:text-white" href={mentorLoginUrl}>Mentor login</a>
             <a className="text-white/80 hover:text-white" href={betaUrl}>Beta testing</a>
           </div>
+          <p className="text-sm text-white/70">Designed and maintained by TDAG.</p>
         </div>
       </footer>
     </div>

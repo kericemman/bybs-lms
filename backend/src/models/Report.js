@@ -39,6 +39,9 @@ const reportSchema = new mongoose.Schema(
     adminComments: [reportCommentSchema],
     lastReviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     reviewedAt: { type: Date },
+    archivedAt: { type: Date },
+    archivedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    archiveReason: { type: String },
     submittedAt: { type: Date, default: Date.now }
   },
   { timestamps: true }

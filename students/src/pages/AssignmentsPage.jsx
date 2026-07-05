@@ -1,6 +1,6 @@
 import { ClipboardList, ExternalLink, Send, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Button, EmptyState, PageHeader, RichTextEditor, SafeHtml, StatusBadge } from "@bybs/shared";
+import { AddToCalendarButton, Button, EmptyState, PageHeader, RichTextEditor, SafeHtml, StatusBadge } from "@bybs/shared";
 import { AssignmentInstructions } from "../components/AssignmentInstructions.jsx";
 import { studentApi } from "../services/api.js";
 import { formatDate, titleFor } from "../utils/format.js";
@@ -11,6 +11,16 @@ function submissionStatus(assignment) {
 
 function postedBy(assignment) {
   return assignment.createdBy?.name || "BYBS team";
+}
+
+function assignmentCalendarEvent(assignment) {
+  return {
+    allDay: true,
+    id: assignment._id,
+    title: `BYBS assignment due: ${assignment.title}`,
+    description: `${titleFor(assignment.module, "General assignment")} assignment posted by ${postedBy(assignment)}.`,
+    startsAt: assignment.dueDate
+  };
 }
 
 export function AssignmentsPage() {
@@ -107,7 +117,10 @@ export function AssignmentsPage() {
                 Due {formatDate(activeAssignment.dueDate)} · Posted by {postedBy(activeAssignment)}
               </p>
             </div>
-            <StatusBadge status={submissionStatus(activeAssignment)} />
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge status={submissionStatus(activeAssignment)} />
+              <AddToCalendarButton event={assignmentCalendarEvent(activeAssignment)} fileName={`bybs-assignment-${activeAssignment._id}`} />
+            </div>
           </div>
 
           <AssignmentInstructions instructions={activeAssignment.instructions} />
@@ -196,9 +209,12 @@ export function AssignmentsPage() {
               {assignment.submission?.feedback ? (
                 <SafeHtml className="mt-3 rounded-md bg-bybs-pale p-3 text-sm text-bybs-body" html={assignment.submission.feedback} />
               ) : null}
-              <Button className="mt-4" onClick={() => chooseAssignment(assignment)} size="sm" type="button">
-                {assignment.submission ? "View / resubmit" : "Open assignment"}
-              </Button>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button onClick={() => chooseAssignment(assignment)} size="sm" type="button">
+                  {assignment.submission ? "View / resubmit" : "Open assignment"}
+                </Button>
+                <AddToCalendarButton event={assignmentCalendarEvent(assignment)} fileName={`bybs-assignment-${assignment._id}`} />
+              </div>
             </article>
           ))}
         </div>

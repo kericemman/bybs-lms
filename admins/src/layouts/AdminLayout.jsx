@@ -16,6 +16,7 @@ export function AdminLayout({ children }) {
       navItems={visibleNavItems}
       notificationsHref={hasRole(user, ["admin", "superAdmin"]) ? "/notifications" : undefined}
       portalName="Admin Portal"
+      profileHref="/profile"
       sidebarFooter={
         <div>
           <div className="flex items-center justify-between gap-3">

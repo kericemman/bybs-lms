@@ -1,3 +1,4 @@
+import { GlobalLoader } from "@bybs/shared";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext.jsx";
 import { useAuth } from "./auth/AuthContext.jsx";
@@ -39,70 +40,73 @@ function RoleGate({ roles, children }) {
 export default function App() {
   return (
     <AuthProvider>
-      <Routes>
-        <Route element={<LoginPage />} path="/login" />
-        <Route
-          element={
-            <ProtectedRoute>
-              <AdminLayout>
-                <Routes>
-                  <Route element={<DashboardPage />} path="/" />
-                  <Route element={<CohortsPage />} path="/cohorts" />
-                  <Route element={<ModulesPage />} path="/modules" />
-                  <Route element={<SessionsPage />} path="/sessions" />
-                  <Route element={<ResourcesPage />} path="/resources" />
-                  <Route element={<AssignmentsPage />} path="/assignments" />
-                  <Route element={<StudentsPage />} path="/students" />
-                  <Route element={<MentorsPage />} path="/mentors" />
-                  <Route
-                    element={
-                      <RoleGate roles={["superAdmin"]}>
-                        <AdminManagersPage />
-                      </RoleGate>
-                    }
-                    path="/admin-managers"
-                  />
-                  <Route element={<BookingsPage />} path="/bookings" />
-                  <Route element={<ReportsPage />} path="/reports" />
-                  <Route element={<CertificatesPage />} path="/certificates" />
-                  <Route element={<DiscussionsPage />} path="/discussions" />
-                  <Route element={<AnnouncementsPage />} path="/announcements" />
-                  <Route
-                    element={
-                      <RoleGate roles={["admin", "superAdmin"]}>
-                        <NotificationsPage />
-                      </RoleGate>
-                    }
-                    path="/notifications"
-                  />
-                  <Route element={<SupportPage />} path="/support" />
-                  <Route element={<BetaApplicationsPage />} path="/beta-applications" />
-                  <Route
-                    element={
-                      <RoleGate roles={["admin", "superAdmin"]}>
-                        <SystemLogsPage />
-                      </RoleGate>
-                    }
-                    path="/system-logs"
-                  />
-                  <Route
-                    element={
-                      <RoleGate roles={["admin", "superAdmin"]}>
-                        <SettingsPage />
-                      </RoleGate>
-                    }
-                    path="/settings"
-                  />
-                  <Route element={<ProfilePage />} path="/profile" />
-                  <Route element={<Navigate to="/" replace />} path="*" />
-                </Routes>
-              </AdminLayout>
-            </ProtectedRoute>
-          }
-          path="/*"
-        />
-        <Route element={<Navigate to="/" replace />} path="*" />
-      </Routes>
+      <>
+        <GlobalLoader />
+        <Routes>
+          <Route element={<LoginPage />} path="/login" />
+          <Route
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <Routes>
+                    <Route element={<DashboardPage />} path="/" />
+                    <Route element={<CohortsPage />} path="/cohorts" />
+                    <Route element={<ModulesPage />} path="/modules" />
+                    <Route element={<SessionsPage />} path="/sessions" />
+                    <Route element={<ResourcesPage />} path="/resources" />
+                    <Route element={<AssignmentsPage />} path="/assignments" />
+                    <Route element={<StudentsPage />} path="/students" />
+                    <Route element={<MentorsPage />} path="/mentors" />
+                    <Route
+                      element={
+                        <RoleGate roles={["superAdmin"]}>
+                          <AdminManagersPage />
+                        </RoleGate>
+                      }
+                      path="/admin-managers"
+                    />
+                    <Route element={<BookingsPage />} path="/bookings" />
+                    <Route element={<ReportsPage />} path="/reports" />
+                    <Route element={<CertificatesPage />} path="/certificates" />
+                    <Route element={<DiscussionsPage />} path="/discussions" />
+                    <Route element={<AnnouncementsPage />} path="/announcements" />
+                    <Route
+                      element={
+                        <RoleGate roles={["admin", "superAdmin"]}>
+                          <NotificationsPage />
+                        </RoleGate>
+                      }
+                      path="/notifications"
+                    />
+                    <Route element={<SupportPage />} path="/support" />
+                    <Route element={<BetaApplicationsPage />} path="/beta-applications" />
+                    <Route
+                      element={
+                        <RoleGate roles={["admin", "superAdmin"]}>
+                          <SystemLogsPage />
+                        </RoleGate>
+                      }
+                      path="/system-logs"
+                    />
+                    <Route
+                      element={
+                        <RoleGate roles={["admin", "superAdmin"]}>
+                          <SettingsPage />
+                        </RoleGate>
+                      }
+                      path="/settings"
+                    />
+                    <Route element={<ProfilePage />} path="/profile" />
+                    <Route element={<Navigate to="/" replace />} path="*" />
+                  </Routes>
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+            path="/*"
+          />
+          <Route element={<Navigate to="/" replace />} path="*" />
+        </Routes>
+      </>
     </AuthProvider>
   );
 }

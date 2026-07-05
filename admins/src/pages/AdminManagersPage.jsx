@@ -37,6 +37,7 @@ export function AdminManagersPage() {
   const [managers, setManagers] = useState([]);
   const [form, setForm] = useState(() => createInitialForm());
   const [editingId, setEditingId] = useState(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [filters, setFilters] = useState({ status: "" });
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
@@ -54,12 +55,14 @@ export function AdminManagersPage() {
   function resetForm() {
     setForm(createInitialForm());
     setEditingId(null);
+    setIsFormOpen(false);
   }
 
   function startEdit(manager) {
     setError("");
     setFeedback("");
     setEditingId(manager.id);
+    setIsFormOpen(true);
     setForm({
       name: manager.name || "",
       email: manager.email || "",
@@ -119,10 +122,19 @@ export function AdminManagersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        actions={
+          <Button icon={isFormOpen ? X : Plus} onClick={() => (isFormOpen ? resetForm() : setIsFormOpen(true))} type="button" variant={isFormOpen ? "secondary" : "primary"}>
+            {isFormOpen ? "Close form" : "Add manager"}
+          </Button>
+        }
         description="Create limited admin manager accounts for daily operations without giving system-level control."
         title="Admin managers"
       />
 
+      {!isFormOpen && error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
+      {!isFormOpen && feedback ? <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue">{feedback}</p> : null}
+
+      {isFormOpen ? (
       <Card>
         <form className="grid gap-4 lg:grid-cols-4" onSubmit={handleSubmit}>
           <FormField label="Name">
@@ -193,6 +205,7 @@ export function AdminManagersPage() {
           </div>
         </form>
       </Card>
+      ) : null}
 
       <div className="grid gap-3 rounded-lg border border-bybs-border bg-white p-4 shadow-sm sm:grid-cols-[220px_auto]">
         <select

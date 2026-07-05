@@ -85,6 +85,7 @@ export function MentorsPage() {
   const [filters, setFilters] = useState({ search: "", cohort: "", status: "" });
   const [form, setForm] = useState(() => createInitialForm());
   const [editingId, setEditingId] = useState(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -109,12 +110,14 @@ export function MentorsPage() {
   function resetForm() {
     setForm(createInitialForm());
     setEditingId(null);
+    setIsFormOpen(false);
   }
 
   function startEdit(mentor) {
     setError("");
     setFeedback("");
     setEditingId(mentor.id);
+    setIsFormOpen(true);
     setForm({
       name: mentor.name || "",
       email: mentor.email || "",
@@ -231,10 +234,22 @@ export function MentorsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader description="Manage mentor profiles, cohort assignments, availability, and activity." title="Mentors" />
+      <PageHeader
+        actions={
+          <Button icon={isFormOpen ? X : Plus} onClick={() => (isFormOpen ? resetForm() : setIsFormOpen(true))} type="button" variant={isFormOpen ? "secondary" : "primary"}>
+            {isFormOpen ? "Close form" : "Add mentor"}
+          </Button>
+        }
+        description="Manage mentor profiles, cohort assignments, availability, and activity."
+        title="Mentors"
+      />
 
       <FilterBar cohorts={cohorts} filters={filters} onChange={setFilters} onReset={() => setFilters({ search: "", cohort: "", status: "" })} statuses={statusOptions} />
 
+      {!isFormOpen && error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
+      {!isFormOpen && feedback ? <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue">{feedback}</p> : null}
+
+      {isFormOpen ? (
       <Card>
         <form className="grid gap-4 lg:grid-cols-3" onSubmit={handleSubmit}>
           <FormField label="Name"><input className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required value={form.name} /></FormField>
@@ -289,6 +304,7 @@ export function MentorsPage() {
           </div>
         </form>
       </Card>
+      ) : null}
 
       <DataTable
         columns={[

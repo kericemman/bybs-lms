@@ -1,6 +1,6 @@
 import { CalendarCheck, Save, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Button, Card, DataTable, PageHeader, StatusBadge } from "@bybs/shared";
+import { AddToCalendarButton, Button, Card, DataTable, PageHeader, StatusBadge } from "@bybs/shared";
 import { FormField, inputClassName, textAreaClassName } from "../components/FormField.jsx";
 import { mentorApi } from "../services/api.js";
 import { formatDateTime } from "../utils/format.js";
@@ -26,6 +26,20 @@ function bookingForm(booking) {
     status: booking?.status === "pending" ? "approved" : booking?.status || "approved",
     meetingLink: booking?.meetingLink || "",
     mentorNotes: booking?.mentorNotes || ""
+  };
+}
+
+function bookingCalendarEvent(booking) {
+  const studentName = booking.student?.name || "Mentee";
+
+  return {
+    id: booking._id,
+    title: `BYBS 1:1 session with ${studentName}`,
+    description: booking.reason || "BYBS mentor booking.",
+    startsAt: booking.startsAt,
+    endsAt: booking.endsAt,
+    location: booking.meetingLink || "BYBS LMS",
+    url: booking.meetingLink || ""
   };
 }
 
@@ -148,6 +162,11 @@ export function BookingsPage() {
           { key: "startsAt", header: "Start", render: (row) => formatDateTime(row.startsAt) },
           { key: "reason", header: "Reason", wrap: true },
           { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
+          {
+            key: "calendar",
+            header: "Calendar",
+            render: (row) => <AddToCalendarButton event={bookingCalendarEvent(row)} fileName={`bybs-booking-${row._id}`} />
+          },
           {
             key: "actions",
             header: "Actions",

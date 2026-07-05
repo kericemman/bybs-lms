@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
+  AddToCalendarButton,
   Button,
   Card,
   DataTable,
@@ -35,6 +36,18 @@ const emptyDashboard = {
   nextSessions: [],
   attention: []
 };
+
+function sessionCalendarEvent(session) {
+  return {
+    id: session._id,
+    title: `BYBS session: ${session.title}`,
+    description: `${session.module?.title || "Module session"} for ${session.cohort?.title || "BYBS cohort"}.`,
+    startsAt: session.startsAt,
+    endsAt: session.endsAt,
+    location: session.zoomLink || "BYBS LMS",
+    url: session.zoomLink || ""
+  };
+}
 
 export function DashboardPage() {
   const [dashboard, setDashboard] = useState(emptyDashboard);
@@ -68,7 +81,7 @@ export function DashboardPage() {
 
       {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5">
         <StatCard icon={Users} label="Assigned mentees" tone="blue" value={summary.assignedStudents} />
         <StatCard icon={FileText} label="Assigned modules" tone="blue" value={summary.assignedModules} />
         <StatCard icon={ClipboardCheck} label="Pending reviews" tone="gold" value={summary.pendingReviews} />
@@ -120,6 +133,11 @@ export function DashboardPage() {
             { key: "cohort", header: "Cohort", render: (row) => row.cohort?.title || "Cohort" },
             { key: "mentor", header: "Mentor", render: (row) => row.module?.assignedMentor?.name || "Assigned mentor" },
             { key: "startsAt", header: "Date", render: (row) => formatCatDateTime(row.startsAt) },
+            {
+              key: "calendar",
+              header: "Calendar",
+              render: (row) => <AddToCalendarButton event={sessionCalendarEvent(row)} fileName={`bybs-session-${row._id}`} />
+            },
             {
               key: "attendance",
               header: "Attendance",

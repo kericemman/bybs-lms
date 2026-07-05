@@ -109,7 +109,7 @@ export function ModulesPage() {
 
       {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
         <StatCard icon={BookOpen} label="Assigned modules" tone="blue" value={modules.length} />
         <StatCard icon={Users} label="Published modules" tone="blue" value={publishedModules} />
         <StatCard icon={CalendarDays} label="Upcoming modules" tone="gold" value={upcomingModules} />
