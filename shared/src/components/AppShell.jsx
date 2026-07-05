@@ -124,7 +124,7 @@ export function AppShell({
         <main className="min-w-0 max-w-full flex-1 overflow-x-hidden px-4 pb-6 pt-[5.5rem] sm:px-6 lg:px-8">{children}</main>
         <footer className="border-t border-bybs-border bg-white px-4 py-5 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-2 text-sm text-bybs-muted sm:flex-row sm:items-center sm:justify-between">
-            <p>&copy; {currentYear} Build Your Best Self. Designed and maintained by TDAG.</p>
+            <p>&copy; {currentYear} Build Your Best Self. Designed and maintained by <a href="https://thedigitalagame.com" target="_blank" rel="noopener noreferrer" className="font-medium text-bybs-blue hover:underline">TDAG</a>.</p>
             <p className="font-medium text-bybs-navy">{portalName}</p>
           </div>
         </footer>
