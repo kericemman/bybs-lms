@@ -119,6 +119,52 @@ export async function notifyUser({ recipient, notification, portalRole }) {
   return updateEmailDelivery(createdNotification, delivery);
 }
 
+export async function notifyUserOnce({ recipient, notification, portalRole, uniqueKey }) {
+  if (!uniqueKey) {
+    return { notification: await notifyUser({ recipient, notification, portalRole }), created: true };
+  }
+
+  const channel = notification.channel || "both";
+  const result = await Notification.findOneAndUpdate(
+    {
+      recipient: recipient._id || recipient,
+      announcementId: uniqueKey
+    },
+    {
+      $setOnInsert: {
+        ...notification,
+        announcementId: uniqueKey,
+        recipient: recipient._id || recipient,
+        channel,
+        emailDeliveryStatus: initialEmailStatus(channel)
+      }
+    },
+    {
+      new: true,
+      upsert: true,
+      includeResultMetadata: true,
+      setDefaultsOnInsert: true
+    }
+  );
+  const createdNotification = result.value;
+  const created = !result.lastErrorObject?.updatedExisting;
+
+  if (!created) {
+    return { notification: createdNotification, created: false };
+  }
+
+  const delivery = await sendNotificationEmail({
+    notification: createdNotification,
+    recipient,
+    portalRole
+  });
+
+  return {
+    notification: await updateEmailDelivery(createdNotification, delivery),
+    created: true
+  };
+}
+
 export async function notifyUsers({ recipients, notification, portalRole }) {
   const channel = notification.channel || "both";
   const notifications = await Notification.insertMany(

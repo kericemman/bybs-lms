@@ -26,7 +26,7 @@ export function Button({
   return (
     <Component
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-md font-medium transition focus-visible:outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex max-w-full items-center justify-center gap-2 rounded-md font-medium transition focus-visible:outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50",
         variants[variant],
         sizes[size],
         className
@@ -34,7 +34,7 @@ export function Button({
       {...props}
     >
       {Icon ? <Icon aria-hidden="true" className="h-4 w-4 shrink-0" /> : null}
-      {children}
+      {children ? <span className="min-w-0 truncate">{children}</span> : null}
     </Component>
   );
 }

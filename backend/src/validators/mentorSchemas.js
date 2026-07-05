@@ -34,8 +34,33 @@ export const mentorSessionListSchema = z.object({
   })
 });
 
+export const mentorSessionAttendanceSchema = z.object({
+  params: z.object({
+    id: objectIdSchema
+  })
+});
+
+export const updateMentorSessionAttendanceSchema = z.object({
+  params: z.object({
+    id: objectIdSchema
+  }),
+  body: z.object({
+    records: z
+      .array(
+        z.object({
+          student: objectIdSchema,
+          status: z.enum(["present", "absent", "late", "excused"])
+        })
+      )
+      .min(1)
+      .max(500),
+    markCompleted: z.boolean().default(true)
+  })
+});
+
 export const mentorSubmissionListSchema = z.object({
   query: paginationQuerySchema.extend({
+    module: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
     status: z.enum(["notStarted", "submitted", "lateSubmission", "reviewed", "needsRevision", "approved"]).optional()
   })
 });
@@ -100,11 +125,29 @@ export const reviewSubmissionSchema = z.object({
   params: z.object({
     id: objectIdSchema
   }),
-  body: z.object({
-    score: z.preprocess(emptyToUndefined, z.coerce.number().min(0).max(1000).optional()),
-    feedback: z.preprocess(emptyToUndefined, z.string().trim().max(4000).optional()),
-    status: z.enum(["reviewed", "needsRevision", "approved"]).default("reviewed")
-  })
+  body: z
+    .object({
+      score: z.preprocess(emptyToUndefined, z.coerce.number().min(0).max(1000).optional()),
+      feedback: z.preprocess(emptyToUndefined, z.string().trim().max(4000).optional()),
+      status: z.enum(["reviewed", "needsRevision", "approved"]).default("reviewed")
+    })
+    .superRefine((value, context) => {
+      if (value.status === "approved" && value.score === undefined) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Score is required when approving a submission",
+          path: ["score"]
+        });
+      }
+
+      if (value.status !== "approved" && value.score !== undefined) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Only approved submissions can be scored",
+          path: ["score"]
+        });
+      }
+    })
 });
 
 export const mentorBookingListSchema = z.object({

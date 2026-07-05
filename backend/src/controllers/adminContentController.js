@@ -97,6 +97,102 @@ function validateModuleDates({ startDate, endDate }) {
   }
 }
 
+function catDateParts(value) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Maputo",
+    weekday: "long",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date(value));
+
+  return Object.fromEntries(parts.map((part) => [part.type, part.value]));
+}
+
+function catSessionDate(year, month, day, hour) {
+  return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), hour - 2, 0, 0, 0));
+}
+
+function catDateValue(value) {
+  const parts = catDateParts(value);
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function weekendCatSessionWindows(startDate, endDate) {
+  const startValue = catDateValue(startDate);
+  const endValue = catDateValue(endDate || startDate);
+  const [startYear, startMonth, startDay] = startValue.split("-").map((part) => Number(part));
+  const [endYear, endMonth, endDay] = endValue.split("-").map((part) => Number(part));
+  const cursor = new Date(Date.UTC(startYear, startMonth - 1, startDay, 12, 0, 0, 0));
+  const end = new Date(Date.UTC(endYear, endMonth - 1, endDay, 12, 0, 0, 0));
+  const windows = [];
+
+  while (cursor <= end) {
+    const day = cursor.getUTCDay();
+
+    if (day === 0 || day === 6) {
+      const year = cursor.getUTCFullYear();
+      const month = cursor.getUTCMonth() + 1;
+      const date = cursor.getUTCDate();
+      windows.push({
+        startsAt: catSessionDate(year, month, date, 14),
+        endsAt: catSessionDate(year, month, date, 16)
+      });
+    }
+
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return windows;
+}
+
+function normalizeCatSessionWindow(startsAt) {
+  const parts = catDateParts(startsAt);
+  const weekday = String(parts.weekday || "").toLowerCase();
+
+  if (!["saturday", "sunday"].includes(weekday)) {
+    throw new ApiError(400, "BYBS sessions must be scheduled on Saturday or Sunday.");
+  }
+
+  return {
+    startsAt: catSessionDate(parts.year, parts.month, parts.day, 14),
+    endsAt: catSessionDate(parts.year, parts.month, parts.day, 16)
+  };
+}
+
+async function validateSessionModule({ cohort, module }) {
+  if (!module) {
+    throw new ApiError(400, "Choose the module this session belongs to.");
+  }
+
+  const sessionModule = await Module.findById(module)
+    .select("cohort assignedMentor")
+    .populate("assignedMentor", "name email role status");
+
+  if (!sessionModule) {
+    throw new ApiError(400, "Session module was not found.");
+  }
+
+  if (String(sessionModule.cohort || "") !== String(cohort || "")) {
+    throw new ApiError(400, "Session module must belong to the selected cohort.");
+  }
+
+  if (!sessionModule.assignedMentor) {
+    throw new ApiError(400, "Assign a mentor to this module before creating a session.");
+  }
+}
+
+function sessionPopulate() {
+  return [
+    { path: "cohort", select: "title status" },
+    {
+      path: "module",
+      select: "title status assignedMentor startDate endDate",
+      populate: { path: "assignedMentor", select: "name email role status profileImage" }
+    }
+  ];
+}
+
 function sanitizeResourcePayload(payload) {
   const nextPayload = { ...payload };
 
@@ -134,6 +230,10 @@ function sanitizeSessionPayload(payload) {
 
   if (Object.prototype.hasOwnProperty.call(nextPayload, "description")) {
     nextPayload.description = sanitizeRichText(nextPayload.description || "");
+  }
+
+  if (Object.prototype.hasOwnProperty.call(nextPayload, "startsAt") && nextPayload.startsAt) {
+    Object.assign(nextPayload, normalizeCatSessionWindow(nextPayload.startsAt));
   }
 
   return nextPayload;
@@ -247,31 +347,94 @@ export const listSessions = asyncHandler(async (req, res) => {
       model: Session,
       req,
       filter,
-      populate: [
-        { path: "cohort", select: "title status" },
-        { path: "module", select: "title status assignedMentor startDate endDate" }
-      ],
+      populate: sessionPopulate(),
       sort: { startsAt: 1 }
     })
   );
 });
 
 export const createSession = asyncHandler(async (req, res) => {
+  await validateSessionModule(req.body);
   const session = await Session.create(sanitizeSessionPayload(req.body));
-  await session.populate("cohort", "title status");
-  await session.populate("module", "title status assignedMentor startDate endDate");
+  await session.populate(sessionPopulate());
   res.status(201).json({ data: session });
 });
 
+export const generateModuleSessions = asyncHandler(async (req, res) => {
+  const module = await Module.findById(req.params.id)
+    .select("title description cohort assignedMentor startDate endDate")
+    .populate("assignedMentor", "name email role status");
+
+  if (!module) {
+    throw new ApiError(404, "Module not found");
+  }
+
+  await validateSessionModule({ cohort: module.cohort, module: module._id });
+
+  if (!module.startDate || !module.endDate) {
+    throw new ApiError(400, "Set module start and end dates before generating sessions.");
+  }
+
+  const windows = weekendCatSessionWindows(module.startDate, module.endDate);
+
+  if (!windows.length) {
+    throw new ApiError(400, "No Saturday or Sunday falls inside this module date range.");
+  }
+
+  const existingSessions = await Session.find({
+    module: module._id,
+    startsAt: { $in: windows.map((window) => window.startsAt) }
+  }).select("startsAt");
+  const existingStartTimes = new Set(existingSessions.map((session) => session.startsAt.toISOString()));
+  const sessionsToCreate = windows
+    .filter((window) => !existingStartTimes.has(window.startsAt.toISOString()))
+    .map((window, index) => ({
+      title: `${module.title} session${windows.length > 1 ? ` ${index + 1}` : ""}`,
+      description: sanitizeRichText(module.description || `Weekend session for ${module.title}.`),
+      cohort: module.cohort,
+      module: module._id,
+      startsAt: window.startsAt,
+      endsAt: window.endsAt,
+      status: "scheduled"
+    }));
+
+  if (sessionsToCreate.length) {
+    await Session.insertMany(sessionsToCreate);
+  }
+
+  const sessions = await Session.find({
+    module: module._id,
+    startsAt: { $in: windows.map((window) => window.startsAt) }
+  })
+    .populate(sessionPopulate())
+    .sort({ startsAt: 1 });
+
+  res.status(sessionsToCreate.length ? 201 : 200).json({
+    data: sessions,
+    meta: {
+      created: sessionsToCreate.length,
+      existing: existingSessions.length,
+      total: sessions.length
+    }
+  });
+});
+
 export const updateSession = asyncHandler(async (req, res) => {
+  const existingSession = await Session.findById(req.params.id);
+  if (!existingSession) throw new ApiError(404, "Session not found");
+
+  const nextPayload = {
+    cohort: Object.prototype.hasOwnProperty.call(req.body, "cohort") ? req.body.cohort : existingSession.cohort,
+    module: Object.prototype.hasOwnProperty.call(req.body, "module") ? req.body.module : existingSession.module,
+    ...req.body
+  };
+  await validateSessionModule(nextPayload);
+
   const session = await Session.findByIdAndUpdate(req.params.id, sanitizeSessionPayload(req.body), {
     new: true,
     runValidators: true
-  })
-    .populate("cohort", "title status")
-    .populate("module", "title status assignedMentor startDate endDate");
+  }).populate(sessionPopulate());
 
-  if (!session) throw new ApiError(404, "Session not found");
   res.json({ data: session });
 });
 
@@ -349,6 +512,7 @@ export const deleteResource = asyncHandler(async (req, res) => {
 export const listDiscussions = asyncHandler(async (req, res) => {
   const filter = {};
   applySharedFilters(req, filter);
+  if (req.query.audience) filter.audience = req.query.audience;
   res.json(
     await listCollection({
       model: Discussion,
@@ -357,7 +521,8 @@ export const listDiscussions = asyncHandler(async (req, res) => {
       populate: [
         { path: "cohort", select: "title status" },
         { path: "module", select: "title status assignedMentor startDate endDate" },
-        { path: "createdBy", select: "name email role" }
+        { path: "createdBy", select: "name email role profileImage bio expertise" },
+        { path: "comments.createdBy", select: "name email role profileImage bio expertise" }
       ]
     })
   );
@@ -370,7 +535,8 @@ export const createDiscussion = asyncHandler(async (req, res) => {
   });
   await discussion.populate("cohort", "title status");
   await discussion.populate("module", "title status assignedMentor startDate endDate");
-  await discussion.populate("createdBy", "name email role");
+  await discussion.populate("createdBy", "name email role profileImage bio expertise");
+  await discussion.populate("comments.createdBy", "name email role profileImage bio expertise");
   res.status(201).json({ data: discussion });
 });
 
@@ -381,7 +547,8 @@ export const updateDiscussion = asyncHandler(async (req, res) => {
   })
     .populate("cohort", "title status")
     .populate("module", "title status assignedMentor startDate endDate")
-    .populate("createdBy", "name email role");
+    .populate("createdBy", "name email role profileImage bio expertise")
+    .populate("comments.createdBy", "name email role profileImage bio expertise");
 
   if (!discussion) throw new ApiError(404, "Discussion not found");
   res.json({ data: discussion });

@@ -1,4 +1,4 @@
-import { Plus, Save, Trash2, X } from "lucide-react";
+import { Mail, Plus, Save, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button, Card, DataTable, PageHeader, PhoneInput, StatusBadge, formatInternationalPhone } from "@bybs/shared";
@@ -71,6 +71,13 @@ function welcomeEmailMessage(meta = {}) {
   return "Mentor added.";
 }
 
+function resendWelcomeEmailMessage(mentor, meta = {}) {
+  if (meta.welcomeEmailStatus === "sent") return `Login email resent to ${mentor.name} with a new temporary password.`;
+  if (meta.welcomeEmailStatus === "notConfigured") return "Login email was not sent because email delivery is not configured.";
+  if (meta.welcomeEmailStatus === "failed") return `Login email failed. ${meta.welcomeEmailError || "The existing password was kept."}`.trim();
+  return "Login email resend was requested.";
+}
+
 export function MentorsPage() {
   const { user } = useAuth();
   const [mentors, setMentors] = useState([]);
@@ -81,6 +88,7 @@ export function MentorsPage() {
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [resendingId, setResendingId] = useState("");
   const canDelete = canDeleteOperationalRecords(user);
   const canPermanentlyDelete = user?.role === "superAdmin";
   const visibleStatusOptions = canDelete ? statusOptions : statusOptions.filter((status) => status.value !== "removed");
@@ -166,6 +174,29 @@ export function MentorsPage() {
     } catch (requestError) {
       setError(requestError.message);
       toast.error(requestError.message);
+    }
+  }
+
+  async function handleResendLogin(mentor) {
+    setError("");
+    setFeedback("");
+    setResendingId(mentor.id);
+
+    try {
+      const response = await adminApi.resendUserWelcomeEmail(mentor.id);
+      const message = resendWelcomeEmailMessage(mentor, response.meta);
+      setFeedback(message);
+      if (response.meta?.welcomeEmailStatus === "sent") {
+        toast.success(message);
+      } else {
+        toast.error(message);
+      }
+      await loadData();
+    } catch (requestError) {
+      setError(requestError.message);
+      toast.error(requestError.message);
+    } finally {
+      setResendingId("");
     }
   }
 
@@ -271,13 +302,23 @@ export function MentorsPage() {
             header: "Actions",
             render: (row) => (
               <div className="flex flex-wrap items-center gap-2">
-                <RowActions
-                  confirmMessage={`Remove ${row.name}? Their account will be marked as removed.`}
-                  deleteLabel="Remove"
-                  onDelete={canDelete ? () => handleDelete(row) : undefined}
-                  onEdit={() => startEdit(row)}
-                />
-                {canPermanentlyDelete && row.status === "removed" ? (
+	                <RowActions
+	                  confirmMessage={`Remove ${row.name}? Their account will be marked as removed.`}
+	                  deleteLabel="Remove"
+	                  onDelete={canDelete ? () => handleDelete(row) : undefined}
+	                  onEdit={() => startEdit(row)}
+	                />
+	                <Button
+	                  disabled={resendingId === row.id || row.status === "removed"}
+	                  icon={Mail}
+	                  onClick={() => handleResendLogin(row)}
+	                  size="sm"
+	                  type="button"
+	                  variant="secondary"
+	                >
+	                  {resendingId === row.id ? "Sending..." : "Resend login"}
+	                </Button>
+	                {canPermanentlyDelete && row.status === "removed" ? (
                   <Button
                     aria-label="Delete permanently"
                     icon={Trash2}

@@ -12,6 +12,7 @@ import { Submission } from "../models/Submission.js";
 import { SupportTicket } from "../models/SupportTicket.js";
 import { SystemLog } from "../models/SystemLog.js";
 import { User } from "../models/User.js";
+import { emailConfigured } from "../services/emailService.js";
 import { sendUserWelcomeEmail } from "../services/userWelcomeEmailService.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -22,6 +23,10 @@ import { sanitizePlainText, sanitizeRichText } from "../utils/sanitizeRichText.j
 const ADMIN_LEVEL_ROLES = ["admin", "adminManager", "superAdmin"];
 const ADMIN_MANAGER_VISIBLE_ROLES = ["student", "mentor"];
 
+function idString(value) {
+  return String(value?._id || value || "");
+}
+
 function cleanUser(user) {
   return {
     id: user.id,
@@ -31,6 +36,7 @@ function cleanUser(user) {
     role: user.role,
     cohort: user.cohort,
     mentor: user.mentor,
+    cohortMentorCount: Array.isArray(user.cohort?.mentors) ? user.cohort.mentors.length : undefined,
     status: user.status,
     bio: user.bio,
     expertise: user.expertise,
@@ -41,6 +47,61 @@ function cleanUser(user) {
   };
 }
 
+async function activeMentorIdsForCohort(cohortId) {
+  if (!cohortId) return [];
+
+  const cohort = await Cohort.findById(cohortId).select("mentors");
+
+  if (!cohort) {
+    throw new ApiError(400, "Selected cohort was not found");
+  }
+
+  const linkedMentorIds = (cohort.mentors || []).map(idString);
+  const mentorFilter = {
+    role: "mentor",
+    status: { $ne: "removed" },
+    $or: [{ cohort: cohortId }]
+  };
+
+  if (linkedMentorIds.length) {
+    mentorFilter.$or.push({ _id: { $in: linkedMentorIds } });
+  }
+
+  const mentors = await User.find(mentorFilter).select("_id");
+
+  return Array.from(
+    new Set([
+      ...mentors.map((mentor) => idString(mentor._id))
+    ])
+  );
+}
+
+async function assertPrimaryMentorCanSeeStudent({ role, cohort, mentor }) {
+  if (role !== "student" || !mentor) return;
+
+  const mentorUser = await User.findOne({
+    _id: mentor,
+    role: "mentor",
+    status: { $ne: "removed" }
+  }).select("_id cohort");
+
+  if (!mentorUser) {
+    throw new ApiError(400, "Primary mentor must be an active mentor account");
+  }
+
+  if (!cohort) return;
+
+  const linkedByCohort = await Cohort.exists({
+    _id: cohort,
+    mentors: mentorUser._id
+  });
+  const mentorBelongsToCohort = idString(mentorUser.cohort) === idString(cohort) || Boolean(linkedByCohort);
+
+  if (!mentorBelongsToCohort) {
+    throw new ApiError(400, "Primary mentor must belong to the selected cohort");
+  }
+}
+
 async function syncCohortMembership(user, previousCohortId = null) {
   if (previousCohortId && String(previousCohortId) !== String(user.cohort || "")) {
     await Cohort.findByIdAndUpdate(previousCohortId, {
@@ -49,12 +110,25 @@ async function syncCohortMembership(user, previousCohortId = null) {
   }
 
   if (!user.cohort || !["student", "mentor"].includes(user.role)) {
-    return;
+    return { assignedMentorCount: 0 };
   }
 
-  await Cohort.findByIdAndUpdate(user.cohort, {
-    $addToSet: user.role === "mentor" ? { mentors: user._id } : { students: user._id }
-  });
+  if (user.role === "mentor") {
+    await Cohort.findByIdAndUpdate(user.cohort, {
+      $addToSet: { mentors: user._id }
+    });
+    return { assignedMentorCount: 0 };
+  }
+
+  const mentorIds = await activeMentorIdsForCohort(user.cohort);
+  const addToSet = { students: user._id };
+
+  if (mentorIds.length) {
+    addToSet.mentors = { $each: mentorIds };
+  }
+
+  await Cohort.findByIdAndUpdate(user.cohort, { $addToSet: addToSet });
+  return { assignedMentorCount: mentorIds.length };
 }
 
 function temporaryPassword() {
@@ -172,7 +246,7 @@ export const listUsers = asyncHandler(async (req, res) => {
 
   const [users, total] = await Promise.all([
     User.find(filter)
-      .populate("cohort", "title status")
+      .populate("cohort", "title status mentors")
       .populate("mentor", "name email")
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -199,6 +273,7 @@ export const createUser = asyncHandler(async (req, res) => {
   }
 
   const { password, welcomeEmail, ...userInput } = req.body;
+  await assertPrimaryMentorCanSeeStudent(userInput);
   const passwordHash = await User.hashPassword(password);
   const user = await User.create({
     ...sanitizeUserPayload(userInput),
@@ -207,16 +282,16 @@ export const createUser = asyncHandler(async (req, res) => {
     passwordResetRequired: true
   });
 
-  await syncCohortMembership(user);
+  const cohortSync = await syncCohortMembership(user);
 
   const populatedUser = await User.findById(user._id)
-    .populate("cohort", "title status")
+    .populate("cohort", "title status mentors")
     .populate("mentor", "name email");
 
   let welcomeEmailStatus = "notRequested";
   let welcomeEmailError = "";
 
-  if (["mentor", "admin", "adminManager", "superAdmin"].includes(user.role) && welcomeEmail?.send !== false) {
+  if (["student", "mentor", "admin", "adminManager", "superAdmin"].includes(user.role) && welcomeEmail?.send !== false) {
     const delivery = await sendUserWelcomeEmail({ user: populatedUser, password, welcomeEmail });
     welcomeEmailStatus = delivery.status;
     welcomeEmailError = delivery.error || "";
@@ -226,7 +301,8 @@ export const createUser = asyncHandler(async (req, res) => {
     data: cleanUser(populatedUser),
     meta: {
       welcomeEmailStatus,
-      welcomeEmailError
+      welcomeEmailError,
+      assignedMentorCount: cohortSync.assignedMentorCount
     }
   });
 });
@@ -260,6 +336,7 @@ export const importStudents = asyncHandler(async (req, res) => {
       const cohort = await resolveCohort(row.cohort);
       const mentor = await resolveMentor(row.mentor);
       const password = row.password || temporaryPassword();
+      await assertPrimaryMentorCanSeeStudent({ role: "student", cohort, mentor });
 
       if (password.length < 12) {
         errors.push({ row: rowNumber, email, message: "Password must be at least 12 characters" });
@@ -283,8 +360,8 @@ export const importStudents = asyncHandler(async (req, res) => {
         passwordResetRequired: true
       });
 
-      await syncCohortMembership(user);
-      created.push({ id: user.id, name: user.name, email: user.email });
+      const cohortSync = await syncCohortMembership(user);
+      created.push({ id: user.id, name: user.name, email: user.email, assignedMentorCount: cohortSync.assignedMentorCount });
     } catch (error) {
       errors.push({ row: rowNumber, email, message: error.message || "Import failed" });
     }
@@ -330,15 +407,87 @@ export const updateUser = asyncHandler(async (req, res) => {
   }
 
   const previousCohortId = user.cohort;
-  Object.assign(user, sanitizeUserPayload(req.body));
+  const nextPayload = sanitizeUserPayload(req.body);
+  await assertPrimaryMentorCanSeeStudent({
+    role: user.role,
+    cohort: Object.prototype.hasOwnProperty.call(nextPayload, "cohort") ? nextPayload.cohort : user.cohort,
+    mentor: Object.prototype.hasOwnProperty.call(nextPayload, "mentor") ? nextPayload.mentor : user.mentor
+  });
+  Object.assign(user, nextPayload);
   await user.save();
-  await syncCohortMembership(user, previousCohortId);
+  const cohortSync = await syncCohortMembership(user, previousCohortId);
 
   const populatedUser = await User.findById(user._id)
-    .populate("cohort", "title status")
+    .populate("cohort", "title status mentors")
     .populate("mentor", "name email");
 
-  res.json({ data: cleanUser(populatedUser) });
+  res.json({ data: cleanUser(populatedUser), meta: { assignedMentorCount: cohortSync.assignedMentorCount } });
+});
+
+export const resendWelcomeEmail = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id).select("+passwordHash");
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  if (!["student", "mentor"].includes(user.role)) {
+    throw new ApiError(400, "Login emails can only be resent for mentors and mentees from this action");
+  }
+
+  if (req.user.role === "adminManager" && !ADMIN_MANAGER_VISIBLE_ROLES.includes(user.role)) {
+    throw new ApiError(403, "Admin managers can only resend login emails to student and mentor accounts");
+  }
+
+  if (user.status === "removed") {
+    throw new ApiError(409, "Restore this account before resending login details");
+  }
+
+  const populatedUser = await User.findById(user._id)
+    .populate("cohort", "title status mentors")
+    .populate("mentor", "name email");
+
+  if (!emailConfigured()) {
+    res.json({
+      data: cleanUser(populatedUser),
+      meta: {
+        welcomeEmailStatus: "notConfigured",
+        welcomeEmailError: ""
+      }
+    });
+    return;
+  }
+
+  const previousPasswordHash = user.passwordHash;
+  const previousPasswordResetRequired = user.passwordResetRequired;
+  const previousPasswordChangedAt = user.passwordChangedAt;
+  const password = temporaryPassword();
+
+  user.passwordHash = await User.hashPassword(password);
+  user.passwordResetRequired = true;
+  user.passwordChangedAt = undefined;
+  await user.save();
+
+  const delivery = await sendUserWelcomeEmail({ user: populatedUser, password });
+
+  if (delivery.status !== "sent") {
+    user.passwordHash = previousPasswordHash;
+    user.passwordResetRequired = previousPasswordResetRequired;
+    user.passwordChangedAt = previousPasswordChangedAt;
+    await user.save();
+  }
+
+  const updatedUser = await User.findById(user._id)
+    .populate("cohort", "title status mentors")
+    .populate("mentor", "name email");
+
+  res.json({
+    data: cleanUser(updatedUser),
+    meta: {
+      welcomeEmailStatus: delivery.status,
+      welcomeEmailError: delivery.error || ""
+    }
+  });
 });
 
 function sanitizeUserPayload(payload) {

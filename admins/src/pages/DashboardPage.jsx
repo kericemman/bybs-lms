@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   BookOpen,
   ClipboardCheck,
+  ExternalLink,
   GraduationCap,
   Plus,
   Send,
@@ -22,11 +23,16 @@ import { useNavigate } from "react-router-dom";
 import { AnnouncementComposer } from "../components/AnnouncementComposer.jsx";
 import { adminApi } from "../services/api.js";
 
-const recentActivity = [
-  { id: 1, item: "Cohort 4 orientation", owner: "Admin team", status: "scheduled" },
-  { id: 2, item: "Week 1 assignment", owner: "Mentor team", status: "published" },
-  { id: 3, item: "Login support queue", owner: "Support", status: "pending" }
-];
+function formatDateTime(value) {
+  if (!value) return "Not set";
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
 
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -39,6 +45,8 @@ export function DashboardPage() {
     pendingReviews: 0,
     supportTickets: 0
   });
+  const [activity, setActivity] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -49,11 +57,17 @@ export function DashboardPage() {
       .then((response) => {
         if (isMounted) {
           setSummary(response.totals);
+          setActivity(response.activity || []);
         }
       })
       .catch((requestError) => {
         if (isMounted) {
           setError(requestError.message);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
         }
       });
 
@@ -111,21 +125,40 @@ export function DashboardPage() {
       <div className="grid gap-4 xl:grid-cols-[1.3fr_0.7fr]">
         <Card>
           <SectionHeader
-            description="This will become the live stream of assignments, reports, bookings, and system events."
+            description="Live stream of assignments, reports, bookings, support tickets, sessions, and system events."
             title="Recent activity"
           />
-          <DataTable
-            columns={[
-              { key: "item", header: "Item" },
-              { key: "owner", header: "Owner" },
-              {
-                key: "status",
-                header: "Status",
-                render: (row) => <StatusBadge status={row.status} />
-              }
-            ]}
-            rows={recentActivity}
-          />
+          {isLoading ? (
+            <div className="rounded-lg border border-bybs-border bg-white p-8 text-center text-sm text-bybs-muted">
+              Loading recent activity...
+            </div>
+          ) : (
+            <DataTable
+              columns={[
+                { key: "source", header: "Type" },
+                { key: "item", header: "Item", wrap: true },
+                { key: "owner", header: "Owner" },
+                { key: "occurredAt", header: "When", render: (row) => formatDateTime(row.occurredAt) },
+                {
+                  key: "status",
+                  header: "Status",
+                  render: (row) => <StatusBadge status={row.status} />
+                },
+                {
+                  key: "action",
+                  header: "Action",
+                  render: (row) => (
+                    <Button icon={ExternalLink} onClick={() => navigate(row.href || "/")} size="sm" type="button" variant="secondary">
+                      Open
+                    </Button>
+                  )
+                }
+              ]}
+              emptyDescription="Recent assignments, reports, bookings, tickets, sessions, and system events will appear here."
+              emptyTitle="No recent activity yet"
+              rows={activity}
+            />
+          )}
         </Card>
 
         <div className="space-y-4">

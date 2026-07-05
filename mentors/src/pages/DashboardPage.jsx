@@ -2,6 +2,7 @@ import {
   BookOpen,
   CalendarCheck,
   ClipboardCheck,
+  ClipboardList,
   Eye,
   FileText,
   Send,
@@ -19,7 +20,7 @@ import {
   StatusBadge
 } from "@bybs/shared";
 import { mentorApi } from "../services/api.js";
-import { formatDate, formatDateTime } from "../utils/format.js";
+import { formatCatDateTime, formatDate, formatDateTime } from "../utils/format.js";
 
 const emptyDashboard = {
   summary: {
@@ -27,9 +28,11 @@ const emptyDashboard = {
     assignedModules: 0,
     pendingReviews: 0,
     upcomingSessions: 0,
+    attendancePendingSessions: 0,
     atRiskStudents: 0
   },
   modules: [],
+  nextSessions: [],
   attention: []
 };
 
@@ -44,7 +47,7 @@ export function DashboardPage() {
       .catch((requestError) => setError(requestError.message));
   }, []);
 
-  const { summary, modules, attention } = dashboard;
+  const { summary, modules, nextSessions = [], attention } = dashboard;
 
   return (
     <div className="space-y-6">
@@ -70,6 +73,7 @@ export function DashboardPage() {
         <StatCard icon={FileText} label="Assigned modules" tone="blue" value={summary.assignedModules} />
         <StatCard icon={ClipboardCheck} label="Pending reviews" tone="gold" value={summary.pendingReviews} />
         <StatCard icon={CalendarCheck} label="Upcoming sessions" tone="blue" value={summary.upcomingSessions} />
+        <StatCard icon={ClipboardList} label="Attendance pending" tone="gold" value={summary.attendancePendingSessions || 0} />
       </div>
 
       <Card>
@@ -101,6 +105,34 @@ export function DashboardPage() {
           emptyDescription="Modules assigned to you by Admin will appear here."
           emptyTitle="No modules assigned"
           rows={modules}
+        />
+      </Card>
+
+      <Card>
+        <SectionHeader
+          description="Sessions are scheduled by Admin for Saturday or Sunday, 2:00 PM - 4:00 PM CAT."
+          title="Upcoming module sessions"
+        />
+        <DataTable
+          columns={[
+            { key: "title", header: "Session" },
+            { key: "module", header: "Module", render: (row) => row.module?.title || "Unassigned" },
+            { key: "cohort", header: "Cohort", render: (row) => row.cohort?.title || "Cohort" },
+            { key: "mentor", header: "Mentor", render: (row) => row.module?.assignedMentor?.name || "Assigned mentor" },
+            { key: "startsAt", header: "Date", render: (row) => formatCatDateTime(row.startsAt) },
+            {
+              key: "attendance",
+              header: "Attendance",
+              render: (row) => (
+                <Button as="a" href={`/attendance?session=${row._id}`} icon={ClipboardList} size="sm" variant="secondary">
+                  Mark
+                </Button>
+              )
+            }
+          ]}
+          emptyDescription="Admin scheduled module sessions will appear here."
+          emptyTitle="No upcoming sessions"
+          rows={nextSessions}
         />
       </Card>
 
@@ -140,6 +172,13 @@ export function DashboardPage() {
             icon={ClipboardCheck}
             onClick={() => { window.location.href = "/reviews"; }}
             title="Assignment reviews"
+          />
+          <QuickAction
+            actionLabel="Mark"
+            description="Open your session attendance links and record who joined after each class."
+            icon={ClipboardList}
+            onClick={() => { window.location.href = "/attendance"; }}
+            title="Attendance"
           />
           <QuickAction
             actionLabel="Open"

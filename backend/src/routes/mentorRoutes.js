@@ -7,6 +7,7 @@ import {
   createSessionWork,
   deleteMentorAvailability,
   getMentorStudent,
+  getMentorSessionAttendance,
   approveStudentGraduation,
   listMentorAvailability,
   listMentorAssignments,
@@ -23,6 +24,7 @@ import {
   sendMentorStudentMessage,
   updateMentorAvailability,
   updateMentorBooking,
+  updateMentorSessionAttendance,
   updateMentorReport
 } from "../controllers/mentorController.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
@@ -39,6 +41,7 @@ import {
   createAssignmentReminderSchema,
   createMentorReportSchema,
   createSessionWorkSchema,
+  mentorSessionAttendanceSchema,
   mentorAssignmentListSchema,
   mentorBookingListSchema,
   mentorListSchema,
@@ -49,6 +52,7 @@ import {
   sendMentorStudentMessageSchema,
   updateAvailabilitySchema,
   updateMentorBookingSchema,
+  updateMentorSessionAttendanceSchema,
   updateMentorReportSchema
 } from "../validators/mentorSchemas.js";
 import { createBetaFeedbackSchema, listMyBetaFeedbackSchema } from "../validators/betaFeedbackSchemas.js";
@@ -65,6 +69,8 @@ mentorRoutes.use(requireAuth, requireRole("mentor"));
 mentorRoutes.get("/dashboard", mentorDashboard);
 mentorRoutes.get("/modules", validate(mentorListSchema), listMentorModules);
 mentorRoutes.get("/sessions", validate(mentorSessionListSchema), listMentorSessions);
+mentorRoutes.get("/sessions/:id/attendance", validate(mentorSessionAttendanceSchema), getMentorSessionAttendance);
+mentorRoutes.patch("/sessions/:id/attendance", validate(updateMentorSessionAttendanceSchema), updateMentorSessionAttendance);
 mentorRoutes.get("/discussions", validate(discussionListSchema), listMentorDiscussions);
 mentorRoutes.post("/discussions", validate(createPortalDiscussionSchema), createMentorDiscussion);
 mentorRoutes.post("/discussions/:id/comments", validate(createDiscussionCommentSchema), replyMentorDiscussion);

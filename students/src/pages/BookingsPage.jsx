@@ -20,6 +20,7 @@ const dayLabels = {
 function emptyForm() {
   return {
     selectedOption: "",
+    mentor: "",
     availabilitySlot: "",
     startsAt: "",
     endsAt: "",
@@ -28,7 +29,15 @@ function emptyForm() {
 }
 
 function optionKey(option) {
-  return `${option.availabilitySlot}|${option.startsAt}`;
+  return `${option.mentorId || option.mentor?._id || ""}|${option.availabilitySlot}|${option.startsAt}`;
+}
+
+function mentorName(mentor) {
+  return mentor?.name || mentor?.email || "BYBS mentor";
+}
+
+function slotLabel(slot) {
+  return `${mentorName(slot.mentor)}: ${dayLabels[slot.dayOfWeek] || slot.dayOfWeek} ${slot.startTime}-${slot.endTime}`;
 }
 
 export function BookingsPage() {
@@ -62,7 +71,13 @@ export function BookingsPage() {
     setIsSubmitting(true);
 
     try {
-      await studentApi.createBooking(form);
+      await studentApi.createBooking({
+        mentor: form.mentor,
+        availabilitySlot: form.availabilitySlot,
+        startsAt: form.startsAt,
+        endsAt: form.endsAt,
+        reason: form.reason
+      });
       setFeedback("Booking request sent.");
       setForm(emptyForm());
       setShowForm(false);
@@ -80,6 +95,7 @@ export function BookingsPage() {
     setForm((current) => ({
       ...current,
       selectedOption: optionValue,
+      mentor: option?.mentorId || option?.mentor?._id || "",
       availabilitySlot: option?.availabilitySlot || "",
       startsAt: option?.startsAt || "",
       endsAt: option?.endsAt || ""
@@ -103,7 +119,7 @@ export function BookingsPage() {
     <div className="space-y-6">
       <PageHeader
         actions={<Button icon={Plus} onClick={() => setShowForm((current) => !current)} type="button">Book session</Button>}
-        description="Book 1:1 sessions based on your mentor's available time slots."
+        description="Book 1:1 sessions based on available time slots from your cohort mentors."
         title="Mentor booking"
       />
 
@@ -122,7 +138,7 @@ export function BookingsPage() {
                 <option value="">{upcomingAvailability.length ? "Choose a mentor slot" : "No upcoming slots available"}</option>
                 {upcomingAvailability.map((option) => (
                   <option key={optionKey(option)} value={optionKey(option)}>
-                    {formatDateTime(option.startsAt)} - {formatDateTime(option.endsAt)}
+                    {mentorName(option.mentor)} · {formatDateTime(option.startsAt)} - {formatDateTime(option.endsAt)}
                   </option>
                 ))}
               </select>
@@ -130,7 +146,7 @@ export function BookingsPage() {
             <div className="rounded-md bg-bybs-pale p-3 text-sm text-bybs-body">
               <p className="font-medium text-bybs-navy">Mentor availability</p>
               {availability.length ? (
-                <p className="mt-1">{availability.map((slot) => `${dayLabels[slot.dayOfWeek] || slot.dayOfWeek} ${slot.startTime}-${slot.endTime}`).join(", ")}</p>
+                <p className="mt-1">{availability.map((slot) => slotLabel(slot)).join(", ")}</p>
               ) : (
                 <p className="mt-1">No availability has been published yet.</p>
               )}
@@ -145,7 +161,7 @@ export function BookingsPage() {
               />
             </label>
             <div className="flex flex-wrap gap-2 md:col-span-2">
-              <Button disabled={isSubmitting || !form.startsAt} type="submit">{isSubmitting ? "Sending..." : "Request booking"}</Button>
+              <Button disabled={isSubmitting || !form.startsAt || !form.mentor} type="submit">{isSubmitting ? "Sending..." : "Request booking"}</Button>
               <Button onClick={() => setShowForm(false)} type="button" variant="secondary">Cancel</Button>
             </div>
           </form>

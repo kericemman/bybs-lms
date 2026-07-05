@@ -1,6 +1,7 @@
 import {
   BookOpen,
   CalendarClock,
+  ClipboardList,
   ClipboardCheck,
   FileText,
   LayoutDashboard,
@@ -18,6 +19,7 @@ export const mentorNavItems = [
   { href: "/students", label: "Assigned Mentees", icon: Users },
   { href: "/forum", label: "Forum", icon: MessageSquareText },
   { href: "/session-work", label: "Session Work", icon: NotebookPen },
+  { href: "/attendance", label: "Attendance", icon: ClipboardList },
   { href: "/reminders", label: "Reminders", icon: Send },
   { href: "/reviews", label: "Review Submissions", icon: ClipboardCheck },
   { href: "/availability", label: "Availability", icon: CalendarClock },

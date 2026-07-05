@@ -3,6 +3,10 @@ import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { verifyAccessToken } from "../utils/jwt.js";
 
+function canAccessPortal(user) {
+  return user.status === "active" || (user.role === "student" && user.status === "completed");
+}
+
 export const requireAuth = asyncHandler(async (req, _res, next) => {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
@@ -21,7 +25,7 @@ export const requireAuth = asyncHandler(async (req, _res, next) => {
 
   const user = await User.findById(payload.sub).select("-passwordHash");
 
-  if (!user || user.status !== "active") {
+  if (!user || !canAccessPortal(user)) {
     throw new ApiError(401, "Invalid or inactive account");
   }
 

@@ -20,6 +20,7 @@ import {
 import { emailConfigured, sendEmail } from "../services/emailService.js";
 import { serializeCertificate } from "../services/certificateService.js";
 import { notifyUser, notifyUsers } from "../services/portalNotificationService.js";
+import { calculateStudentProgress } from "../services/progressService.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getPagination, paginatedResponse } from "../utils/pagination.js";
@@ -27,6 +28,48 @@ import { sanitizePlainText, sanitizeRichText } from "../utils/sanitizeRichText.j
 
 const reviewableStatuses = ["submitted", "lateSubmission", "needsRevision"];
 const activeAssignmentStatuses = ["published", "closed"];
+
+function idFor(value) {
+  return String(value?._id || value?.id || value || "");
+}
+
+async function graduationProgressForStudent(student) {
+  if (!student?.cohort) return null;
+
+  try {
+    return await calculateStudentProgress(student);
+  } catch (error) {
+    return {
+      graduationReady: false,
+      progress: 0,
+      error: error.message
+    };
+  }
+}
+
+function attendanceSummary(session, expectedCount = 0) {
+  const counts = {
+    present: 0,
+    absent: 0,
+    late: 0,
+    excused: 0
+  };
+
+  (session.attendance || []).forEach((record) => {
+    if (counts[record.status] !== undefined) {
+      counts[record.status] += 1;
+    }
+  });
+
+  const marked = Object.values(counts).reduce((total, count) => total + count, 0);
+
+  return {
+    ...counts,
+    marked,
+    total: expectedCount || marked,
+    pending: Math.max((expectedCount || marked) - marked, 0)
+  };
+}
 
 async function assignedStudentFilter(mentor) {
   const cohortIds = await mentorCohortIds(mentor);
@@ -96,25 +139,173 @@ function discussionSearchFilter(search = "") {
   return { $or: [{ title: pattern }, { body: pattern }] };
 }
 
+const mentorDiscussionAudiences = ["all", "mentorsAdmins", "mentorsOnly", "mentorsMentees"];
+
+function discussionAudienceFilter(audiences) {
+  return {
+    $or: [
+      { audience: { $exists: false } },
+      { audience: { $in: audiences } }
+    ]
+  };
+}
+
+function attachAndFilters(filter, filters) {
+  const activeFilters = filters.filter((item) => item && Object.keys(item).length);
+  if (activeFilters.length) {
+    filter.$and = activeFilters;
+  }
+  return filter;
+}
+
 function populateDiscussion(query) {
   return query
     .populate("cohort", "title status")
     .populate("module", "title status startDate endDate")
-    .populate("createdBy", "name email role profileImage")
-    .populate("comments.createdBy", "name email role profileImage");
+    .populate("createdBy", "name email role profileImage bio expertise")
+    .populate("comments.createdBy", "name email role profileImage bio expertise");
 }
 
 async function populateDiscussionDocument(discussion) {
   await discussion.populate("cohort", "title status");
   await discussion.populate("module", "title status startDate endDate");
-  await discussion.populate("createdBy", "name email role profileImage");
-  await discussion.populate("comments.createdBy", "name email role profileImage");
+  await discussion.populate("createdBy", "name email role profileImage bio expertise");
+  await discussion.populate("comments.createdBy", "name email role profileImage bio expertise");
 }
 
-function submissionFilter(studentIds, status) {
-  const filter = { student: { $in: studentIds } };
+function submissionFilter(studentIds, assignmentIds, status) {
+  const filter = {
+    student: { $in: studentIds },
+    assignment: { $in: assignmentIds }
+  };
   if (status) filter.status = status;
   return filter;
+}
+
+async function mentorScopedAssignmentFilter(mentor, { cohortId, moduleId, statuses = activeAssignmentStatuses } = {}) {
+  const cohortIds = await mentorCohortIds(mentor);
+  const scopedCohortIds = cohortId
+    ? cohortIds.filter((id) => String(id) === String(cohortId))
+    : cohortIds;
+
+  if (!scopedCohortIds.length) {
+    return { _id: null };
+  }
+
+  if (moduleId) {
+    const assignedModule = await Module.findOne({
+      _id: moduleId,
+      cohort: { $in: scopedCohortIds },
+      assignedMentor: mentor._id,
+      status: { $ne: "archived" }
+    }).select("_id");
+
+    if (!assignedModule) {
+      return { _id: null };
+    }
+  }
+
+  const assignedModules = await Module.find({
+    cohort: { $in: scopedCohortIds },
+    assignedMentor: mentor._id,
+    status: { $ne: "archived" }
+  }).select("_id");
+  const moduleIds = assignedModules.map((module) => module._id);
+  const scopes = [{ createdBy: mentor._id }];
+
+  if (moduleIds.length) {
+    scopes.push({ module: { $in: moduleIds } });
+  }
+
+  const filter = {
+    cohort: { $in: scopedCohortIds },
+    $or: scopes
+  };
+
+  if (statuses?.length) {
+    filter.status = { $in: statuses };
+  } else {
+    filter.status = { $ne: "archived" };
+  }
+
+  if (moduleId) {
+    filter.module = moduleId;
+  }
+
+  return filter;
+}
+
+async function mentorScopedAssignmentIds(mentor, options = {}) {
+  const assignments = await Assignment.find(await mentorScopedAssignmentFilter(mentor, options)).select("_id");
+  return assignments.map((assignment) => assignment._id);
+}
+
+async function mentorModuleSubmissionStats(mentor, modules = []) {
+  if (!modules.length) return {};
+
+  const students = await User.find(await assignedStudentFilter(mentor)).select("_id cohort");
+  const studentIds = students.map((student) => student._id);
+  const studentIdsByCohort = new Map();
+
+  students.forEach((student) => {
+    const cohortId = String(student.cohort || "");
+    if (!studentIdsByCohort.has(cohortId)) {
+      studentIdsByCohort.set(cohortId, new Set());
+    }
+    studentIdsByCohort.get(cohortId).add(String(student._id));
+  });
+
+  const moduleIds = modules.map((module) => module._id);
+  const assignments = await Assignment.find({
+    module: { $in: moduleIds },
+    status: { $in: activeAssignmentStatuses }
+  }).select("_id module");
+  const assignmentIds = assignments.map((assignment) => assignment._id);
+  const assignmentsByModule = new Map();
+  const moduleByAssignment = new Map();
+
+  assignments.forEach((assignment) => {
+    const moduleId = String(assignment.module || "");
+    if (!assignmentsByModule.has(moduleId)) {
+      assignmentsByModule.set(moduleId, []);
+    }
+    assignmentsByModule.get(moduleId).push(assignment);
+    moduleByAssignment.set(String(assignment._id), moduleId);
+  });
+
+  const submissions = await Submission.find({
+    assignment: { $in: assignmentIds },
+    student: { $in: studentIds }
+  }).select("assignment student status isLate");
+  const stats = {};
+
+  modules.forEach((module) => {
+    const moduleId = String(module._id);
+    const cohortId = String(module.cohort?._id || module.cohort || "");
+    const moduleAssignments = assignmentsByModule.get(moduleId) || [];
+    const cohortStudentIds = studentIdsByCohort.get(cohortId) || new Set();
+    const submittedPairs = new Set();
+    let late = 0;
+
+    submissions.forEach((submission) => {
+      if (moduleByAssignment.get(String(submission.assignment)) !== moduleId) return;
+      if (!cohortStudentIds.has(String(submission.student))) return;
+
+      submittedPairs.add(`${submission.assignment}:${submission.student}`);
+      if (submission.status === "lateSubmission" || submission.isLate) late += 1;
+    });
+
+    const expected = moduleAssignments.length * cohortStudentIds.size;
+
+    stats[moduleId] = {
+      assignments: moduleAssignments.length,
+      submitted: submittedPairs.size,
+      pending: Math.max(expected - submittedPairs.size, 0),
+      late
+    };
+  });
+
+  return stats;
 }
 
 function cleanStudentRow(student, stats) {
@@ -284,6 +475,54 @@ async function findMentorSession(mentor, sessionId) {
   return session;
 }
 
+async function sessionAttendanceRoster(mentor, session) {
+  const cohortId = session.cohort?._id || session.cohort;
+  const students = await User.find({
+    ...(await assignedStudentFilter(mentor)),
+    cohort: cohortId
+  })
+    .select("name email phone status profileImage")
+    .sort({ name: 1 });
+  const attendanceByStudent = new Map(
+    (session.attendance || []).map((record) => [idFor(record.student), record])
+  );
+
+  return students.map((student) => {
+    const record = attendanceByStudent.get(idFor(student._id));
+
+    return {
+      student: {
+        _id: student._id,
+        id: student.id,
+        name: student.name,
+        email: student.email,
+        phone: student.phone,
+        status: student.status,
+        profileImage: student.profileImage
+      },
+      status: record?.status || "",
+      markedBy: record?.markedBy,
+      markedAt: record?.markedAt
+    };
+  });
+}
+
+async function assertAttendanceStudentsInScope(mentor, session, studentIds = []) {
+  const uniqueStudentIds = Array.from(new Set(studentIds.map(idFor)));
+  const cohortId = session.cohort?._id || session.cohort;
+  const students = await User.find({
+    ...(await assignedStudentFilter(mentor)),
+    cohort: cohortId,
+    _id: { $in: uniqueStudentIds }
+  }).select("_id");
+  const allowedIds = new Set(students.map((student) => idFor(student._id)));
+  const denied = uniqueStudentIds.find((studentId) => !allowedIds.has(studentId));
+
+  if (denied) {
+    throw new ApiError(403, "Attendance includes a mentee outside this session cohort");
+  }
+}
+
 async function notifyStudentsAboutAssignment({ assignment, cohortId }) {
   if (assignment.status !== "published") return 0;
 
@@ -350,9 +589,30 @@ async function reminderRecipients({ mentor, assignment, target }) {
 export const mentorDashboard = asyncHandler(async (req, res) => {
   const students = await assignedStudents(req.user);
   const studentIds = students.map((student) => student._id);
+  const assignmentIds = await mentorScopedAssignmentIds(req.user, { statuses: null });
+  const cohortIds = await mentorCohortIds(req.user);
+  const visibleModuleIds = await mentorVisibleModuleIds(req.user);
   const now = new Date();
+  const sessionScopeFilter = {
+    cohort: { $in: cohortIds },
+    $or: [
+      { module: { $in: visibleModuleIds } },
+      { module: { $exists: false } },
+      { module: null }
+    ]
+  };
 
-  const [assignedModules, pendingReviews, upcomingSessions, atRiskStudentIds, pendingSubmissions, pendingBookings] = await Promise.all([
+  const [
+    assignedModules,
+    pendingReviews,
+    upcomingSessions,
+    nextSessions,
+    attendanceMarkedSessions,
+    attendancePendingSessions,
+    atRiskStudentIds,
+    pendingSubmissions,
+    pendingBookings
+  ] = await Promise.all([
     Module.find({
       assignedMentor: req.user._id,
       status: { $ne: "archived" }
@@ -361,19 +621,47 @@ export const mentorDashboard = asyncHandler(async (req, res) => {
       .sort({ startDate: 1, order: 1 }),
     Submission.countDocuments({
       student: { $in: studentIds },
+      assignment: { $in: assignmentIds },
       status: { $in: reviewableStatuses }
     }),
-    Booking.countDocuments({
-      mentor: req.user._id,
+    Session.countDocuments({
+      ...sessionScopeFilter,
       startsAt: { $gte: now },
-      status: { $in: ["pending", "approved"] }
+      status: "scheduled"
+    }),
+    Session.find({
+      ...sessionScopeFilter,
+      startsAt: { $gte: now },
+      status: "scheduled"
+    })
+      .populate("cohort", "title status")
+      .populate({
+        path: "module",
+        select: "title status assignedMentor startDate endDate",
+        populate: { path: "assignedMentor", select: "name email role profileImage" }
+      })
+      .sort({ startsAt: 1 })
+      .limit(5),
+    Session.countDocuments({
+      ...sessionScopeFilter,
+      startsAt: { $lt: now },
+      status: { $ne: "cancelled" },
+      "attendance.markedBy": req.user._id
+    }),
+    Session.countDocuments({
+      ...sessionScopeFilter,
+      startsAt: { $lt: now },
+      status: { $ne: "cancelled" },
+      "attendance.markedBy": { $ne: req.user._id }
     }),
     Submission.distinct("student", {
       student: { $in: studentIds },
+      assignment: { $in: assignmentIds },
       status: { $in: ["lateSubmission", "needsRevision"] }
     }),
     Submission.find({
       student: { $in: studentIds },
+      assignment: { $in: assignmentIds },
       status: { $in: reviewableStatuses }
     })
       .populate("student", "name email")
@@ -415,9 +703,15 @@ export const mentorDashboard = asyncHandler(async (req, res) => {
         assignedModules: assignedModules.length,
         pendingReviews,
         upcomingSessions,
+        attendanceMarkedSessions,
+        attendancePendingSessions,
         atRiskStudents: atRiskStudentIds.length
       },
       modules: assignedModules,
+      nextSessions: nextSessions.map((session) => ({
+        ...session.toObject(),
+        attendanceSummary: attendanceSummary(session)
+      })),
       attention
     }
   });
@@ -446,14 +740,85 @@ export const listMentorSessions = asyncHandler(async (req, res) => {
   const [sessions, total] = await Promise.all([
     Session.find(filter)
       .populate("cohort", "title status")
-      .populate("module", "title status assignedMentor startDate endDate")
+      .populate({
+        path: "module",
+        select: "title status assignedMentor startDate endDate",
+        populate: { path: "assignedMentor", select: "name email role profileImage" }
+      })
       .sort({ startsAt: -1 })
       .skip(skip)
       .limit(limit),
     Session.countDocuments(filter)
   ]);
 
-  res.json(paginatedResponse({ data: sessions, total, page, limit }));
+  res.json(paginatedResponse({
+    data: sessions.map((session) => ({
+      ...session.toObject(),
+      attendanceSummary: attendanceSummary(session)
+    })),
+    total,
+    page,
+    limit
+  }));
+});
+
+export const getMentorSessionAttendance = asyncHandler(async (req, res) => {
+  const session = await findMentorSession(req.user, req.params.id);
+  const roster = await sessionAttendanceRoster(req.user, session);
+
+  res.json({
+    data: {
+      session: {
+        ...session.toObject(),
+        attendanceSummary: attendanceSummary(session, roster.length)
+      },
+      roster
+    }
+  });
+});
+
+export const updateMentorSessionAttendance = asyncHandler(async (req, res) => {
+  const session = await findMentorSession(req.user, req.params.id);
+
+  if (session.status === "cancelled") {
+    throw new ApiError(409, "Attendance cannot be marked for a cancelled session");
+  }
+
+  const recordsByStudent = new Map(
+    req.body.records.map((record) => [idFor(record.student), record.status])
+  );
+  await assertAttendanceStudentsInScope(req.user, session, Array.from(recordsByStudent.keys()));
+
+  const updatedAt = new Date();
+  const preservedRecords = (session.attendance || [])
+    .filter((record) => !recordsByStudent.has(idFor(record.student)))
+    .map((record) => (typeof record.toObject === "function" ? record.toObject() : record));
+  const updatedRecords = Array.from(recordsByStudent.entries()).map(([student, status]) => ({
+    student,
+    status,
+    markedBy: req.user._id,
+    markedAt: updatedAt
+  }));
+
+  session.attendance = [...preservedRecords, ...updatedRecords];
+  if (req.body.markCompleted) {
+    session.status = "completed";
+  }
+  await session.save();
+  await session.populate("cohort", "title status");
+  await session.populate("module", "title status assignedMentor startDate endDate");
+
+  const roster = await sessionAttendanceRoster(req.user, session);
+
+  res.json({
+    data: {
+      session: {
+        ...session.toObject(),
+        attendanceSummary: attendanceSummary(session, roster.length)
+      },
+      roster
+    }
+  });
 });
 
 export const listMentorModules = asyncHandler(async (req, res) => {
@@ -469,16 +834,27 @@ export const listMentorModules = asyncHandler(async (req, res) => {
       .limit(limit),
     Module.countDocuments(filter)
   ]);
+  const stats = await mentorModuleSubmissionStats(req.user, modules);
 
-  res.json(paginatedResponse({ data: modules, total, page, limit }));
+  res.json(paginatedResponse({
+    data: modules.map((module) => ({
+      ...module.toObject(),
+      stats: stats[String(module._id)] || { assignments: 0, submitted: 0, pending: 0, late: 0 }
+    })),
+    total,
+    page,
+    limit
+  }));
 });
 
 export const listMentorDiscussions = asyncHandler(async (req, res) => {
   const { page, limit, skip } = getPagination(req.query);
-  const filter = {
-    status: req.query.status || { $ne: "archived" },
-    ...discussionSearchFilter(req.query.search)
-  };
+  const filter = attachAndFilters(
+    {
+      status: req.query.status || { $ne: "archived" }
+    },
+    [discussionAudienceFilter(mentorDiscussionAudiences), discussionSearchFilter(req.query.search)]
+  );
 
   if (req.query.cohort) {
     filter.cohort = req.query.cohort;
@@ -535,6 +911,7 @@ export const createMentorDiscussion = asyncHandler(async (req, res) => {
     title: sanitizePlainText(req.body.title),
     body: sanitizeRichText(req.body.body || ""),
     createdBy: req.user._id,
+    audience: req.body.audience || "all",
     status: "open"
   });
 
@@ -545,7 +922,8 @@ export const createMentorDiscussion = asyncHandler(async (req, res) => {
 export const replyMentorDiscussion = asyncHandler(async (req, res) => {
   const discussion = await Discussion.findOne({
     _id: req.params.id,
-    status: "open"
+    status: "open",
+    $and: [discussionAudienceFilter(mentorDiscussionAudiences)]
   });
 
   if (!discussion) {
@@ -776,17 +1154,18 @@ export const listMentorStudents = asyncHandler(async (req, res) => {
   const rows = await Promise.all(
     students.map(async (student) => {
       const assignmentFilter = student.cohort
-        ? { cohort: student.cohort._id || student.cohort, status: { $in: activeAssignmentStatuses } }
+        ? await mentorScopedAssignmentFilter(req.user, { cohortId: student.cohort._id || student.cohort })
         : { _id: null };
-      const [totalAssignments, submittedCount, reviewedCount, latestSubmission] = await Promise.all([
-        Assignment.countDocuments(assignmentFilter),
-        Submission.countDocuments({ student: student._id }),
-        Submission.countDocuments({ student: student._id, status: { $in: ["reviewed", "approved"] } }),
-        Submission.findOne({ student: student._id }).sort({ submittedAt: -1 }).select("submittedAt")
+      const scopedAssignments = await Assignment.find(assignmentFilter).select("_id");
+      const assignmentIds = scopedAssignments.map((assignment) => assignment._id);
+      const [submittedCount, reviewedCount, latestSubmission] = await Promise.all([
+        Submission.countDocuments({ student: student._id, assignment: { $in: assignmentIds } }),
+        Submission.countDocuments({ student: student._id, assignment: { $in: assignmentIds }, status: { $in: ["reviewed", "approved"] } }),
+        Submission.findOne({ student: student._id, assignment: { $in: assignmentIds } }).sort({ submittedAt: -1 }).select("submittedAt")
       ]);
 
       return cleanStudentRow(student, {
-        totalAssignments,
+        totalAssignments: scopedAssignments.length,
         submittedCount,
         reviewedCount,
         lastSubmissionAt: latestSubmission?.submittedAt
@@ -804,10 +1183,10 @@ export const getMentorStudent = asyncHandler(async (req, res) => {
     "name email phone status cohort mentor lastLogin createdAt profileImage bio expertise"
   );
   const assignmentFilter = student.cohort
-    ? { cohort: student.cohort._id || student.cohort, status: { $in: activeAssignmentStatuses } }
+    ? await mentorScopedAssignmentFilter(req.user, { cohortId: student.cohort._id || student.cohort })
     : { _id: null };
 
-  const [assignments, submissions, recentBookings, graduationCertificate] = await Promise.all([
+  const [assignments, allSubmissions, recentBookings, graduationCertificate] = await Promise.all([
     Assignment.find(assignmentFilter)
       .select("title dueDate maxScore status module createdBy")
       .populate("module", "title status startDate endDate")
@@ -828,6 +1207,10 @@ export const getMentorStudent = asyncHandler(async (req, res) => {
       .populate("issuedBy", "name email role")
       .populate("revokedBy", "name email role")
   ]);
+  const assignmentIds = new Set(assignments.map((assignment) => String(assignment._id)));
+  const submissions = allSubmissions.filter((submission) =>
+    assignmentIds.has(String(submission.assignment?._id || submission.assignment))
+  );
 
   const submissionsByAssignment = new Map(
     submissions
@@ -855,6 +1238,7 @@ export const getMentorStudent = asyncHandler(async (req, res) => {
   const submittedCount = assignmentProgress.filter((assignment) => assignment.submissionStatus !== "notStarted").length;
   const reviewedCount = assignmentProgress.filter((assignment) => ["reviewed", "approved"].includes(assignment.submissionStatus)).length;
   const latestSubmission = submissions[0];
+  const systemProgress = await graduationProgressForStudent(student);
 
   res.json({
     data: {
@@ -880,6 +1264,7 @@ export const getMentorStudent = asyncHandler(async (req, res) => {
         lastSubmissionAt: latestSubmission?.submittedAt || null,
         assignmentProgress
       },
+      systemProgress,
       recentSubmissions: submissions.slice(0, 5),
       recentBookings,
       graduationCertificate: graduationCertificate ? serializeCertificate(graduationCertificate) : null
@@ -943,6 +1328,15 @@ export const approveStudentGraduation = asyncHandler(async (req, res) => {
     throw new ApiError(409, "This certificate request was revoked by admin");
   }
 
+  const systemProgress = await calculateStudentProgress(student);
+
+  if (!systemProgress.graduationReady) {
+    throw new ApiError(
+      409,
+      `Graduation recommendation cannot be sent yet. System progress is ${systemProgress.progress}% and this mentee is not graduation-ready.`
+    );
+  }
+
   const certificate = existingCertificate || new Certificate({
     student: student._id,
     cohort: student.cohort?._id || student.cohort,
@@ -992,14 +1386,24 @@ export const approveStudentGraduation = asyncHandler(async (req, res) => {
 
 export const listMentorSubmissions = asyncHandler(async (req, res) => {
   const { page, limit, skip } = getPagination(req.query);
-  const students = await assignedStudents(req.user);
+  const [students, assignmentIds] = await Promise.all([
+    assignedStudents(req.user),
+    mentorScopedAssignmentIds(req.user, { moduleId: req.query.module, statuses: null })
+  ]);
   const studentIds = students.map((student) => student._id);
-  const filter = submissionFilter(studentIds, req.query.status);
+  const filter = submissionFilter(studentIds, assignmentIds, req.query.status);
 
   const [submissions, total] = await Promise.all([
     Submission.find(filter)
       .populate("student", "name email cohort")
-      .populate("assignment", "title dueDate maxScore status")
+      .populate({
+        path: "assignment",
+        select: "title instructions dueDate maxScore status module templateFileUrl resourceLinks createdBy",
+        populate: [
+          { path: "module", select: "title status assignedMentor startDate endDate" },
+          { path: "createdBy", select: "name email" }
+        ]
+      })
       .populate("reviewedBy", "name email")
       .sort({ submittedAt: -1 })
       .skip(skip)
@@ -1011,7 +1415,14 @@ export const listMentorSubmissions = asyncHandler(async (req, res) => {
 });
 
 export const reviewSubmission = asyncHandler(async (req, res) => {
-  const submission = await Submission.findById(req.params.id).populate("assignment", "maxScore");
+  const submission = await Submission.findById(req.params.id).populate({
+    path: "assignment",
+    select: "title instructions dueDate maxScore status module templateFileUrl resourceLinks createdBy",
+    populate: [
+      { path: "module", select: "title status assignedMentor startDate endDate" },
+      { path: "createdBy", select: "name email" }
+    ]
+  });
 
   if (!submission) {
     throw new ApiError(404, "Submission not found");
@@ -1019,12 +1430,19 @@ export const reviewSubmission = asyncHandler(async (req, res) => {
 
   await assertStudentInScope(req.user, submission.student);
 
+  const assignmentIds = await mentorScopedAssignmentIds(req.user, { statuses: null });
+  const canReviewAssignment = assignmentIds.some((assignmentId) => String(assignmentId) === String(submission.assignment?._id || submission.assignment));
+
+  if (!canReviewAssignment) {
+    throw new ApiError(403, "You can only review submissions from your assigned modules");
+  }
+
   if (req.body.score !== undefined && submission.assignment?.maxScore && req.body.score > submission.assignment.maxScore) {
     throw new ApiError(400, "Score cannot be higher than the assignment maximum score");
   }
 
   Object.assign(submission, {
-    score: req.body.score,
+    score: req.body.status === "approved" ? req.body.score : undefined,
     feedback: sanitizeRichText(req.body.feedback || ""),
     status: req.body.status,
     reviewedBy: req.user._id,
@@ -1033,7 +1451,14 @@ export const reviewSubmission = asyncHandler(async (req, res) => {
 
   await submission.save();
   await submission.populate("student", "name email cohort");
-  await submission.populate("assignment", "title dueDate maxScore status");
+  await submission.populate({
+    path: "assignment",
+    select: "title instructions dueDate maxScore status module templateFileUrl resourceLinks createdBy",
+    populate: [
+      { path: "module", select: "title status assignedMentor startDate endDate" },
+      { path: "createdBy", select: "name email" }
+    ]
+  });
   await submission.populate("reviewedBy", "name email");
 
   await notifyUser({

@@ -17,3 +17,15 @@ export function formatDateTime(value) {
     minute: "2-digit"
   }).format(new Date(value));
 }
+
+export function formatCatDateTime(value) {
+  if (!value) return "Not set";
+  return new Intl.DateTimeFormat(undefined, {
+    timeZone: "Africa/Maputo",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(new Date(value)) + " CAT";
+}

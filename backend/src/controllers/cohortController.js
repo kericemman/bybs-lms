@@ -5,6 +5,7 @@ import { Module } from "../models/Module.js";
 import { Resource } from "../models/Resource.js";
 import { Session } from "../models/Session.js";
 import { User } from "../models/User.js";
+import { calculateCohortRanking } from "../services/progressService.js";
 import { ApiError } from "../utils/apiError.js";
 import { getPagination, paginatedResponse } from "../utils/pagination.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -47,6 +48,11 @@ export const updateCohort = asyncHandler(async (req, res) => {
   }
 
   res.json({ data: cohort });
+});
+
+export const cohortRanking = asyncHandler(async (req, res) => {
+  const ranking = await calculateCohortRanking(req.params.id);
+  res.json({ data: ranking });
 });
 
 export const deleteCohort = asyncHandler(async (req, res) => {

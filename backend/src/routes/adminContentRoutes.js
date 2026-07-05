@@ -28,6 +28,7 @@ import {
   listAnnouncements,
   listBookings,
   listDiscussions,
+  generateModuleSessions,
   listModules,
   listNotifications,
   listReports,
@@ -95,6 +96,7 @@ adminContentRoutes.get("/modules", validate(listByCohortSchema), listModules);
 adminContentRoutes.post("/modules", validate(createModuleSchema), createModule);
 adminContentRoutes.patch("/modules/:id", validate(updateModuleSchema), updateModule);
 adminContentRoutes.delete("/modules/:id", validate(idParamsSchema), requireRole("admin", "superAdmin"), deleteModule);
+adminContentRoutes.post("/modules/:id/weekend-sessions", validate(idParamsSchema), generateModuleSessions);
 
 adminContentRoutes.get("/sessions", validate(listByCohortSchema), listSessions);
 adminContentRoutes.post("/sessions", validate(createSessionSchema), createSession);

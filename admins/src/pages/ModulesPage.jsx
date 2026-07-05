@@ -130,7 +130,7 @@ export function ModulesPage() {
       />
 
       <Card>
-        <form className="grid gap-4 lg:grid-cols-4" onSubmit={handleSubmit}>
+        <form className="grid min-w-0 max-w-full gap-4 overflow-hidden lg:grid-cols-4" onSubmit={handleSubmit}>
           <FormField label="Title">
             <input className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} required value={form.title} />
           </FormField>
@@ -160,7 +160,7 @@ export function ModulesPage() {
               {statusOptions.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
             </select>
           </FormField>
-          <div className="lg:col-span-4">
+          <div className="min-w-0 lg:col-span-4">
             <label className="text-sm font-medium text-bybs-body" htmlFor="module-description">
               Description
             </label>
@@ -175,7 +175,7 @@ export function ModulesPage() {
             />
           </div>
           {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose lg:col-span-4">{error}</p> : null}
-          <div className="flex flex-wrap gap-2 lg:col-span-4">
+          <div className="flex min-w-0 flex-wrap gap-2 lg:col-span-4">
             <Button disabled={isSubmitting} icon={editingId ? Save : Plus} type="submit">
               {isSubmitting ? "Saving..." : editingId ? "Update module" : "Create module"}
             </Button>

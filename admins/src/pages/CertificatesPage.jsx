@@ -1,6 +1,6 @@
 import { Award, CheckCircle2, RotateCcw, Search, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Button, Card, DataTable, PageHeader, SafeHtml, StatCard, StatusBadge } from "@bybs/shared";
+import { Button, Card, DataTable, PageHeader, ProgressBar, SafeHtml, StatCard, StatusBadge } from "@bybs/shared";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { adminApi } from "../services/api.js";
 import { formatDateTime, relatedTitle } from "../utils/format.js";
@@ -12,6 +12,81 @@ const statusOptions = [
   { value: "issued", label: "Issued" },
   { value: "revoked", label: "Revoked" }
 ];
+
+function certificateProgress(certificate) {
+  return certificate?.currentProgress || certificate?.progressSnapshot || null;
+}
+
+function isCertificateReady(certificate) {
+  return Boolean(certificateProgress(certificate)?.graduationReady);
+}
+
+function ProgressEvidence({ progress }) {
+  if (!progress) {
+    return (
+      <div className="mt-5 rounded-md border border-bybs-border p-4">
+        <p className="text-sm font-semibold text-bybs-navy">System progress check</p>
+        <p className="mt-2 text-sm text-bybs-body">Progress evidence is not available yet.</p>
+      </div>
+    );
+  }
+
+  const values = [
+    ["Assignment completion", progress.assignmentCompletionPercentage],
+    ["Approved score", progress.scorePercentage],
+    ["Attendance", progress.attendancePercentage],
+    ["Punctuality", progress.punctualityPercentage]
+  ];
+
+  return (
+    <div className="mt-5 rounded-md border border-bybs-border p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-bybs-navy">System progress check</p>
+          <p className="mt-1 text-sm text-bybs-body">
+            Certificates can only be issued when the computed progress is graduation-ready.
+          </p>
+        </div>
+        <StatusBadge
+          label={progress.graduationReady ? "Graduation ready" : "Not ready yet"}
+          status={progress.graduationReady ? "approved" : "pending"}
+        />
+      </div>
+
+      {progress.error ? (
+        <p className="mt-3 rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{progress.error}</p>
+      ) : null}
+
+      <div className="mt-4">
+        <ProgressBar label="Overall progress" value={progress.progress || 0} />
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        {values.map(([label, value]) => (
+          <div className="rounded-md bg-bybs-pale p-3" key={label}>
+            <ProgressBar label={label} value={value || 0} />
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        {[
+          ["Submitted", `${progress.submittedCount || 0}/${progress.totalAssignments || 0}`],
+          ["Pending", progress.pendingCount || 0],
+          ["Late submissions", progress.lateSubmissionCount || 0],
+          ["Attendance marked", progress.attendanceMarked || 0],
+          ["Attended", progress.attended || 0],
+          ["Needs revision", progress.needsRevisionCount || 0]
+        ].map(([label, value]) => (
+          <div className="rounded-md border border-bybs-border bg-white p-3" key={label}>
+            <p className="text-xs font-medium uppercase text-bybs-muted">{label}</p>
+            <p className="mt-1 text-sm font-semibold text-bybs-navy">{value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function CertificatesPage() {
   const { user } = useAuth();
@@ -42,6 +117,7 @@ export function CertificatesPage() {
   const counts = useMemo(() => ({
     total: certificates.length,
     pending: certificates.filter((certificate) => certificate.status === "mentorApproved").length,
+    ready: certificates.filter((certificate) => certificate.status === "mentorApproved" && isCertificateReady(certificate)).length,
     issued: certificates.filter((certificate) => certificate.status === "issued").length,
     revoked: certificates.filter((certificate) => certificate.status === "revoked").length
   }), [certificates]);
@@ -114,9 +190,10 @@ export function CertificatesPage() {
       {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
       {feedback ? <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue">{feedback}</p> : null}
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <StatCard icon={Award} label="Total" value={counts.total} />
         <StatCard icon={ShieldCheck} label="Awaiting admin" value={counts.pending} />
+        <StatCard icon={CheckCircle2} label="System ready" value={counts.ready} />
         <StatCard icon={CheckCircle2} label="Issued" value={counts.issued} />
         <StatCard icon={RotateCcw} label="Revoked" value={counts.revoked} />
       </div>
@@ -151,6 +228,8 @@ export function CertificatesPage() {
             </div>
           </div>
 
+          <ProgressEvidence progress={certificateProgress(selectedCertificate)} />
+
           {selectedCertificate.mentorNotes ? (
             <div className="mt-5 rounded-md border border-bybs-border p-4">
               <p className="text-sm font-semibold text-bybs-navy">Mentor notes</p>
@@ -161,12 +240,16 @@ export function CertificatesPage() {
           <div className="mt-5 flex flex-wrap gap-2">
             {canIssue && selectedCertificate.status === "mentorApproved" ? (
               <Button
-                disabled={workingId === selectedCertificate._id}
+                disabled={workingId === selectedCertificate._id || !isCertificateReady(selectedCertificate)}
                 icon={CheckCircle2}
                 onClick={() => issueCertificate(selectedCertificate)}
                 type="button"
               >
-                {workingId === selectedCertificate._id ? "Issuing..." : "Issue certificate"}
+                {workingId === selectedCertificate._id
+                  ? "Issuing..."
+                  : isCertificateReady(selectedCertificate)
+                    ? "Issue certificate"
+                    : "Not ready yet"}
               </Button>
             ) : null}
             {canIssue && selectedCertificate.status === "issued" ? (
@@ -218,6 +301,21 @@ export function CertificatesPage() {
           { key: "cohort", header: "Cohort", render: (row) => relatedTitle(row.cohort) },
           { key: "mentorApprovedBy", header: "Mentor", render: (row) => relatedTitle(row.mentorApprovedBy, "Mentor") },
           { key: "mentorApprovedAt", header: "Recommended", render: (row) => formatDateTime(row.mentorApprovedAt) },
+          {
+            key: "progress",
+            header: "Progress",
+            render: (row) => <div className="w-36"><ProgressBar value={certificateProgress(row)?.progress || 0} /></div>
+          },
+          {
+            key: "readiness",
+            header: "System check",
+            render: (row) => (
+              <StatusBadge
+                label={isCertificateReady(row) ? "Ready" : "Not ready"}
+                status={isCertificateReady(row) ? "approved" : "pending"}
+              />
+            )
+          },
           { key: "certificateNumber", header: "Certificate no.", render: (row) => row.certificateNumber || "Not issued" },
           { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
           {
@@ -230,13 +328,13 @@ export function CertificatesPage() {
                 </Button>
                 {canIssue && row.status === "mentorApproved" ? (
                   <Button
-                    disabled={workingId === row._id}
+                    disabled={workingId === row._id || !isCertificateReady(row)}
                     icon={CheckCircle2}
                     onClick={() => issueCertificate(row)}
                     size="sm"
                     type="button"
                   >
-                    Issue
+                    {isCertificateReady(row) ? "Issue" : "Not ready"}
                   </Button>
                 ) : null}
               </div>

@@ -42,17 +42,17 @@ export function ModulesPage() {
 
     mentorApi
       .listModules()
-      .then((response) => {
+      .then((moduleResponse) => {
         if (!isMounted) return;
 
-        setModules(response.data);
+        setModules(moduleResponse.data);
         const requestedModuleId = searchParams.get("module");
-        const requestedModule = response.data.find((module) => module._id === requestedModuleId);
+        const requestedModule = moduleResponse.data.find((module) => module._id === requestedModuleId);
 
         if (requestedModule) {
           setSelectedModuleId(requestedModule._id);
-        } else if (!selectedModuleId && response.data.length === 1) {
-          setSelectedModuleId(response.data[0]._id);
+        } else if (!selectedModuleId && moduleResponse.data.length === 1) {
+          setSelectedModuleId(moduleResponse.data[0]._id);
         }
       })
       .catch((requestError) => {
@@ -71,6 +71,18 @@ export function ModulesPage() {
     () => modules.find((module) => module._id === selectedModuleId),
     [modules, selectedModuleId]
   );
+  const moduleStats = useMemo(() => {
+    return Object.fromEntries(
+      modules.map((module) => [
+        module._id,
+        module.stats || { assignments: 0, submitted: 0, pending: 0, late: 0 }
+      ])
+    );
+  }, [modules]);
+  const moduleRows = modules.map((module) => ({
+    ...module,
+    stats: moduleStats[module._id] || { assignments: 0, submitted: 0, pending: 0, late: 0 }
+  }));
 
   function viewModule(module) {
     setSelectedModuleId(module._id);
@@ -118,8 +130,12 @@ export function ModulesPage() {
               columns={[
                 { key: "title", header: "Module" },
                 { key: "cohort", header: "Cohort", render: (row) => row.cohort?.title || "Cohort" },
-                { key: "dates", header: "Dates", render: (row) => moduleDates(row) },
-                { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
+	                { key: "dates", header: "Dates", render: (row) => moduleDates(row) },
+	                { key: "assignments", header: "Assignments", render: (row) => row.stats.assignments },
+	                { key: "submitted", header: "Submitted", render: (row) => row.stats.submitted },
+	                { key: "pending", header: "Pending", render: (row) => row.stats.pending },
+	                { key: "late", header: "Late", render: (row) => row.stats.late },
+	                { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
                 {
                   key: "actions",
                   header: "Actions",
@@ -132,7 +148,7 @@ export function ModulesPage() {
               ]}
               emptyDescription="Modules assigned to you by Admin will appear here."
               emptyTitle="No modules assigned"
-              rows={modules}
+	              rows={moduleRows}
             />
           )}
         </Card>
@@ -150,6 +166,19 @@ export function ModulesPage() {
                     {selectedModule.cohort?.title || "Cohort"}
                   </span>
                   <StatusBadge status={selectedModule.status} />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-4">
+                  {[
+                    ["Assignments", moduleStats[selectedModule._id]?.assignments || 0],
+                    ["Submitted", moduleStats[selectedModule._id]?.submitted || 0],
+                    ["Pending", moduleStats[selectedModule._id]?.pending || 0],
+                    ["Late", moduleStats[selectedModule._id]?.late || 0]
+                  ].map(([label, value]) => (
+                    <div className="rounded-md border border-bybs-border bg-white px-3 py-2" key={label}>
+                      <p className="text-xs font-medium text-bybs-muted">{label}</p>
+                      <p className="mt-1 text-lg font-semibold text-bybs-navy">{value}</p>
+                    </div>
+                  ))}
                 </div>
                 {selectedModule.description ? (
                   <SafeHtml className={detailContentClassName} html={selectedModule.description} />

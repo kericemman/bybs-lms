@@ -46,6 +46,52 @@ function emailStatusMessage(status) {
   return "Message saved in the mentee portal.";
 }
 
+function SystemProgressPanel({ progress }) {
+  if (!progress) {
+    return (
+      <div className="mt-5 rounded-md border border-bybs-border p-4">
+        <p className="text-sm font-semibold text-bybs-navy">System graduation check</p>
+        <p className="mt-2 text-sm text-bybs-body">Graduation progress is not available yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-5 rounded-md border border-bybs-border p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-bybs-navy">System graduation check</p>
+          <p className="mt-1 text-sm text-bybs-body">
+            Recommendations open when the computed progress confirms this mentee is graduation-ready.
+          </p>
+        </div>
+        <StatusBadge
+          label={progress.graduationReady ? "Graduation ready" : "Not ready yet"}
+          status={progress.graduationReady ? "approved" : "pending"}
+        />
+      </div>
+
+      {progress.error ? (
+        <p className="mt-3 rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{progress.error}</p>
+      ) : null}
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        {[
+          ["Overall progress", progress.progress],
+          ["Assignment completion", progress.assignmentCompletionPercentage],
+          ["Approved score", progress.scorePercentage],
+          ["Attendance", progress.attendancePercentage],
+          ["Punctuality", progress.punctualityPercentage]
+        ].map(([label, value]) => (
+          <div className="rounded-md bg-bybs-pale p-3" key={label}>
+            <ProgressBar label={label} value={value || 0} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function StudentDetailPage() {
   const { id } = useParams();
   const [details, setDetails] = useState(null);
@@ -112,8 +158,10 @@ export function StudentDetailPage() {
 
   const student = details?.student;
   const progress = details?.progress;
+  const systemProgress = details?.systemProgress;
   const graduationCertificate = details?.graduationCertificate;
   const canRecommendGraduation = !graduationCertificate || graduationCertificate.status === "mentorApproved";
+  const graduationReady = Boolean(systemProgress?.graduationReady);
 
   if (loading) {
     return (
@@ -241,6 +289,8 @@ export function StudentDetailPage() {
           {graduationCertificate ? <StatusBadge status={graduationCertificate.status} /> : null}
         </div>
 
+        <SystemProgressPanel progress={systemProgress} />
+
         {graduationCertificate ? (
           <div className="mt-4 rounded-md bg-bybs-pale p-4 text-sm text-bybs-body">
             <p className="font-semibold text-bybs-navy">
@@ -273,8 +323,14 @@ export function StudentDetailPage() {
               placeholder="Summarize why this mentee is ready to graduate."
               value={graduationNotes}
             />
-            <Button disabled={approving} icon={approving ? ShieldCheck : Award} type="submit">
-              {approving ? "Sending..." : graduationCertificate ? "Update recommendation" : "Recommend for certificate"}
+            <Button disabled={approving || !graduationReady} icon={approving ? ShieldCheck : Award} type="submit">
+              {approving
+                ? "Sending..."
+                : !graduationReady
+                  ? "Not ready yet"
+                  : graduationCertificate
+                    ? "Update recommendation"
+                    : "Recommend for certificate"}
             </Button>
           </form>
         ) : null}

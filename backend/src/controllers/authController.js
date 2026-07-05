@@ -25,6 +25,10 @@ function publicUser(user) {
   };
 }
 
+function canAccessPortal(user) {
+  return user.status === "active" || (user.role === "student" && user.status === "completed");
+}
+
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
@@ -38,7 +42,7 @@ export const login = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Invalid login credentials");
   }
 
-  if (user.status !== "active") {
+  if (!canAccessPortal(user)) {
     throw new ApiError(403, "Your account is not active");
   }
 

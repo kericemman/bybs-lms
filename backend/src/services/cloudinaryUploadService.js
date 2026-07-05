@@ -8,16 +8,20 @@ function uploadConfigured() {
   return Boolean(env.cloudinaryCloudName && env.cloudinaryApiKey && env.cloudinaryApiSecret);
 }
 
+function cloudinaryValue(value = "") {
+  return String(value || "").trim();
+}
+
 function signatureFor(params) {
   const payload = Object.entries(params)
     .filter(([, value]) => value !== undefined && value !== null && value !== "")
-    .sort(([left], [right]) => left.localeCompare(right))
+    .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
     .map(([key, value]) => `${key}=${value}`)
     .join("&");
 
   return crypto
     .createHash("sha1")
-    .update(`${payload}${env.cloudinaryApiSecret}`)
+    .update(`${payload}${cloudinaryValue(env.cloudinaryApiSecret)}`)
     .digest("hex");
 }
 
@@ -49,23 +53,20 @@ export async function uploadToCloudinary(file) {
 
   const timestamp = Math.round(Date.now() / 1000);
   const uploadParams = {
-    folder: env.cloudinaryFolder,
-    overwrite: "false",
+    folder: cloudinaryValue(env.cloudinaryFolder),
     public_id: safePublicId(file),
-    timestamp,
-    unique_filename: "true",
-    use_filename: "true"
+    timestamp
   };
   const formData = new FormData();
 
   Object.entries(uploadParams).forEach(([key, value]) => {
     formData.append(key, String(value));
   });
-  formData.append("api_key", env.cloudinaryApiKey);
+  formData.append("api_key", cloudinaryValue(env.cloudinaryApiKey));
   formData.append("signature", signatureFor(uploadParams));
   formData.append("file", await fileBlob(file), file.originalname || file.filename || "upload");
 
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${env.cloudinaryCloudName}/auto/upload`, {
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryValue(env.cloudinaryCloudName)}/auto/upload`, {
     method: "POST",
     body: formData
   });
@@ -73,9 +74,13 @@ export async function uploadToCloudinary(file) {
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
+    const message = data?.error?.message || "Cloudinary upload failed";
+
     throw new ApiError(
       502,
-      data?.error?.message || "Cloudinary upload failed"
+      /invalid signature/i.test(message)
+        ? "Cloudinary rejected the upload signature. Check that CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET belong to the same Cloudinary account."
+        : message
     );
   }
 

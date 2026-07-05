@@ -20,8 +20,8 @@ export function DataTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-bybs-border bg-white shadow-sm">
-      <div className="overflow-x-auto">
+    <div className="min-w-0 max-w-full overflow-hidden rounded-lg border border-bybs-border bg-white shadow-sm">
+      <div className="max-w-full overflow-x-auto">
         <table className="min-w-full divide-y divide-bybs-border">
           <thead className="bg-bybs-pale">
             <tr>

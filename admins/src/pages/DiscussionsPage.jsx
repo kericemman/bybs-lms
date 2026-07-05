@@ -1,6 +1,6 @@
 import { Plus, Save, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Button, Card, DataTable, PageHeader, StatusBadge } from "@bybs/shared";
+import { Button, Card, DataTable, DISCUSSION_AUDIENCE_OPTIONS, PageHeader, StatusBadge } from "@bybs/shared";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { FilterBar } from "../components/FilterBar.jsx";
 import { FormField, inputClassName, textAreaClassName } from "../components/FormField.jsx";
@@ -14,6 +14,7 @@ const initialForm = {
   body: "",
   cohort: "",
   module: "",
+  audience: "all",
   status: "open"
 };
 
@@ -22,6 +23,10 @@ const statusOptions = [
   { value: "closed", label: "Closed" },
   { value: "archived", label: "Archived" }
 ];
+
+function audienceLabel(value = "all") {
+  return DISCUSSION_AUDIENCE_OPTIONS.find((option) => option.value === value)?.label || "Everyone";
+}
 
 export function DiscussionsPage() {
   const { user } = useAuth();
@@ -62,6 +67,7 @@ export function DiscussionsPage() {
       body: discussion.body || "",
       cohort: discussion.cohort?._id || "",
       module: discussion.module?._id || "",
+      audience: discussion.audience || "all",
       status: discussion.status || "open"
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -126,6 +132,11 @@ export function DiscussionsPage() {
               {statusOptions.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
             </select>
           </FormField>
+          <FormField label="Who can see this?">
+            <select className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, audience: event.target.value }))} value={form.audience}>
+              {DISCUSSION_AUDIENCE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </FormField>
           <div className="lg:col-span-4"><FormField label="Prompt"><textarea className={textAreaClassName} onChange={(event) => setForm((current) => ({ ...current, body: event.target.value }))} value={form.body} /></FormField></div>
           {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose lg:col-span-4">{error}</p> : null}
           <div className="flex flex-wrap gap-2 lg:col-span-4">
@@ -140,6 +151,7 @@ export function DiscussionsPage() {
           { key: "title", header: "Discussion" },
           { key: "cohort", header: "Cohort", render: (row) => relatedTitle(row.cohort) },
           { key: "module", header: "Module", render: (row) => relatedTitle(row.module) },
+          { key: "audience", header: "Audience", render: (row) => audienceLabel(row.audience) },
           { key: "comments", header: "Comments", render: (row) => row.comments?.length || 0 },
           { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
           {

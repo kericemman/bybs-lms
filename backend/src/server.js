@@ -2,9 +2,11 @@ import { app } from "./app.js";
 import { connectDatabase, stopDatabase } from "./config/database.js";
 import { env } from "./config/env.js";
 import { ensureSuperAdmin } from "./services/adminSeedService.js";
+import { startSessionReminderScheduler } from "./services/sessionReminderService.js";
 
 let server = null;
 let isShuttingDown = false;
+let stopBackgroundJobs = () => {};
 
 async function shutdown(signal) {
   if (isShuttingDown) return;
@@ -16,6 +18,7 @@ async function shutdown(signal) {
     await new Promise((resolve) => server.close(resolve));
   }
 
+  stopBackgroundJobs();
   await stopDatabase();
   process.exit(0);
 }
@@ -23,6 +26,7 @@ async function shutdown(signal) {
 async function bootstrap() {
   await connectDatabase();
   await ensureSuperAdmin();
+  stopBackgroundJobs = startSessionReminderScheduler();
 
   server = app.listen(env.port, () => {
     console.log(`BYBS LMS API running on port ${env.port}`);

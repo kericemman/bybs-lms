@@ -1,6 +1,6 @@
-import { Plus, Save, X } from "lucide-react";
+import { BarChart3, Plus, Save, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Button, Card, DataTable, PageHeader, StatusBadge } from "@bybs/shared";
+import { Button, Card, DataTable, PageHeader, ProgressBar, SectionHeader, StatusBadge } from "@bybs/shared";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { FilterBar } from "../components/FilterBar.jsx";
 import { FormField, inputClassName, textAreaClassName } from "../components/FormField.jsx";
@@ -33,6 +33,8 @@ export function CohortsPage() {
   const [filters, setFilters] = useState({ search: "", status: "" });
   const [form, setForm] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
+  const [ranking, setRanking] = useState(null);
+  const [rankingLoading, setRankingLoading] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const canDelete = canDeleteOperationalRecords(user);
@@ -71,6 +73,21 @@ export function CohortsPage() {
       await loadCohorts();
     } catch (requestError) {
       setError(requestError.message);
+    }
+  }
+
+  async function openRanking(cohort) {
+    setError("");
+    setRankingLoading(true);
+
+    try {
+      const response = await adminApi.getCohortRanking(cohort._id);
+      setRanking(response.data);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setRankingLoading(false);
     }
   }
 
@@ -169,6 +186,67 @@ export function CohortsPage() {
         </form>
       </Card>
 
+      {ranking ? (
+        <Card>
+          <SectionHeader
+            action={
+              <Button icon={X} onClick={() => setRanking(null)} size="sm" type="button" variant="secondary">
+                Close
+              </Button>
+            }
+            description="Ranking is computed from assignment completion, approved scores, attendance, and punctuality. Mentor notes do not affect the score."
+            title={`${ranking.cohort?.title || "Cohort"} ranking`}
+          />
+          <div className="mb-5 grid gap-4 md:grid-cols-4">
+            {[
+              ["Mentees ranked", ranking.totals?.students || 0],
+              ["Assignments", ranking.totals?.assignments || 0],
+              ["Marked sessions", ranking.totals?.sessions || 0],
+              ["Graduation ready", ranking.totals?.graduationReady || 0]
+            ].map(([label, value]) => (
+              <div className="rounded-md border border-bybs-border bg-white p-3" key={label}>
+                <p className="text-sm text-bybs-body">{label}</p>
+                <p className="mt-2 text-xl font-semibold text-bybs-navy">{value}</p>
+              </div>
+            ))}
+          </div>
+          {ranking.weights ? (
+            <div className="mb-5 grid gap-3 rounded-lg border border-bybs-border bg-bybs-pale p-4 md:grid-cols-4">
+              {Object.entries(ranking.weights).map(([key, value]) => (
+                <div key={key}>
+                  <p className="text-xs font-medium uppercase text-bybs-muted">{key.replace(/([A-Z])/g, " $1")}</p>
+                  <p className="mt-1 text-lg font-semibold text-bybs-navy">{value}%</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          <DataTable
+            columns={[
+              { key: "rank", header: "Rank", render: (row) => `#${row.rank}` },
+              { key: "student", header: "Mentee", render: (row) => row.student?.name || "Mentee" },
+              { key: "progress", header: "Overall", render: (row) => <div className="w-40"><ProgressBar value={row.progress} /></div> },
+              { key: "scorePercentage", header: "Score", render: (row) => `${row.scorePercentage || 0}%` },
+              { key: "attendancePercentage", header: "Attendance", render: (row) => `${row.attendancePercentage || 0}%` },
+              { key: "submitted", header: "Submitted", render: (row) => `${row.submittedCount || 0}/${row.totalAssignments || 0}` },
+              { key: "late", header: "Late", render: (row) => row.lateSubmissionCount || 0 },
+              {
+                key: "graduationReady",
+                header: "Graduation",
+                render: (row) => (
+                  <StatusBadge
+                    label={row.graduationReady ? "Ready" : "Not ready"}
+                    status={row.graduationReady ? "approved" : "pending"}
+                  />
+                )
+              }
+            ]}
+            emptyDescription="Mentees assigned to this cohort will appear here once progress can be computed."
+            emptyTitle="No ranking data"
+            rows={ranking.ranking || []}
+          />
+        </Card>
+      ) : null}
+
       <DataTable
         columns={[
           { key: "title", header: "Cohort" },
@@ -179,11 +257,16 @@ export function CohortsPage() {
             key: "actions",
             header: "Actions",
             render: (row) => (
-              <RowActions
-                confirmMessage={`Delete ${row.title}? This cannot be undone.`}
-                onDelete={canDelete ? () => handleDelete(row) : undefined}
-                onEdit={() => startEdit(row)}
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <Button disabled={rankingLoading} icon={BarChart3} onClick={() => openRanking(row)} size="sm" type="button" variant="secondary">
+                  Ranking
+                </Button>
+                <RowActions
+                  confirmMessage={`Delete ${row.title}? This cannot be undone.`}
+                  onDelete={canDelete ? () => handleDelete(row) : undefined}
+                  onEdit={() => startEdit(row)}
+                />
+              </div>
             )
           }
         ]}

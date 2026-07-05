@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./auth/ProtectedRoute.jsx";
 import { MentorLayout } from "./layouts/MentorLayout.jsx";
+import { AttendancePage } from "./pages/AttendancePage.jsx";
 import { AvailabilityPage } from "./pages/AvailabilityPage.jsx";
 import { BetaFeedbackPage } from "./pages/BetaFeedbackPage.jsx";
 import { BookingsPage } from "./pages/BookingsPage.jsx";
@@ -32,6 +33,7 @@ export default function App() {
                 <Route element={<StudentDetailPage />} path="students/:id" />
                 <Route element={<DiscussionsPage />} path="forum" />
                 <Route element={<SessionWorkPage />} path="session-work" />
+                <Route element={<AttendancePage />} path="attendance" />
                 <Route element={<RemindersPage />} path="reminders" />
                 <Route element={<ReviewsPage />} path="reviews" />
                 <Route element={<AvailabilityPage />} path="availability" />

@@ -1,11 +1,14 @@
 import { z } from "zod";
 import { emptyToUndefined, objectIdSchema, paginationQuerySchema } from "./commonSchemas.js";
 
+const discussionAudienceSchema = z.enum(["all", "mentorsAdmins", "mentorsOnly", "mentorsMentees"]);
+
 export const listByCohortSchema = z.object({
   query: paginationQuerySchema.extend({
     cohort: objectIdSchema.optional(),
     module: objectIdSchema.optional(),
-    status: z.string().trim().optional()
+    status: z.string().trim().optional(),
+    audience: discussionAudienceSchema.optional()
   })
 });
 
@@ -72,6 +75,7 @@ export const createDiscussionSchema = z.object({
     module: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
     title: z.string().trim().min(2),
     body: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+    audience: discussionAudienceSchema.default("all"),
     status: z.enum(["open", "closed", "archived"]).default("open")
   })
 });
@@ -83,6 +87,7 @@ export const updateDiscussionSchema = z.object({
     module: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
     title: z.string().trim().min(2).optional(),
     body: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+    audience: discussionAudienceSchema.optional(),
     status: z.enum(["open", "closed", "archived"]).optional()
   })
 });

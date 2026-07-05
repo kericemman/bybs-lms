@@ -12,6 +12,8 @@ export const mentorApi = {
   dashboard: () => api.get("/mentor/dashboard"),
   listModules: (filters = {}) => api.get(`/mentor/modules${toQueryString({ limit: 100, ...filters })}`),
   listSessions: (filters = {}) => api.get(`/mentor/sessions${toQueryString({ limit: 100, ...filters })}`),
+  getSessionAttendance: (id) => api.get(`/mentor/sessions/${id}/attendance`),
+  updateSessionAttendance: (id, payload) => api.patch(`/mentor/sessions/${id}/attendance`, payload),
   listAssignments: (filters = {}) => api.get(`/mentor/assignments${toQueryString({ limit: 100, ...filters })}`),
   updateAssignment: (id, payload) => api.patch(`/assignments/${id}`, payload),
   deleteAssignment: (id) => api.delete(`/assignments/${id}`),

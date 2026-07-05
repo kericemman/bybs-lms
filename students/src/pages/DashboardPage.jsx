@@ -20,20 +20,32 @@ import {
   StatusBadge
 } from "@bybs/shared";
 import { studentApi } from "../services/api.js";
-import { formatDate, formatDateTime, titleFor } from "../utils/format.js";
+import { formatCatDateTime, formatDate, formatDateTime, titleFor } from "../utils/format.js";
 
 function postedBy(assignment) {
   return assignment.createdBy?.name || "BYBS team";
 }
 
+function mentorName(mentor) {
+  return mentor?.name || mentor?.email || "BYBS mentor";
+}
+
+function sessionMentorName(session) {
+  return mentorName(session?.module?.assignedMentor);
+}
+
 export function DashboardPage() {
   const navigate = useNavigate();
   const [dashboard, setDashboard] = useState(null);
+  const [upcomingAvailability, setUpcomingAvailability] = useState([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    studentApi.dashboard()
-      .then((response) => setDashboard(response.data))
+    Promise.all([studentApi.dashboard(), studentApi.listAvailability()])
+      .then(([dashboardResponse, availabilityResponse]) => {
+        setDashboard(dashboardResponse.data);
+        setUpcomingAvailability((availabilityResponse.upcoming || []).slice(0, 3));
+      })
       .catch((loadError) => setError(loadError.message));
   }, []);
 
@@ -94,6 +106,27 @@ export function DashboardPage() {
         </Card>
 
         <div className="space-y-4">
+          <Card>
+            <SectionHeader
+              description="Upcoming bookable times from your cohort mentors."
+              title="Mentor availability"
+            />
+            {!upcomingAvailability.length ? (
+              <EmptyState description="No mentor availability has been published yet." title="No slots yet" />
+            ) : (
+              <div className="space-y-3">
+                {upcomingAvailability.map((slot) => (
+                  <div className="rounded-md bg-bybs-pale p-4" key={`${slot.mentorId || ""}-${slot.availabilitySlot}-${slot.startsAt}`}>
+                    <p className="font-medium text-bybs-navy">{mentorName(slot.mentor)}</p>
+                    <p className="mt-1 text-sm text-bybs-body">{formatDateTime(slot.startsAt)}</p>
+                  </div>
+                ))}
+                <Button icon={CalendarCheck} onClick={() => navigate("/app/bookings")} size="sm" type="button" variant="secondary">
+                  Book a slot
+                </Button>
+              </div>
+            )}
+          </Card>
           <QuickAction
             actionLabel="Open"
             description="View instructions, templates, deadlines, and submission status."
@@ -121,7 +154,8 @@ export function DashboardPage() {
               {sessions.map((session) => (
                 <div className="rounded-md bg-bybs-pale p-4" key={session._id}>
                   <p className="font-medium text-bybs-navy">{session.title}</p>
-                  <p className="mt-1 text-sm text-bybs-body">{titleFor(session.module, "No module")} · {formatDateTime(session.startsAt)}</p>
+                  <p className="mt-1 text-sm text-bybs-body">{titleFor(session.module, "No module")} · {formatCatDateTime(session.startsAt)}</p>
+                  <p className="mt-1 text-xs text-bybs-muted">Mentor: {sessionMentorName(session)}</p>
                   {session.zoomLink ? (
                     <a className="mt-2 inline-block text-sm font-medium text-bybs-blue" href={session.zoomLink} rel="noreferrer" target="_blank">
                       Join session

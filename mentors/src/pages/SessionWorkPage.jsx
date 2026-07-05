@@ -1,10 +1,10 @@
-import { Link, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
+import { ClipboardCheck, Eye, Link, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Button, Card, DataTable, PageHeader, StatusBadge } from "@bybs/shared";
+import { Button, Card, DataTable, PageHeader, RichTextEditor, SafeHtml, StatusBadge } from "@bybs/shared";
 import { useAuth } from "../auth/AuthContext.jsx";
-import { FormField, inputClassName, textAreaClassName } from "../components/FormField.jsx";
+import { FormField, inputClassName } from "../components/FormField.jsx";
 import { mentorApi } from "../services/api.js";
-import { formatDate, formatDateTime } from "../utils/format.js";
+import { formatCatDateTime, formatDate } from "../utils/format.js";
 
 function tomorrowIsoDate() {
   const date = new Date();
@@ -54,6 +54,10 @@ function toDateInput(value) {
   if (!value) return tomorrowIsoDate();
   const date = new Date(value);
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+function sessionMentorName(session) {
+  return session?.module?.assignedMentor?.name || session?.module?.assignedMentor?.email || "Assigned mentor";
 }
 
 function resourceLinksForForm(resourceLinks = []) {
@@ -118,6 +122,101 @@ function sectionsFromInstructions(instructions = "") {
   );
 }
 
+function AssignmentDetailsCard({ assignment, canEdit, onClose, onEdit }) {
+  const sections = sectionsFromInstructions(assignment.instructions);
+  const sectionRows = [
+    ["Assignment overview", sections.assignmentOverview],
+    ["Tasks and steps", sections.assignmentTasks],
+    ["Expected submission", sections.assignmentDeliverables],
+    ["Grading guide", sections.gradingGuide],
+    ["Support notes", sections.supportNotes]
+  ].filter(([, value]) => value);
+
+  return (
+    <Card>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold uppercase text-bybs-blue">Assignment details</p>
+          <h2 className="mt-1 text-lg font-semibold text-bybs-navy">{assignment.title}</h2>
+          <p className="mt-1 text-sm text-bybs-body">
+            {assignment.module?.title || "Unassigned module"} · Due {formatDate(assignment.dueDate)}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {canEdit ? (
+            <Button icon={Pencil} onClick={onEdit} size="sm" type="button" variant="secondary">
+              Edit
+            </Button>
+          ) : null}
+          <Button icon={X} onClick={onClose} size="sm" type="button" variant="secondary">
+            Close
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-4">
+        <div className="rounded-md border border-bybs-border bg-bybs-pale p-3">
+          <p className="text-xs font-medium uppercase text-bybs-muted">Status</p>
+          <div className="mt-2"><StatusBadge status={assignment.status} /></div>
+        </div>
+        <div className="rounded-md border border-bybs-border bg-bybs-pale p-3">
+          <p className="text-xs font-medium uppercase text-bybs-muted">Max score</p>
+          <p className="mt-2 text-sm font-semibold text-bybs-navy">{assignment.maxScore || 100}</p>
+        </div>
+        <div className="rounded-md border border-bybs-border bg-bybs-pale p-3">
+          <p className="text-xs font-medium uppercase text-bybs-muted">Resubmission</p>
+          <p className="mt-2 text-sm font-semibold text-bybs-navy">{assignment.allowResubmission ? "Allowed" : "Closed"}</p>
+        </div>
+        <div className="rounded-md border border-bybs-border bg-bybs-pale p-3">
+          <p className="text-xs font-medium uppercase text-bybs-muted">Posted by</p>
+          <p className="mt-2 text-sm font-semibold text-bybs-navy">{assignment.createdBy?.name || "BYBS team"}</p>
+        </div>
+      </div>
+
+      {assignment.templateFileUrl ? (
+        <div className="mt-5 rounded-md border border-bybs-border p-4">
+          <p className="text-sm font-semibold text-bybs-navy">Attached file</p>
+          <a className="mt-2 inline-block text-sm font-medium text-bybs-blue" href={assignment.templateFileUrl} rel="noreferrer" target="_blank">
+            Open attached material
+          </a>
+        </div>
+      ) : null}
+
+      {sectionRows.length ? (
+        <div className="mt-5 space-y-4">
+          {sectionRows.map(([label, html]) => (
+            <div className="rounded-md border border-bybs-border p-4" key={label}>
+              <p className="text-sm font-semibold text-bybs-navy">{label}</p>
+              <SafeHtml className="mt-2 text-sm leading-6 text-bybs-body" html={html} />
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {assignment.resourceLinks?.length ? (
+        <div className="mt-5 rounded-md border border-bybs-border p-4">
+          <p className="text-sm font-semibold text-bybs-navy">Resource links</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {assignment.resourceLinks.map((resourceLink) => (
+              <Button
+                as="a"
+                href={resourceLink.url}
+                icon={Link}
+                key={`${resourceLink.title}-${resourceLink.url}`}
+                rel="noreferrer"
+                target="_blank"
+                variant="secondary"
+              >
+                {resourceLink.title || "Open link"}
+              </Button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </Card>
+  );
+}
+
 export function SessionWorkPage() {
   const { user } = useAuth();
   const fileInputRef = useRef(null);
@@ -126,6 +225,8 @@ export function SessionWorkPage() {
   const [assignments, setAssignments] = useState([]);
   const [form, setForm] = useState(() => initialForm());
   const [editingAssignment, setEditingAssignment] = useState(null);
+  const [workMode, setWorkMode] = useState("list");
+  const [viewAssignment, setViewAssignment] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
@@ -157,6 +258,29 @@ export function SessionWorkPage() {
 
   function canManageAssignment(assignment) {
     return entityId(assignment.createdBy) === currentUserId;
+  }
+
+  function openCreateForm() {
+    setEditingAssignment(null);
+    setUploadedFile(null);
+    setViewAssignment(null);
+    setWorkMode("create");
+    setError("");
+    setFeedback("");
+    setForm((current) => ({
+      ...initialForm(),
+      session: current.session || sessions[0]?._id || "",
+      module: current.module || sessions[0]?.module?._id || sessions[0]?.module || ""
+    }));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function viewAssignmentDetails(assignment) {
+    setViewAssignment(assignment);
+    setWorkMode("list");
+    setError("");
+    setFeedback("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function updateField(name, value) {
@@ -208,6 +332,7 @@ export function SessionWorkPage() {
       module: current.module
     }));
     setEditingAssignment(null);
+    setWorkMode("list");
     setUploadedFile(null);
     if (clearMessages) {
       setError("");
@@ -219,6 +344,8 @@ export function SessionWorkPage() {
     if (!canManageAssignment(assignment)) return;
 
     setEditingAssignment(assignment);
+    setViewAssignment(null);
+    setWorkMode("edit");
     setUploadedFile(null);
     const sections = sectionsFromInstructions(assignment.instructions);
     setForm(initialForm({
@@ -252,6 +379,9 @@ export function SessionWorkPage() {
       await mentorApi.deleteAssignment(assignment._id);
       if (editingAssignment?._id === assignment._id) {
         resetForm({ clearMessages: false });
+      }
+      if (viewAssignment?._id === assignment._id) {
+        setViewAssignment(null);
       }
       setFeedback(`Assignment deleted: ${assignment.title}.`);
       await loadAssignments();
@@ -394,18 +524,27 @@ export function SessionWorkPage() {
   const statusOptions = editingAssignment ? assignmentStatusOptions : createStatusOptions;
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full overflow-x-hidden space-y-6">
       <PageHeader
+        actions={
+          <Button icon={Plus} onClick={openCreateForm} type="button">
+            Add Session Assignment
+          </Button>
+        }
         description="Publish post-session materials, recording links, and assignment breakdowns for mentees."
         title="Session work"
       />
 
-      <Card>
-        <form className="grid gap-4 lg:grid-cols-3" onSubmit={handleSubmit}>
+      {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
+      {feedback ? <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue">{feedback}</p> : null}
+
+      {workMode !== "list" ? (
+      <Card className="w-full max-w-full">
+        <form className="grid w-full min-w-0 grid-cols-1 gap-4 overflow-hidden lg:grid-cols-3" onSubmit={handleSubmit}>
           {editingAssignment ? (
-            <div className="rounded-md border border-bybs-border bg-bybs-pale p-4 lg:col-span-3">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
+            <div className="min-w-0 rounded-md border border-bybs-border bg-bybs-pale p-4 lg:col-span-3">
+              <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
                   <p className="text-sm font-semibold uppercase text-bybs-blue">Editing assignment</p>
                   <h2 className="mt-1 text-lg font-semibold text-bybs-navy">{editingAssignment.title}</h2>
                   <p className="mt-1 text-sm text-bybs-body">
@@ -423,7 +562,7 @@ export function SessionWorkPage() {
                 <option value="">Choose session</option>
                 {sessions.map((session) => (
                   <option key={session._id} value={session._id}>
-                    {session.title} - {session.module?.title || "No module"} - {formatDateTime(session.startsAt)}
+                    {session.title} - {session.module?.title || "No module"} - {sessionMentorName(session)} - {formatCatDateTime(session.startsAt)}
                   </option>
                 ))}
               </select>
@@ -459,7 +598,7 @@ export function SessionWorkPage() {
           </FormField>
 
           {!editingAssignment && selectedSession ? (
-            <div className="rounded-md border border-bybs-border bg-bybs-pale p-4 text-sm lg:col-span-3">
+            <div className="min-w-0 rounded-md border border-bybs-border bg-bybs-pale p-4 text-sm lg:col-span-3">
               <p className="font-semibold text-bybs-navy">{selectedModule?.title || selectedSession.module?.title || "Module not selected"}</p>
               <p className="mt-1 text-bybs-body">
                 {selectedSession.cohort?.title || "Cohort"} · {selectedModule?.startDate || selectedModule?.endDate ? `${formatDate(selectedModule?.startDate)} - ${formatDate(selectedModule?.endDate)}` : "Module dates not set"}
@@ -467,9 +606,9 @@ export function SessionWorkPage() {
             </div>
           ) : null}
 
-          <div className="rounded-md border border-bybs-border bg-bybs-pale p-4 lg:col-span-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
+          <div className="w-full min-w-0 max-w-full rounded-md border border-bybs-border bg-bybs-pale p-4 lg:col-span-3">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-bybs-navy">Slides, PDF, or document</p>
                 <p className="mt-1 text-sm text-bybs-body">
                   {uploadedFile
@@ -484,7 +623,7 @@ export function SessionWorkPage() {
                   </a>
                 ) : null}
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex min-w-0 max-w-full flex-wrap gap-2">
                 {uploadedFile ? (
                   <Button icon={X} onClick={() => setUploadedFile(null)} type="button" variant="secondary">
                     Remove file
@@ -503,7 +642,7 @@ export function SessionWorkPage() {
               </div>
             </div>
             {uploadedFile ? (
-              <div className="mt-4">
+              <div className="mt-4 min-w-0">
                 <FormField label="Material title">
                   <input className={inputClassName} onChange={(event) => updateField("materialTitle", event.target.value)} value={form.materialTitle} />
                 </FormField>
@@ -516,7 +655,7 @@ export function SessionWorkPage() {
               <FormField label="Recording title">
                 <input className={inputClassName} onChange={(event) => updateField("recordingTitle", event.target.value)} placeholder="Session recording" value={form.recordingTitle} />
               </FormField>
-              <div className="lg:col-span-2">
+              <div className="min-w-0 lg:col-span-2">
                 <FormField label="YouTube recording link">
                   <input className={inputClassName} onChange={(event) => updateField("recordingUrl", event.target.value)} placeholder="https://youtube.com/..." type="url" value={form.recordingUrl} />
                 </FormField>
@@ -524,46 +663,48 @@ export function SessionWorkPage() {
             </>
           ) : null}
 
-          <div className="lg:col-span-3">
+          <div className="min-w-0 lg:col-span-3">
             <FormField label="Assignment overview">
-              <textarea
-                className={`${textAreaClassName} min-h-40`}
-                onChange={(event) => updateField("assignmentOverview", event.target.value)}
+              <RichTextEditor
+                id="assignment-overview"
+                minHeightClassName="min-h-40"
+                onChange={(value) => updateField("assignmentOverview", value)}
                 placeholder="Set context for the assignment, why it matters, and what mentees should focus on."
-                required
                 value={form.assignmentOverview}
               />
             </FormField>
           </div>
 
-          <div className="lg:col-span-3">
+          <div className="min-w-0 lg:col-span-3">
             <FormField label="Tasks and steps">
-              <textarea
-                className={`${textAreaClassName} min-h-40`}
-                onChange={(event) => updateField("assignmentTasks", event.target.value)}
+              <RichTextEditor
+                id="assignment-tasks"
+                minHeightClassName="min-h-40"
+                onChange={(value) => updateField("assignmentTasks", value)}
                 placeholder="List the exact steps mentees should follow. Use clear numbered steps where helpful."
-                required={!editingAssignment}
                 value={form.assignmentTasks}
               />
             </FormField>
           </div>
 
-          <div className="lg:col-span-3">
+          <div className="min-w-0 lg:col-span-3">
             <FormField label="Expected submission">
-              <textarea
-                className={textAreaClassName}
-                onChange={(event) => updateField("assignmentDeliverables", event.target.value)}
+              <RichTextEditor
+                id="assignment-deliverables"
+                minHeightClassName="min-h-32"
+                onChange={(value) => updateField("assignmentDeliverables", value)}
                 placeholder="Describe what mentees should submit: file type, format, length, screenshots, links, or reflection notes."
                 value={form.assignmentDeliverables}
               />
             </FormField>
           </div>
 
-          <div className="lg:col-span-2">
+          <div className="min-w-0 lg:col-span-2">
             <FormField label="Grading guide">
-              <textarea
-                className={textAreaClassName}
-                onChange={(event) => updateField("gradingGuide", event.target.value)}
+              <RichTextEditor
+                id="grading-guide"
+                minHeightClassName="min-h-32"
+                onChange={(value) => updateField("gradingGuide", value)}
                 placeholder="Explain how the work will be assessed: completeness, quality, reflection, presentation, or rubric points."
                 value={form.gradingGuide}
               />
@@ -571,17 +712,18 @@ export function SessionWorkPage() {
           </div>
 
           <FormField label="Support notes">
-            <textarea
-              className={textAreaClassName}
-              onChange={(event) => updateField("supportNotes", event.target.value)}
+            <RichTextEditor
+              id="support-notes"
+              minHeightClassName="min-h-32"
+              onChange={(value) => updateField("supportNotes", value)}
               placeholder="Add reminders, office hours, common mistakes, or how to ask for help."
               value={form.supportNotes}
             />
           </FormField>
 
-          <div className="space-y-3 rounded-md border border-bybs-border bg-white p-4 lg:col-span-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
+          <div className="w-full min-w-0 max-w-full space-y-3 rounded-md border border-bybs-border bg-white p-4 lg:col-span-3">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-bybs-navy">Assignment resource links</p>
                 <p className="mt-1 text-sm text-bybs-body">Add helpful links mentees should use alongside the uploaded material.</p>
               </div>
@@ -590,7 +732,7 @@ export function SessionWorkPage() {
               </Button>
             </div>
             {form.resourceLinks.map((resourceLink, index) => (
-              <div className="grid gap-3 md:grid-cols-[1fr_1.5fr_auto]" key={`resource-link-${index}`}>
+              <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto]" key={`resource-link-${index}`}>
                 <input
                   className={inputClassName}
                   onChange={(event) => updateResourceLink(index, "title", event.target.value)}
@@ -617,7 +759,7 @@ export function SessionWorkPage() {
             ))}
           </div>
 
-          <div className="rounded-md border border-bybs-border bg-bybs-pale p-4 text-sm leading-6 text-bybs-body lg:col-span-3">
+          <div className="min-w-0 rounded-md border border-bybs-border bg-bybs-pale p-4 text-sm leading-6 text-bybs-body lg:col-span-3">
             <p className="font-semibold text-bybs-navy">Mentee layout preview</p>
             <p className="mt-2">
               {editingAssignment
@@ -646,23 +788,30 @@ export function SessionWorkPage() {
             Allow resubmission
           </label>
 
-          {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose lg:col-span-3">{error}</p> : null}
-          {feedback ? <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue lg:col-span-3">{feedback}</p> : null}
-
-          <div className="flex flex-wrap gap-2 lg:col-span-3">
+          <div className="flex min-w-0 flex-wrap gap-2 lg:col-span-3">
             <Button disabled={isSubmitting || isUploading} icon={editingAssignment ? Pencil : Plus} type="submit">
               {isSubmitting
                 ? editingAssignment ? "Updating..." : "Publishing..."
                 : editingAssignment ? "Update assignment" : "Publish session work"}
             </Button>
             <Button icon={X} onClick={resetForm} type="button" variant="secondary">
-              {editingAssignment ? "Cancel edit" : "Reset"}
+              {editingAssignment ? "Cancel edit" : "Close form"}
             </Button>
           </div>
         </form>
       </Card>
+      ) : null}
 
-      <section className="space-y-3">
+      {viewAssignment && workMode === "list" ? (
+        <AssignmentDetailsCard
+          assignment={viewAssignment}
+          canEdit={canManageAssignment(viewAssignment)}
+          onClose={() => setViewAssignment(null)}
+          onEdit={() => startEditAssignment(viewAssignment)}
+        />
+      ) : null}
+
+      <section className="min-w-0 max-w-full overflow-hidden space-y-3">
         <div>
           <p className="text-sm font-semibold uppercase text-bybs-blue">Posted assignments</p>
           <h2 className="mt-1 text-lg font-semibold text-bybs-navy">Manage assignments you submitted</h2>
@@ -680,17 +829,22 @@ export function SessionWorkPage() {
             {
               key: "actions",
               header: "Actions",
-              render: (row) => canManageAssignment(row) ? (
+              render: (row) => (
                 <div className="flex flex-wrap gap-2">
-                  <Button icon={Pencil} onClick={() => startEditAssignment(row)} size="sm" type="button" variant="secondary">
-                    Edit
+                  <Button icon={Eye} onClick={() => viewAssignmentDetails(row)} size="sm" type="button" variant="secondary">
+                    View
                   </Button>
-                  <Button icon={Trash2} onClick={() => deleteAssignment(row)} size="sm" type="button" variant="danger">
-                    Delete
-                  </Button>
+                  {canManageAssignment(row) ? (
+                    <>
+                      <Button icon={Pencil} onClick={() => startEditAssignment(row)} size="sm" type="button" variant="secondary">
+                        Edit
+                      </Button>
+                      <Button icon={Trash2} onClick={() => deleteAssignment(row)} size="sm" type="button" variant="danger">
+                        Delete
+                      </Button>
+                    </>
+                  ) : null}
                 </div>
-              ) : (
-                <span className="text-xs font-medium text-bybs-muted">View only</span>
               )
             }
           ]}
@@ -703,11 +857,21 @@ export function SessionWorkPage() {
       <DataTable
         columns={[
           { key: "title", header: "Session" },
-          { key: "startsAt", header: "Date", render: (row) => formatDateTime(row.startsAt) },
+          { key: "startsAt", header: "Date", render: (row) => formatCatDateTime(row.startsAt) },
           { key: "cohort", header: "Cohort", render: (row) => row.cohort?.title || "Cohort" },
           { key: "module", header: "Module", render: (row) => row.module?.title || "Unassigned" },
+          { key: "mentor", header: "Mentor", render: (row) => sessionMentorName(row) },
           { key: "moduleDates", header: "Module dates", render: (row) => row.module?.startDate || row.module?.endDate ? `${formatDate(row.module?.startDate)} - ${formatDate(row.module?.endDate)}` : "Not set" },
-          { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> }
+          { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
+          {
+            key: "attendance",
+            header: "Attendance",
+            render: (row) => (
+              <Button as="a" href={`/attendance?session=${row._id}`} icon={ClipboardCheck} size="sm" variant="secondary">
+                Mark
+              </Button>
+            )
+          }
         ]}
         emptyDescription="Sessions created by Admin for your cohort will appear here."
         emptyTitle="No sessions available"

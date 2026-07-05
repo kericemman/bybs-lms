@@ -5,6 +5,7 @@ import {
   importStudents,
   listUsers,
   permanentlyDeleteMentor,
+  resendWelcomeEmail,
   updateUser
 } from "../controllers/userController.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
@@ -19,6 +20,7 @@ userRoutes.use(requireAuth, requireRole("admin", "adminManager", "superAdmin"));
 userRoutes.get("/", validate(listUsersSchema), listUsers);
 userRoutes.post("/", validate(createUserSchema), createUser);
 userRoutes.post("/import/students", csvUpload.single("file"), decompressCompressedUpload, finalizeCsvUpload, importStudents);
+userRoutes.post("/:id/welcome-email", validate(idParamsSchema), resendWelcomeEmail);
 userRoutes.delete("/mentors/:id/permanent", validate(idParamsSchema), requireRole("superAdmin"), permanentlyDeleteMentor);
 userRoutes.delete("/:id/permanent", validate(idParamsSchema), requireRole("superAdmin"), permanentlyDeleteMentor);
 userRoutes.patch("/:id", validate(updateUserSchema), updateUser);

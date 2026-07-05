@@ -33,6 +33,20 @@ export function AuthProvider({ children }) {
     return response.user;
   }
 
+  async function updateProfile(payload) {
+    const response = await api.patch("/auth/profile", payload);
+    window.localStorage.setItem("bybs_admin_user", JSON.stringify(response.user));
+    setUser(response.user);
+    return response.user;
+  }
+
+  async function uploadProfileImage(formData) {
+    const response = await api.upload("/auth/profile-image", formData);
+    window.localStorage.setItem("bybs_admin_user", JSON.stringify(response.user));
+    setUser(response.user);
+    return response.user;
+  }
+
   function logout() {
     window.localStorage.removeItem("bybs_admin_token");
     window.localStorage.removeItem("bybs_admin_user");
@@ -45,6 +59,8 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(token),
       login,
       changePassword,
+      updateProfile,
+      uploadProfileImage,
       logout,
       token,
       user

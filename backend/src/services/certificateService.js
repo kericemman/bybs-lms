@@ -321,6 +321,8 @@ export function serializeCertificate(certificate, { includeHtml = false } = {}) 
     verificationUrl,
     issuedBy: certificate.issuedBy,
     issuedAt: certificate.issuedAt,
+    progressSnapshot: certificate.progressSnapshot,
+    currentProgress: certificate.currentProgress,
     revokedBy: certificate.revokedBy,
     revokedAt: certificate.revokedAt,
     revokeReason: certificate.revokeReason,

@@ -91,16 +91,16 @@ export function AssignmentsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full overflow-x-hidden space-y-6">
       <PageHeader
         description="View instructions, download templates, upload files, and read mentor feedback."
         title="Assignments"
       />
 
       {activeAssignment ? (
-        <section className="rounded-lg border border-bybs-border bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
+        <section className="min-w-0 max-w-full overflow-hidden rounded-lg border border-bybs-border bg-white p-4 shadow-sm sm:p-5">
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <p className="text-sm font-medium text-bybs-blue">{titleFor(activeAssignment.module, "General assignment")}</p>
               <h2 className="mt-1 text-lg font-semibold text-bybs-navy">{activeAssignment.title}</h2>
               <p className="mt-1 text-sm text-bybs-body">
@@ -137,10 +137,10 @@ export function AssignmentsPage() {
             </div>
           ) : null}
 
-          <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
-            <label className="block">
+          <form className="mt-5 min-w-0 max-w-full space-y-4 overflow-hidden" onSubmit={handleSubmit}>
+            <label className="block min-w-0">
               <span className="text-sm font-medium text-bybs-body">Written response</span>
-              <div className="mt-2">
+              <div className="mt-2 min-w-0 max-w-full">
                 <RichTextEditor
                   id="written-response"
                   minHeightClassName="min-h-36"
@@ -162,7 +162,7 @@ export function AssignmentsPage() {
             {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
             {feedback ? <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue">{feedback}</p> : null}
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex min-w-0 flex-wrap gap-2">
               <Button disabled={isSubmitting} icon={Send} type="submit">
                 {isSubmitting ? "Submitting..." : "Submit assignment"}
               </Button>
@@ -181,11 +181,11 @@ export function AssignmentsPage() {
           title="No assignments yet"
         />
       ) : (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid min-w-0 max-w-full gap-4 overflow-hidden xl:grid-cols-2">
           {assignments.map((assignment) => (
-            <article className="rounded-lg border border-bybs-border bg-white p-4 shadow-sm" key={assignment._id}>
-              <div className="flex items-start justify-between gap-3">
-                <div>
+            <article className="min-w-0 max-w-full overflow-hidden rounded-lg border border-bybs-border bg-white p-4 shadow-sm" key={assignment._id}>
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-bybs-blue">{titleFor(assignment.module, "General assignment")}</p>
                   <h2 className="mt-1 text-base font-semibold text-bybs-navy">{assignment.title}</h2>
                   <p className="mt-1 text-sm text-bybs-body">Due {formatDate(assignment.dueDate)}</p>

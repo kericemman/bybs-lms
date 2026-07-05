@@ -27,6 +27,7 @@ This checklist separates what is already in place from what must be verified in 
 - Announcement emails render logo and inline content images from public URLs
 - Student support ticket lifecycle from student reply to admin resolution
 - Mentor session-work upload creates assignment/resources and notifies students
+- Mentor session reminder job sends the 48-hour preparation reminder once per session
 - Admin alert emails for slow requests and server errors
 - Mobile navigation and form responsiveness across all three portals
 
@@ -50,6 +51,10 @@ EMAIL_FROM=BYBS LMS <verified@your-domain.com>
 EMAIL_LOGO_URL=https://admin.lms.buildyourbestself.org/assets/Logo1.png
 ADMIN_ALERTS_ENABLED=true
 ADMIN_ALERT_EMAILS=admin@your-domain.com
+SESSION_REMINDER_JOB_ENABLED=true
+SESSION_REMINDER_INTERVAL_MS=3600000
+SESSION_REMINDER_LEAD_HOURS=48
+SESSION_REMINDER_WINDOW_MINUTES=90
 SEED_SUPER_ADMIN_ON_START=false
 ```
 

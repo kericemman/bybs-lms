@@ -7,6 +7,7 @@ import {
   serializeCertificate
 } from "../services/certificateService.js";
 import { notifyUser } from "../services/portalNotificationService.js";
+import { calculateStudentProgress } from "../services/progressService.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getPagination, paginatedResponse } from "../utils/pagination.js";
@@ -58,6 +59,50 @@ async function uniqueCertificateIdentity() {
   throw new ApiError(500, "Could not generate a unique certificate number");
 }
 
+function progressSnapshot(progress) {
+  if (!progress) return null;
+
+  return {
+    progress: progress.progress,
+    graduationReady: progress.graduationReady,
+    assignmentCompletionPercentage: progress.assignmentCompletionPercentage,
+    scorePercentage: progress.scorePercentage,
+    attendancePercentage: progress.attendancePercentage,
+    punctualityPercentage: progress.punctualityPercentage,
+    totalAssignments: progress.totalAssignments,
+    submittedCount: progress.submittedCount,
+    pendingCount: progress.pendingCount,
+    approvedCount: progress.approvedCount,
+    needsRevisionCount: progress.needsRevisionCount,
+    lateSubmissionCount: progress.lateSubmissionCount,
+    attendanceMarked: progress.attendanceMarked,
+    attended: progress.attended,
+    lateAttendanceCount: progress.lateAttendanceCount,
+    computedAt: new Date()
+  };
+}
+
+async function currentProgressForCertificate(certificate) {
+  if (!certificate.student?._id || !certificate.student?.cohort) return null;
+
+  try {
+    return progressSnapshot(await calculateStudentProgress(certificate.student));
+  } catch (error) {
+    return {
+      graduationReady: false,
+      progress: 0,
+      error: error.message,
+      computedAt: new Date()
+    };
+  }
+}
+
+async function serializeCertificateForAdmin(certificate, options = {}) {
+  const data = serializeCertificate(certificate, options);
+  data.currentProgress = await currentProgressForCertificate(certificate);
+  return data;
+}
+
 export const listAdminCertificates = asyncHandler(async (req, res) => {
   const { page, limit, skip } = getPagination(req.query);
   const filter = {
@@ -76,8 +121,12 @@ export const listAdminCertificates = asyncHandler(async (req, res) => {
     Certificate.countDocuments(filter)
   ]);
 
+  const data = await Promise.all(
+    certificates.map((certificate) => serializeCertificateForAdmin(certificate))
+  );
+
   res.json(paginatedResponse({
-    data: certificates.map((certificate) => serializeCertificate(certificate)),
+    data,
     total,
     page,
     limit
@@ -95,6 +144,25 @@ export const issueCertificate = asyncHandler(async (req, res) => {
     throw new ApiError(409, "Revoked certificates cannot be issued");
   }
 
+  const student = await User.findOne({
+    _id: certificate.student,
+    role: "student",
+    status: { $ne: "removed" }
+  }).select("name email phone status cohort profileImage");
+
+  if (!student) {
+    throw new ApiError(404, "Mentee not found");
+  }
+
+  const currentProgress = await calculateStudentProgress(student);
+
+  if (!currentProgress.graduationReady) {
+    throw new ApiError(
+      409,
+      `Certificate cannot be issued yet. System progress is ${currentProgress.progress}% and the mentee is not graduation-ready.`
+    );
+  }
+
   if (!certificate.certificateNumber || !certificate.verificationCode) {
     Object.assign(certificate, await uniqueCertificateIdentity());
   }
@@ -102,6 +170,7 @@ export const issueCertificate = asyncHandler(async (req, res) => {
   certificate.status = "issued";
   certificate.issuedBy = req.user._id;
   certificate.issuedAt = certificate.issuedAt || new Date();
+  certificate.progressSnapshot = progressSnapshot(currentProgress);
   certificate.revokedBy = undefined;
   certificate.revokedAt = undefined;
   certificate.revokeReason = undefined;
@@ -132,7 +201,9 @@ export const issueCertificate = asyncHandler(async (req, res) => {
     }
   });
 
-  res.json({ data: serializeCertificate(certificate, { includeHtml: true }) });
+  const data = serializeCertificate(certificate, { includeHtml: true });
+  data.currentProgress = progressSnapshot(currentProgress);
+  res.json({ data });
 });
 
 export const revokeCertificate = asyncHandler(async (req, res) => {
@@ -149,7 +220,7 @@ export const revokeCertificate = asyncHandler(async (req, res) => {
   await certificate.save();
   await populateCertificate(certificate);
 
-  res.json({ data: serializeCertificate(certificate) });
+  res.json({ data: await serializeCertificateForAdmin(certificate) });
 });
 
 export const listStudentCertificates = asyncHandler(async (req, res) => {

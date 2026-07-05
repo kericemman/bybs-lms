@@ -44,7 +44,7 @@ export function AppShell({
   }
 
   return (
-    <div className="min-h-screen bg-bybs-page text-bybs-text">
+    <div className="min-h-screen overflow-x-hidden bg-bybs-page text-bybs-text">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-bybs-border bg-white lg:block">
         <div className="flex h-full flex-col">
           <div className="border-b border-bybs-border px-5 py-5">
@@ -60,10 +60,10 @@ export function AppShell({
         </div>
       </aside>
 
-      <div className="lg:pl-72">
+      <div className="min-w-0 lg:pl-72">
         <header className="sticky top-0 z-20 border-b border-bybs-border bg-white/95 backdrop-blur">
-          <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-3">
+          <div className="flex h-16 min-w-0 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+            <div className="flex min-w-0 items-center gap-3">
               <Button
                 aria-expanded={isMenuOpen}
                 aria-label="Open menu"
@@ -82,7 +82,7 @@ export function AppShell({
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3">
               {notificationsHref ? (
                 <Button
                   aria-label="Notifications"
@@ -114,7 +114,7 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        <main className="min-w-0 max-w-full overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">{children}</main>
         <footer className="border-t border-bybs-border bg-white px-4 py-5 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-2 text-sm text-bybs-muted sm:flex-row sm:items-center sm:justify-between">
             <p>&copy; {currentYear} Build Your Best Self. All rights reserved.</p>
