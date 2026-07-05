@@ -60,8 +60,8 @@ export function AppShell({
         </div>
       </aside>
 
-      <div className="min-w-0 lg:pl-72">
-        <header className="sticky top-0 z-20 border-b border-bybs-border bg-white/95 backdrop-blur">
+      <div className="min-w-0 pt-16 lg:pl-72">
+        <header className="fixed inset-x-0 top-0 z-40 border-b border-bybs-border bg-white/95 backdrop-blur lg:left-72">
           <div className="flex h-16 min-w-0 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-3">
               <Button
