@@ -18,6 +18,7 @@ export const submitAssignmentSchema = z.object({
   }),
   body: z.object({
     fileUrl: z.preprocess(emptyToUndefined, z.string().trim().url().optional()),
+    linkUrl: z.preprocess(emptyToUndefined, z.string().trim().url().optional()),
     writtenResponse: z.preprocess(emptyToUndefined, z.string().trim().min(5).max(8000).optional())
   })
 });

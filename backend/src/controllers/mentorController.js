@@ -137,7 +137,7 @@ function discussionSearchFilter(search = "") {
   if (!cleanSearch) return {};
 
   const pattern = { $regex: escapeRegExp(cleanSearch), $options: "i" };
-  return { $or: [{ title: pattern }, { body: pattern }] };
+  return { $or: [{ title: pattern }, { body: pattern }, { "comments.body": pattern }] };
 }
 
 const mentorDiscussionAudiences = ["all", "mentorsAdmins", "mentorsOnly", "mentorsMentees"];
@@ -164,7 +164,9 @@ function populateDiscussion(query) {
     .populate("cohort", "title status")
     .populate("module", "title status startDate endDate")
     .populate("createdBy", "name email role profileImage bio expertise")
-    .populate("comments.createdBy", "name email role profileImage bio expertise");
+    .populate("comments.createdBy", "name email role profileImage bio expertise")
+    .populate("reactions.user", "name email role")
+    .populate("comments.reactions.user", "name email role");
 }
 
 async function populateDiscussionDocument(discussion) {
@@ -172,6 +174,44 @@ async function populateDiscussionDocument(discussion) {
   await discussion.populate("module", "title status startDate endDate");
   await discussion.populate("createdBy", "name email role profileImage bio expertise");
   await discussion.populate("comments.createdBy", "name email role profileImage bio expertise");
+  await discussion.populate("reactions.user", "name email role");
+  await discussion.populate("comments.reactions.user", "name email role");
+}
+
+function toggleReaction(reactions = [], userId, reaction) {
+  const existingIndex = reactions.findIndex((item) => String(item.user?._id || item.user) === String(userId));
+
+  if (existingIndex >= 0) {
+    if (reactions[existingIndex].reaction === reaction) {
+      reactions.splice(existingIndex, 1);
+      return;
+    }
+
+    reactions[existingIndex].reaction = reaction;
+    return;
+  }
+
+  reactions.push({ user: userId, reaction });
+}
+
+function removeCommentTree(discussion, commentId) {
+  const idsToRemove = new Set([String(commentId)]);
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+    discussion.comments.forEach((comment) => {
+      const parentId = String(comment.parentComment || "");
+      const commentStringId = String(comment._id);
+
+      if (parentId && idsToRemove.has(parentId) && !idsToRemove.has(commentStringId)) {
+        idsToRemove.add(commentStringId);
+        changed = true;
+      }
+    });
+  }
+
+  idsToRemove.forEach((id) => discussion.comments.pull({ _id: id }));
 }
 
 function submissionFilter(studentIds, assignmentIds, status) {
@@ -398,9 +438,9 @@ function buildMentorMessageEmail({ mentor, student, title, message }) {
 
   return `<!doctype html>
 <html>
-  <body style="margin:0;background:#F7F9FC;padding:24px;font-family:Arial,sans-serif;color:#374151;">
+  <body style="margin:0;background:#F7F9FC;padding:8px;font-family:Arial,sans-serif;color:#374151;">
     <div style="max-width:640px;margin:0 auto;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;">
-      <div style="background:#FFFFFF;border-bottom:1px solid #E5E7EB;padding:20px 24px;color:#10233F;">
+      <div style="background:#FFFFFF;border-bottom:1px solid #E5E7EB;padding:8px 10px;color:#10233F;">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
           <tr>
             <td width="72" valign="middle" style="width:72px;vertical-align:middle;">
@@ -420,16 +460,16 @@ function buildMentorMessageEmail({ mentor, student, title, message }) {
           </tr>
         </table>
       </div>
-      <div style="padding:24px;">
-        <h1 style="margin:0 0 14px;color:#10233F;font-size:22px;line-height:1.3;">Private mentor message</h1>
-        <p style="margin:0 0 14px;font-size:14px;line-height:1.7;">Hi ${escapeHtml(firstName(student))},</p>
-        <p style="margin:0 0 18px;font-size:14px;line-height:1.7;">${escapeHtml(mentorName)} sent you a private message in your BYBS mentee portal.</p>
-        <div style="border:1px solid #E5E7EB;border-radius:8px;padding:16px;background:#F5F9FF;">
-          <h2 style="margin:0 0 12px;color:#10233F;font-size:18px;line-height:1.35;">${escapeHtml(title)}</h2>
+      <div style="padding:16px;">
+        <h1 style="margin:0 0 10px;color:#10233F;font-size:22px;line-height:1.3;">Private mentor message</h1>
+        <p style="margin:0 0 10px;font-size:14px;line-height:1.7;">Hi ${escapeHtml(firstName(student))},</p>
+        <p style="margin:0 0 12px;font-size:14px;line-height:1.7;">${escapeHtml(mentorName)} sent you a private message in your BYBS mentee portal.</p>
+        <div style="border:1px solid #E5E7EB;border-radius:8px;padding:12px;background:#F5F9FF;">
+          <h2 style="margin:0 0 10px;color:#10233F;font-size:18px;line-height:1.35;">${escapeHtml(title)}</h2>
           ${message}
         </div>
-        <a href="${escapeHtml(portalUrl)}" style="display:inline-block;margin-top:22px;background:#00337C;color:#FFFFFF;text-decoration:none;border-radius:6px;padding:12px 16px;font-size:14px;font-weight:700;">Open your notification</a>
-        <p style="margin:20px 0 0;color:#6B7280;font-size:12px;line-height:1.6;">This message was sent through the BYBS LMS so you can keep your learning support in one place.</p>
+        <a href="${escapeHtml(portalUrl)}" style="display:inline-block;margin-top:16px;background:#00337C;color:#FFFFFF;text-decoration:none;border-radius:6px;padding:10px 14px;font-size:14px;font-weight:700;">Open your notification</a>
+        <p style="margin:16px 0 0;color:#6B7280;font-size:12px;line-height:1.6;">This message was sent through the BYBS LMS so you can keep your learning support in one place.</p>
       </div>
     </div>
   </body>
@@ -1017,12 +1057,18 @@ export const replyMentorDiscussion = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Open discussion not found");
   }
 
-  const ownerId = discussion.createdBy;
+  const parentComment = req.body.parentComment ? discussion.comments.id(req.body.parentComment) : null;
+  if (req.body.parentComment && !parentComment) {
+    throw new ApiError(404, "Parent reply not found");
+  }
+
+  const ownerId = parentComment?.createdBy || discussion.createdBy;
   const cleanBody = sanitizeRichText(req.body.body);
 
   discussion.comments.push({
     body: cleanBody,
-    createdBy: req.user._id
+    createdBy: req.user._id,
+    parentComment: parentComment?._id
   });
   await discussion.save();
 
@@ -1036,7 +1082,7 @@ export const replyMentorDiscussion = asyncHandler(async (req, res) => {
         portalRole: owner.role,
         notification: {
           title: `New reply: ${discussion.title}`,
-          message: `${req.user.name} replied to your discussion.`,
+          message: `${req.user.name} replied to ${parentComment ? "your reply" : "your discussion"}.`,
           channel: "both",
           previewText: sanitizePlainText(cleanBody).slice(0, 160),
           type: "system",
@@ -1093,7 +1139,46 @@ export const deleteMentorDiscussionComment = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Reply not found");
   }
 
-  discussion.comments.pull({ _id: req.params.commentId });
+  removeCommentTree(discussion, req.params.commentId);
+  await discussion.save();
+  await populateDiscussionDocument(discussion);
+  res.json({ data: discussion });
+});
+
+export const toggleMentorDiscussionReaction = asyncHandler(async (req, res) => {
+  const discussion = await Discussion.findOne({
+    _id: req.params.id,
+    status: { $ne: "archived" },
+    $and: [discussionAudienceFilter(mentorDiscussionAudiences)]
+  });
+
+  if (!discussion) {
+    throw new ApiError(404, "Discussion not found");
+  }
+
+  toggleReaction(discussion.reactions, req.user._id, req.body.reaction);
+  await discussion.save();
+  await populateDiscussionDocument(discussion);
+  res.json({ data: discussion });
+});
+
+export const toggleMentorDiscussionCommentReaction = asyncHandler(async (req, res) => {
+  const discussion = await Discussion.findOne({
+    _id: req.params.id,
+    status: "open",
+    $and: [discussionAudienceFilter(mentorDiscussionAudiences)]
+  });
+
+  if (!discussion) {
+    throw new ApiError(404, "Open discussion not found");
+  }
+
+  const comment = discussion.comments.id(req.params.commentId);
+  if (!comment) {
+    throw new ApiError(404, "Reply not found");
+  }
+
+  toggleReaction(comment.reactions, req.user._id, req.body.reaction);
   await discussion.save();
   await populateDiscussionDocument(discussion);
   res.json({ data: discussion });

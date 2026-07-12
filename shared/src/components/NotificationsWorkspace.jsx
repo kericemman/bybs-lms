@@ -127,6 +127,7 @@ export function NotificationsWorkspace({
           ? { ...currentSelection, ...updatedNotification, readStatus: true }
           : currentSelection
       );
+      window.dispatchEvent(new CustomEvent("bybs:notification-read", { detail: { id: notification._id } }));
     } catch (markError) {
       setError(markError.message);
     }

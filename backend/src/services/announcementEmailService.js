@@ -99,7 +99,7 @@ function renderMessageHtml(message = "") {
       }
 
       if (trimmed === "---") {
-        return '<hr style="border:0;border-top:1px solid #E5E7EB;margin:22px 0;" />';
+        return '<hr style="border:0;border-top:1px solid #E5E7EB;margin:10px 0;" />';
       }
 
       if (trimmed.startsWith("## ")) {
@@ -144,18 +144,18 @@ export function buildAnnouncementEmailHtml({
   const logoSrc = emailLogoSrc();
   const greetingHtml = messageStartsWithGreeting(message)
     ? ""
-    : `<p style="margin:0 0 14px;color:#374151;font-size:14px;line-height:1.7;">Hi ${escapeHtml(recipientName || "there")},</p>`;
+    : `<p style="margin:0 0 10px;color:#374151;font-size:14px;line-height:1.7;">Hi ${escapeHtml(recipientName || "there")},</p>`;
 
   return `<!doctype html>
 <html>
   <body style="margin:0;background:#F7F9FC;font-family:Arial,Helvetica,sans-serif;color:#111827;">
     <div style="display:none;max-height:0;overflow:hidden;color:transparent;">${escapeHtml(previewText || title)}</div>
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F7F9FC;padding:24px;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F7F9FC;padding:8px;">
       <tr>
         <td align="center">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:680px;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
             <tr>
-              <td style="background:#FFFFFF;border-bottom:1px solid #E5E7EB;padding:22px 24px;">
+              <td style="background:#FFFFFF;border-bottom:1px solid #E5E7EB;padding:8px 10px;">
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                   <tr>
                     <td width="88" valign="middle" style="width:88px;vertical-align:middle;">
@@ -177,23 +177,23 @@ export function buildAnnouncementEmailHtml({
               </td>
             </tr>
             <tr>
-              <td style="padding:28px;">
+              <td style="padding:16px;">
                 <div style="color:#B76E79;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">${escapeHtml(type || "announcement")}</div>
                 <h1 style="margin:10px 0 8px;color:#10233F;font-size:26px;line-height:1.25;">${escapeHtml(title)}</h1>
-                ${previewText ? `<p style="margin:0 0 18px;color:#6B7280;font-size:14px;line-height:1.6;">${escapeHtml(previewText)}</p>` : ""}
-                <div style="border-top:1px solid #E5E7EB;padding-top:18px;">
+                ${previewText ? `<p style="margin:0 0 12px;color:#6B7280;font-size:14px;line-height:1.6;">${escapeHtml(previewText)}</p>` : ""}
+                <div style="border-top:1px solid #E5E7EB;padding-top:12px;">
                   ${greetingHtml}
                   ${renderMessageHtml(message)}
                 </div>
                 ${
                   ctaLabel && ctaUrl
-                    ? `<a href="${escapeHtml(ctaUrl)}" style="display:inline-block;margin-top:22px;background:#00337C;color:#FFFFFF;text-decoration:none;border-radius:6px;padding:12px 16px;font-size:14px;font-weight:700;">${escapeHtml(ctaLabel)}</a>`
+                    ? `<a href="${escapeHtml(ctaUrl)}" style="display:inline-block;margin-top:16px;background:#00337C;color:#FFFFFF;text-decoration:none;border-radius:6px;padding:10px 14px;font-size:14px;font-weight:700;">${escapeHtml(ctaLabel)}</a>`
                     : ""
                 }
               </td>
             </tr>
             <tr>
-              <td style="background:#F5F9FF;border-top:1px solid #E5E7EB;padding:16px 28px;color:#6B7280;font-size:12px;line-height:1.5;">
+              <td style="background:#F5F9FF;border-top:1px solid #E5E7EB;padding:10px 16px;color:#6B7280;font-size:12px;line-height:1.5;">
                 <strong style="color:#10233F;">BYBS LMS</strong><br />
                 You are receiving this because you are part of the Build Your Best Self learning community.
               </td>

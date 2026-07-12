@@ -5,6 +5,7 @@ const submissionSchema = new mongoose.Schema(
     assignment: { type: mongoose.Schema.Types.ObjectId, ref: "Assignment", required: true, index: true },
     student: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
     fileUrl: { type: String },
+    linkUrl: { type: String },
     writtenResponse: { type: String },
     submittedAt: { type: Date, default: Date.now },
     isLate: { type: Boolean, default: false, index: true },

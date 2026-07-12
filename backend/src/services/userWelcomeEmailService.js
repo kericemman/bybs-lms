@@ -143,7 +143,7 @@ function onboardingSection(user, links) {
 
   if (!websiteCard && !buttons) return "";
 
-  return `<h2 style="margin:26px 0 8px;color:#10233F;font-size:16px;">Join the right BYBS spaces</h2>
+  return `<h2 style="margin:20px 0 8px;color:#10233F;font-size:16px;">Join the right BYBS spaces</h2>
     <p style="margin:0 0 8px;color:#374151;font-size:13px;line-height:1.6;">Each space supports a different part of the mentor journey, from official updates to quick coordination and student encouragement.</p>
     ${websiteCard}
     ${buttons ? `<div style="margin-top:4px;">${buttons}</div>` : ""}`;
@@ -156,12 +156,12 @@ function buildWelcomeHtml({ user, password, links }) {
   return `<!doctype html>
 <html>
   <body style="margin:0;background:#F7F9FC;font-family:Arial,Helvetica,sans-serif;color:#111827;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F7F9FC;padding:24px;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F7F9FC;padding:8px;">
       <tr>
         <td align="center">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:680px;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
             <tr>
-              <td style="background:#FFFFFF;border-bottom:1px solid #E5E7EB;padding:18px 24px;">
+              <td style="background:#FFFFFF;border-bottom:1px solid #E5E7EB;padding:8px 10px;">
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                   <tr>
                     <td width="54" valign="middle" style="width:54px;vertical-align:middle;">
@@ -183,30 +183,30 @@ function buildWelcomeHtml({ user, password, links }) {
               </td>
             </tr>
             <tr>
-              <td style="padding:28px;">
-                <h1 style="margin:0 0 10px;color:#10233F;font-size:24px;line-height:1.3;">Hi ${escapeHtml(firstName(user))}, your ${escapeHtml(roleLabel(user.role))} account is ready</h1>
-                <p style="margin:0 0 18px;color:#374151;font-size:14px;line-height:1.7;">Use the login details below to access your BYBS learning workspace.</p>
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #E5E7EB;border-radius:8px;margin:18px 0;">
+              <td style="padding:16px;">
+                <h1 style="margin:0 0 8px;color:#10233F;font-size:24px;line-height:1.3;">Hi ${escapeHtml(firstName(user))}, your ${escapeHtml(roleLabel(user.role))} account is ready</h1>
+                <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.7;">Use the login details below to access your BYBS learning workspace.</p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #E5E7EB;border-radius:8px;margin:12px 0;">
                   <tr>
-                    <td style="padding:12px;border-bottom:1px solid #E5E7EB;color:#6B7280;font-size:12px;text-transform:uppercase;">Login link</td>
-                    <td style="padding:12px;border-bottom:1px solid #E5E7EB;"><a href="${escapeHtml(loginUrl)}" style="color:#00337C;font-weight:700;">${escapeHtml(loginUrl)}</a></td>
+                    <td style="padding:8px;border-bottom:1px solid #E5E7EB;color:#6B7280;font-size:12px;text-transform:uppercase;">Login link</td>
+                    <td style="padding:8px;border-bottom:1px solid #E5E7EB;"><a href="${escapeHtml(loginUrl)}" style="color:#00337C;font-weight:700;">${escapeHtml(loginUrl)}</a></td>
                   </tr>
                   <tr>
-                    <td style="padding:12px;border-bottom:1px solid #E5E7EB;color:#6B7280;font-size:12px;text-transform:uppercase;">Email</td>
-                    <td style="padding:12px;border-bottom:1px solid #E5E7EB;color:#10233F;font-weight:700;">${escapeHtml(user.email)}</td>
+                    <td style="padding:8px;border-bottom:1px solid #E5E7EB;color:#6B7280;font-size:12px;text-transform:uppercase;">Email</td>
+                    <td style="padding:8px;border-bottom:1px solid #E5E7EB;color:#10233F;font-weight:700;">${escapeHtml(user.email)}</td>
                   </tr>
                   <tr>
-                    <td style="padding:12px;color:#6B7280;font-size:12px;text-transform:uppercase;">Temporary password</td>
-                    <td style="padding:12px;color:#10233F;font-weight:700;">${escapeHtml(password)}</td>
+                    <td style="padding:8px;color:#6B7280;font-size:12px;text-transform:uppercase;">Temporary password</td>
+                    <td style="padding:8px;color:#10233F;font-weight:700;">${escapeHtml(password)}</td>
                   </tr>
                 </table>
-                <a href="${escapeHtml(loginUrl)}" style="display:inline-block;background:#00337C;color:#FFFFFF;text-decoration:none;border-radius:6px;padding:12px 16px;font-size:14px;font-weight:700;">Open BYBS LMS</a>
+                <a href="${escapeHtml(loginUrl)}" style="display:inline-block;background:#00337C;color:#FFFFFF;text-decoration:none;border-radius:6px;padding:10px 14px;font-size:14px;font-weight:700;">Open BYBS LMS</a>
                 ${onboardingSection(user, links)}
-                <p style="margin:20px 0 0;color:#6B7280;font-size:12px;line-height:1.6;">For security, this is a temporary password. Keep it private and update it after first sign-in once password management is available.</p>
+                <p style="margin:16px 0 0;color:#6B7280;font-size:12px;line-height:1.6;">For security, this is a temporary password. Keep it private and update it after first sign-in once password management is available.</p>
               </td>
             </tr>
             <tr>
-              <td style="background:#F5F9FF;border-top:1px solid #E5E7EB;padding:16px 28px;color:#6B7280;font-size:12px;line-height:1.5;">
+              <td style="background:#F5F9FF;border-top:1px solid #E5E7EB;padding:10px 16px;color:#6B7280;font-size:12px;line-height:1.5;">
                 <strong style="color:#10233F;">BYBS LMS</strong><br />
                 Build Your Best Self learning community.
               </td>

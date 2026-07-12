@@ -1,6 +1,16 @@
 import { ClipboardList, ExternalLink, Send, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { AddToCalendarButton, Button, EmptyState, PageHeader, RichTextEditor, SafeHtml, StatusBadge } from "@bybs/shared";
+import {
+  AddToCalendarButton,
+  Button,
+  EmptyState,
+  PageHeader,
+  RESOURCE_UPLOAD_ACCEPT,
+  RichTextEditor,
+  SafeHtml,
+  StatusBadge,
+  validateResourceFile
+} from "@bybs/shared";
 import { AssignmentInstructions } from "../components/AssignmentInstructions.jsx";
 import { studentApi } from "../services/api.js";
 import { formatDate, titleFor } from "../utils/format.js";
@@ -28,6 +38,7 @@ export function AssignmentsPage() {
   const [assignments, setAssignments] = useState([]);
   const [activeAssignment, setActiveAssignment] = useState(null);
   const [writtenResponse, setWrittenResponse] = useState("");
+  const [submissionLink, setSubmissionLink] = useState("");
   const [uploadedFile, setUploadedFile] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
@@ -46,6 +57,7 @@ export function AssignmentsPage() {
   function chooseAssignment(assignment) {
     setActiveAssignment(assignment);
     setWrittenResponse(assignment.submission?.writtenResponse || "");
+    setSubmissionLink(assignment.submission?.linkUrl || "");
     setUploadedFile(assignment.submission?.fileUrl ? { url: assignment.submission.fileUrl, originalName: "Submitted file" } : null);
     setFeedback("");
     setError("");
@@ -58,6 +70,14 @@ export function AssignmentsPage() {
 
     setError("");
     setFeedback("");
+
+    const validationError = validateResourceFile(file);
+    if (validationError) {
+      setError(validationError);
+      event.target.value = "";
+      return;
+    }
+
     setIsUploading(true);
 
     try {
@@ -86,11 +106,13 @@ export function AssignmentsPage() {
     try {
       await studentApi.submitAssignment(activeAssignment._id, {
         fileUrl: uploadedFile?.url,
+        linkUrl: submissionLink.trim(),
         writtenResponse
       });
       setFeedback("Assignment submitted.");
       setActiveAssignment(null);
       setUploadedFile(null);
+      setSubmissionLink("");
       setWrittenResponse("");
       await loadAssignments();
     } catch (submitError) {
@@ -165,12 +187,27 @@ export function AssignmentsPage() {
             </label>
 
             <div>
-              <input className="sr-only" onChange={handleUpload} ref={fileInputRef} type="file" />
+              <input accept={RESOURCE_UPLOAD_ACCEPT} className="sr-only" onChange={handleUpload} ref={fileInputRef} type="file" />
               <Button disabled={isUploading} icon={Upload} onClick={() => fileInputRef.current?.click()} type="button" variant="secondary">
                 {isUploading ? "Uploading..." : uploadedFile ? "Replace file" : "Upload file"}
               </Button>
+              <p className="mt-2 text-xs text-bybs-muted">
+                Supported: PDF, Word, PowerPoint, Excel, CSV, text, image, or MP4. Maximum size: 50 MB.
+              </p>
               {uploadedFile ? <p className="mt-2 text-sm text-bybs-body">{uploadedFile.originalName || uploadedFile.url}</p> : null}
             </div>
+
+            <label className="block min-w-0">
+              <span className="text-sm font-medium text-bybs-body">Submission link</span>
+              <input
+                className="mt-2 h-10 w-full rounded-md border border-bybs-border px-3 text-sm outline-none focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale"
+                onChange={(event) => setSubmissionLink(event.target.value)}
+                placeholder="https://docs.google.com/... or another assignment link"
+                type="url"
+                value={submissionLink}
+              />
+              <span className="mt-1 block text-xs text-bybs-muted">Use this for Google Docs, Canva, YouTube, or other online submissions.</span>
+            </label>
 
             {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
             {feedback ? <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue">{feedback}</p> : null}

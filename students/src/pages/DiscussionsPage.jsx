@@ -12,9 +12,11 @@ export function DiscussionsPage() {
         createDiscussion: studentApi.createDiscussion,
         updateDiscussion: studentApi.updateDiscussion,
         deleteDiscussion: studentApi.deleteDiscussion,
+        toggleDiscussionReaction: studentApi.toggleDiscussionReaction,
         replyDiscussion: studentApi.replyDiscussion,
         updateDiscussionComment: studentApi.updateDiscussionComment,
         deleteDiscussionComment: studentApi.deleteDiscussionComment,
+        toggleDiscussionCommentReaction: studentApi.toggleDiscussionCommentReaction,
         listModules: studentApi.listModules,
         uploadFile: studentApi.uploadFile
       }}

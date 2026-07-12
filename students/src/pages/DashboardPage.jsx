@@ -77,6 +77,10 @@ export function DashboardPage() {
   const sessions = dashboard?.nextSessions || [];
   const notifications = dashboard?.notifications || [];
 
+  function scrollToSection(id) {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -97,10 +101,10 @@ export function DashboardPage() {
       {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <StatCard icon={BookOpen} label="Assignments" tone="blue" value={summary.totalAssignments || 0} />
-        <StatCard icon={CalendarCheck} label="Upcoming sessions" tone="blue" value={summary.upcomingSessions || 0} />
-        <StatCard icon={ClipboardList} label="Pending assignments" tone="gold" value={summary.pendingAssignments || 0} />
-        <StatCard icon={MessageSquare} label="Unread updates" tone="blue" value={summary.unreadNotifications || 0} />
+        <StatCard icon={BookOpen} label="Assignments" onClick={() => navigate("/app/assignments")} tone="blue" value={summary.totalAssignments || 0} />
+        <StatCard icon={CalendarCheck} label="Upcoming sessions" onClick={() => scrollToSection("next-sessions")} tone="blue" value={summary.upcomingSessions || 0} />
+        <StatCard icon={ClipboardList} label="Pending assignments" onClick={() => navigate("/app/assignments")} tone="gold" value={summary.pendingAssignments || 0} />
+        <StatCard icon={MessageSquare} label="Unread updates" onClick={() => navigate("/app/notifications")} tone="blue" value={summary.unreadNotifications || 0} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
@@ -170,27 +174,29 @@ export function DashboardPage() {
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
           <SectionHeader title="Next sessions" />
-          {!sessions.length ? (
-            <EmptyState description="Scheduled sessions will appear here." title="No upcoming sessions" />
-          ) : (
-            <div className="space-y-3">
-              {sessions.map((session) => (
-                <div className="rounded-md bg-bybs-pale p-4" key={session._id}>
-                  <p className="font-medium text-bybs-navy">{session.title}</p>
-                  <p className="mt-1 text-sm text-bybs-body">{titleFor(session.module, "No module")} · {formatCatDateTime(session.startsAt)}</p>
-                  <p className="mt-1 text-xs text-bybs-muted">Mentor: {sessionMentorName(session)}</p>
-                  {session.zoomLink ? (
-                    <a className="mt-2 inline-block text-sm font-medium text-bybs-blue" href={session.zoomLink} rel="noreferrer" target="_blank">
-                      Join session
-                    </a>
-                  ) : null}
-                  <div className="mt-3">
-                    <AddToCalendarButton event={sessionCalendarEvent(session)} fileName={`bybs-session-${session._id}`} />
+          <div id="next-sessions">
+            {!sessions.length ? (
+              <EmptyState description="Scheduled sessions will appear here." title="No upcoming sessions" />
+            ) : (
+              <div className="space-y-3">
+                {sessions.map((session) => (
+                  <div className="rounded-md bg-bybs-pale p-4" key={session._id}>
+                    <p className="font-medium text-bybs-navy">{session.title}</p>
+                    <p className="mt-1 text-sm text-bybs-body">{titleFor(session.module, "No module")} · {formatCatDateTime(session.startsAt)}</p>
+                    <p className="mt-1 text-xs text-bybs-muted">Mentor: {sessionMentorName(session)}</p>
+                    {session.zoomLink ? (
+                      <a className="mt-2 inline-block text-sm font-medium text-bybs-blue" href={session.zoomLink} rel="noreferrer" target="_blank">
+                        Join session
+                      </a>
+                    ) : null}
+                    <div className="mt-3">
+                      <AddToCalendarButton event={sessionCalendarEvent(session)} fileName={`bybs-session-${session._id}`} />
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            )}
             </div>
-          )}
         </Card>
 
         <Card>

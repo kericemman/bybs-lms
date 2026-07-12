@@ -6,8 +6,13 @@ function cleanRoute(req) {
 }
 
 export function errorHandler(error, req, res, _next) {
-  const statusCode = error.statusCode || 500;
+  const isMulterFileSizeError = error.code === "LIMIT_FILE_SIZE";
+  const isMulterFileError = typeof error.code === "string" && error.code.startsWith("LIMIT_");
+  const statusCode = error.statusCode || (isMulterFileError ? 400 : 500);
   const isServerError = statusCode >= 500;
+  const message = isMulterFileSizeError
+    ? "The uploaded file is too large. Please upload a file within the allowed size limit."
+    : error.message || "Something went wrong";
 
   if (isServerError) {
     console.error(error);
@@ -25,7 +30,7 @@ export function errorHandler(error, req, res, _next) {
   }
 
   res.status(statusCode).json({
-    message: isServerError && env.isProduction ? "Something went wrong" : error.message || "Something went wrong",
+    message: isServerError && env.isProduction ? "Something went wrong" : message,
     details: isServerError && env.isProduction ? null : error.details || null,
     requestId: req.id
   });

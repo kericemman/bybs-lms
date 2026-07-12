@@ -1,6 +1,6 @@
 import { cn } from "../lib/cn.js";
 
-export function StatCard({ label, value, hint, icon: Icon, tone = "primary" }) {
+export function StatCard({ label, value, hint, icon: Icon, onClick, tone = "primary" }) {
   const tones = {
     primary: "bg-bybs-pale text-bybs-blue",
     blue: "bg-bybs-pale text-bybs-blue",
@@ -8,8 +8,17 @@ export function StatCard({ label, value, hint, icon: Icon, tone = "primary" }) {
     gold: "bg-bybs-gold/30 text-bybs-navy"
   };
 
+  const Component = onClick ? "button" : "div";
+
   return (
-    <div className="rounded-lg border border-bybs-border bg-white p-3 shadow-sm sm:p-4">
+    <Component
+      className={cn(
+        "w-full rounded-lg border border-bybs-border bg-white p-3 text-left shadow-sm sm:p-4",
+        onClick ? "cursor-pointer transition hover:border-bybs-blue hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bybs-pale" : ""
+      )}
+      onClick={onClick}
+      type={onClick ? "button" : undefined}
+    >
       <div className="flex items-start justify-between gap-2 sm:gap-3">
         <div className="min-w-0">
           <p className="text-xs leading-5 text-bybs-body sm:text-sm">{label}</p>
@@ -22,6 +31,6 @@ export function StatCard({ label, value, hint, icon: Icon, tone = "primary" }) {
         ) : null}
       </div>
       {hint ? <p className="mt-3 text-xs text-bybs-muted">{hint}</p> : null}
-    </div>
+    </Component>
   );
 }

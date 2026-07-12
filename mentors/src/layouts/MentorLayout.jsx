@@ -1,17 +1,37 @@
 import { AppShell, Button, ChangePasswordPanel, ProgressBar } from "@bybs/shared";
 import { LogOut } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { mentorNavItems } from "../routes/navigation.jsx";
+import { mentorApi } from "../services/api.js";
 
 export function MentorLayout({ children }) {
   const { changePassword, logout, user } = useAuth();
   const location = useLocation();
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  useEffect(() => {
+    function handleNotificationRead() {
+      setUnreadNotifications((current) => Math.max(current - 1, 0));
+    }
+
+    window.addEventListener("bybs:notification-read", handleNotificationRead);
+
+    mentorApi.listNotifications()
+      .then((response) => {
+        setUnreadNotifications((response.data || []).filter((notification) => !notification.readStatus).length);
+      })
+      .catch(() => setUnreadNotifications(0));
+
+    return () => window.removeEventListener("bybs:notification-read", handleNotificationRead);
+  }, []);
 
   return (
     <AppShell
       activePath={location.pathname}
       navItems={mentorNavItems}
+      notificationCount={unreadNotifications}
       notificationsHref="/notifications"
       portalName="Mentor Portal"
       profileHref="/profile"

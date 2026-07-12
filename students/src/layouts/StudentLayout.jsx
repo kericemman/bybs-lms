@@ -10,20 +10,38 @@ export function StudentLayout({ children }) {
   const { changePassword, logout, user } = useAuth();
   const location = useLocation();
   const [progress, setProgress] = useState(0);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   useEffect(() => {
-    studentApi.progress()
-      .then((response) => setProgress(response.data?.progress || 0))
-      .catch(() => setProgress(0));
+    function handleNotificationRead() {
+      setUnreadNotifications((current) => Math.max(current - 1, 0));
+    }
+
+    window.addEventListener("bybs:notification-read", handleNotificationRead);
+
+    Promise.all([studentApi.progress(), studentApi.dashboard()])
+      .then(([progressResponse, dashboardResponse]) => {
+        setProgress(progressResponse.data?.progress || 0);
+        setUnreadNotifications(dashboardResponse.data?.summary?.unreadNotifications || 0);
+      })
+      .catch(() => {
+        setProgress(0);
+        setUnreadNotifications(0);
+      });
+
+    return () => window.removeEventListener("bybs:notification-read", handleNotificationRead);
   }, []);
 
   return (
     <AppShell
       activePath={location.pathname}
+      globalSearch={(search) => studentApi.globalSearch({ search })}
       navItems={studentNavItems}
+      notificationCount={unreadNotifications}
       notificationsHref="/app/notifications"
       portalName="Mentee Portal"
       profileHref="/app/profile"
+      searchPlaceholder="Search assignments, sessions, materials..."
       sidebarFooter={
         <div>
           <p className="mb-3 text-sm font-medium text-bybs-navy">Fellowship progress</p>

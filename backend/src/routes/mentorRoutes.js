@@ -35,7 +35,9 @@ import {
   updateMentorAvailability,
   updateMentorBooking,
   updateMentorSessionAttendance,
-  updateMentorReport
+  updateMentorReport,
+  toggleMentorDiscussionCommentReaction,
+  toggleMentorDiscussionReaction
 } from "../controllers/mentorController.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { decompressCompressedUpload, finalizeResourceUpload, resourceUpload } from "../middleware/upload.js";
@@ -70,8 +72,10 @@ import { createBetaFeedbackSchema, listMyBetaFeedbackSchema } from "../validator
 import {
   createDiscussionCommentSchema,
   createPortalDiscussionSchema,
+  discussionCommentReactionSchemaValidator,
   discussionCommentParamsSchema,
   discussionListSchema,
+  discussionReactionSchemaValidator,
   updateDiscussionCommentSchema,
   updatePortalDiscussionSchema
 } from "../validators/discussionSchemas.js";
@@ -89,9 +93,11 @@ mentorRoutes.get("/discussions", validate(discussionListSchema), listMentorDiscu
 mentorRoutes.post("/discussions", validate(createPortalDiscussionSchema), createMentorDiscussion);
 mentorRoutes.patch("/discussions/:id", validate(updatePortalDiscussionSchema), updateMentorDiscussion);
 mentorRoutes.delete("/discussions/:id", validate(idParamsSchema), archiveMentorDiscussion);
+mentorRoutes.patch("/discussions/:id/reactions", validate(discussionReactionSchemaValidator), toggleMentorDiscussionReaction);
 mentorRoutes.post("/discussions/:id/comments", validate(createDiscussionCommentSchema), replyMentorDiscussion);
 mentorRoutes.patch("/discussions/:id/comments/:commentId", validate(updateDiscussionCommentSchema), updateMentorDiscussionComment);
 mentorRoutes.delete("/discussions/:id/comments/:commentId", validate(discussionCommentParamsSchema), deleteMentorDiscussionComment);
+mentorRoutes.patch("/discussions/:id/comments/:commentId/reactions", validate(discussionCommentReactionSchemaValidator), toggleMentorDiscussionCommentReaction);
 mentorRoutes.get("/assignments", validate(mentorAssignmentListSchema), listMentorAssignments);
 mentorRoutes.get("/assignment-reminders", validate(mentorListSchema), listAssignmentReminders);
 mentorRoutes.post("/assignment-reminders", validate(createAssignmentReminderSchema), createAssignmentReminder);

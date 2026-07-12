@@ -588,7 +588,7 @@ export function AnnouncementComposer({ title = "Compose email announcement", onC
             Email preview
           </div>
           <div className="overflow-hidden rounded-md border border-bybs-border bg-white">
-            <div className="border-b border-bybs-border bg-white px-6 py-5 text-bybs-navy">
+            <div className="border-b border-bybs-border bg-white px-3 py-2 text-bybs-navy">
               <div className="flex items-center gap-3">
                 <img alt="BYBS" className="h-14 w-14 rounded-md bg-white object-contain p-1" src={logoSrc} />
                 <div>
@@ -598,7 +598,7 @@ export function AnnouncementComposer({ title = "Compose email announcement", onC
                 </div>
               </div>
             </div>
-            <div className="px-6 py-6">
+            <div className="px-3 py-3">
               <p className="text-xs font-semibold uppercase text-bybs-rose">{form.type}</p>
               <h3 className="mt-2 text-xl font-semibold text-bybs-navy">
                 {form.title || "Your announcement subject"}
@@ -619,7 +619,7 @@ export function AnnouncementComposer({ title = "Compose email announcement", onC
                 </a>
               ) : null}
             </div>
-            <div className="border-t border-bybs-border bg-bybs-pale px-6 py-4 text-xs leading-5 text-bybs-muted">
+            <div className="border-t border-bybs-border bg-bybs-pale px-3 py-2 text-xs leading-5 text-bybs-muted">
               <p className="font-medium text-bybs-navy">BYBS LMS</p>
               <p>You are receiving this because you are part of the Build Your Best Self learning community.</p>
             </div>

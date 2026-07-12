@@ -334,6 +334,24 @@ export function ReviewsPage() {
               </div>
 
               <div className="min-w-0 space-y-3 lg:col-span-3">
+                <h3 className="text-sm font-semibold text-bybs-navy">Submitted link</h3>
+                {selectedSubmission.linkUrl ? (
+                  <Button
+                    as="a"
+                    href={selectedSubmission.linkUrl}
+                    icon={ExternalLink}
+                    rel="noreferrer"
+                    target="_blank"
+                    variant="secondary"
+                  >
+                    Open submitted link
+                  </Button>
+                ) : (
+                  <p className="rounded-md bg-bybs-pale px-3 py-3 text-sm text-bybs-muted">No link was submitted.</p>
+                )}
+              </div>
+
+              <div className="min-w-0 space-y-3 lg:col-span-3">
                 <h3 className="text-sm font-semibold text-bybs-navy">Attachment preview</h3>
                 <AttachmentPreview url={selectedSubmission.fileUrl} />
               </div>

@@ -1,5 +1,5 @@
-import { Bell, Menu, Search, X } from "lucide-react";
-import { useState } from "react";
+import { ArrowRight, Bell, Loader2, Menu, Search, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { ROLE_LABELS } from "../constants/roles.js";
 import { cn } from "../lib/cn.js";
 import { Button } from "./Button.jsx";
@@ -15,13 +15,73 @@ export function AppShell({
   activePath = "/",
   user,
   children,
+  globalSearch,
+  notificationCount = 0,
   notificationsHref,
   profileHref,
+  searchPlaceholder = "Search",
   sidebarFooter
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const searchBoxRef = useRef(null);
   const currentYear = new Date().getFullYear();
   const roleLabel = user?.role ? ROLE_LABELS[user.role] || user.role : "Signed in";
+  const visibleNotificationCount = Number(notificationCount || 0);
+
+  useEffect(() => {
+    if (!globalSearch) return undefined;
+
+    const cleanQuery = searchQuery.trim();
+    if (cleanQuery.length < 2) {
+      setSearchResults([]);
+      setSearchError("");
+      setIsSearching(false);
+      return undefined;
+    }
+
+    let isActive = true;
+    setIsSearching(true);
+    setSearchError("");
+
+    const timer = window.setTimeout(() => {
+      globalSearch(cleanQuery)
+        .then((response) => {
+          if (!isActive) return;
+          setSearchResults(response?.data || []);
+          setIsSearchOpen(true);
+        })
+        .catch((error) => {
+          if (!isActive) return;
+          setSearchResults([]);
+          setSearchError(error.message || "Search failed");
+          setIsSearchOpen(true);
+        })
+        .finally(() => {
+          if (isActive) setIsSearching(false);
+        });
+    }, 250);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timer);
+    };
+  }, [globalSearch, searchQuery]);
+
+  useEffect(() => {
+    function handleClick(event) {
+      if (!searchBoxRef.current?.contains(event.target)) {
+        setIsSearchOpen(false);
+      }
+    }
+
+    window.addEventListener("mousedown", handleClick);
+    return () => window.removeEventListener("mousedown", handleClick);
+  }, []);
 
   function renderNavLink(item, options = {}) {
     const Icon = item.icon;
@@ -42,6 +102,15 @@ export function AppShell({
         <span>{item.label}</span>
       </a>
     );
+  }
+
+  function submitSearch(event) {
+    event.preventDefault();
+    const firstResult = searchResults[0];
+
+    if (firstResult?.href) {
+      window.location.href = firstResult.href;
+    }
   }
 
   return (
@@ -77,24 +146,105 @@ export function AppShell({
               >
                 <Menu className="h-5 w-5" aria-hidden="true" />
               </Button>
-              <div className="hidden min-w-80 items-center gap-2 rounded-md border border-bybs-border bg-white px-3 py-2 text-sm text-bybs-muted md:flex">
-                <Search className="h-4 w-4" aria-hidden="true" />
-                <span>Search</span>
-              </div>
+              {globalSearch ? (
+                <form
+                  className="relative hidden min-w-80 md:block"
+                  onSubmit={submitSearch}
+                  ref={searchBoxRef}
+                >
+                  <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-bybs-muted" aria-hidden="true" />
+                  <input
+                    aria-label={searchPlaceholder}
+                    className="h-10 w-full rounded-md border border-bybs-border bg-white px-9 text-sm text-bybs-body outline-none transition placeholder:text-bybs-muted focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale"
+                    onChange={(event) => {
+                      setSearchQuery(event.target.value);
+                      setIsSearchOpen(true);
+                    }}
+                    onFocus={() => setIsSearchOpen(true)}
+                    placeholder={searchPlaceholder}
+                    value={searchQuery}
+                  />
+                  {searchQuery ? (
+                    <button
+                      aria-label="Clear search"
+                      className="absolute right-3 top-2.5 text-bybs-muted transition hover:text-bybs-blue"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setSearchResults([]);
+                        setSearchError("");
+                      }}
+                      type="button"
+                    >
+                      <X className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  ) : null}
+
+                  {isSearchOpen && searchQuery.trim().length >= 2 ? (
+                    <div className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-lg border border-bybs-border bg-white shadow-lg">
+                      <div className="max-h-80 overflow-y-auto p-2">
+                        {isSearching ? (
+                          <div className="flex items-center gap-2 px-3 py-3 text-sm text-bybs-muted">
+                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                            Searching...
+                          </div>
+                        ) : searchError ? (
+                          <p className="px-3 py-3 text-sm text-bybs-rose">{searchError}</p>
+                        ) : searchResults.length ? (
+                          searchResults.map((result) => (
+                            <a
+                              className="flex items-start justify-between gap-3 rounded-md px-3 py-2 text-sm transition hover:bg-bybs-pale"
+                              href={result.href}
+                              key={`${result.type}-${result.id}`}
+                              onClick={() => setIsSearchOpen(false)}
+                            >
+                              <span className="min-w-0">
+                                <span className="block truncate font-semibold text-bybs-navy">{result.title}</span>
+                                {result.description ? (
+                                  <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-bybs-muted">{result.description}</span>
+                                ) : null}
+                                {result.type ? (
+                                  <span className="mt-1 inline-flex rounded-md bg-bybs-pale px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-bybs-blue">
+                                    {result.type}
+                                  </span>
+                                ) : null}
+                              </span>
+                              <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-bybs-muted" aria-hidden="true" />
+                            </a>
+                          ))
+                        ) : (
+                          <p className="px-3 py-3 text-sm text-bybs-muted">No matching content found.</p>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </form>
+              ) : (
+                <div className="hidden min-w-80 items-center gap-2 rounded-md border border-bybs-border bg-white px-3 py-2 text-sm text-bybs-muted md:flex">
+                  <Search className="h-4 w-4" aria-hidden="true" />
+                  <span>Search</span>
+                </div>
+              )}
             </div>
 
             <div className="flex min-w-0 items-center gap-3">
               {notificationsHref ? (
-                <Button
-                  aria-label="Notifications"
-                  as="a"
-                  href={notificationsHref}
-                  size="icon"
-                  title="Notifications"
-                  variant="ghost"
-                >
-                  <Bell className="h-5 w-5" aria-hidden="true" />
-                </Button>
+                <span className="relative inline-flex">
+                  <Button
+                    aria-label={visibleNotificationCount ? `${visibleNotificationCount} unread notifications` : "Notifications"}
+                    as="a"
+                    href={notificationsHref}
+                    size="icon"
+                    title="Notifications"
+                    variant="ghost"
+                  >
+                    <Bell className="h-5 w-5" aria-hidden="true" />
+                  </Button>
+                  {visibleNotificationCount ? (
+                    <span className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-bybs-rose px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
+                      {visibleNotificationCount > 99 ? "99+" : visibleNotificationCount}
+                    </span>
+                  ) : null}
+                </span>
               ) : null}
               <a
                 aria-label="Open profile"

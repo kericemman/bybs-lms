@@ -43,12 +43,12 @@ function buildAlertHtml(alert) {
   return `<!doctype html>
 <html>
   <body style="margin:0;background:#F7F9FC;font-family:Arial,Helvetica,sans-serif;color:#111827;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F7F9FC;padding:24px;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F7F9FC;padding:8px;">
       <tr>
         <td align="center">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
             <tr>
-              <td style="background:#FFFFFF;border-bottom:1px solid #E5E7EB;padding:24px;">
+              <td style="background:#FFFFFF;border-bottom:1px solid #E5E7EB;padding:8px 10px;">
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                   <tr>
                     <td style="width:64px;">
@@ -64,28 +64,28 @@ function buildAlertHtml(alert) {
               </td>
             </tr>
             <tr>
-              <td style="padding:24px;">
-                <h1 style="margin:0 0 12px;color:#10233F;font-size:22px;line-height:1.3;">${escapeHtml(alert.title)}</h1>
-                <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">${escapeHtml(alert.message)}</p>
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #E5E7EB;border-radius:8px;margin-top:16px;">
+              <td style="padding:16px;">
+                <h1 style="margin:0 0 10px;color:#10233F;font-size:22px;line-height:1.3;">${escapeHtml(alert.title)}</h1>
+                <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#374151;">${escapeHtml(alert.message)}</p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #E5E7EB;border-radius:8px;margin-top:12px;">
                   <tr>
-                    <td style="padding:12px;border-bottom:1px solid #E5E7EB;color:#6B7280;font-size:12px;text-transform:uppercase;">Route</td>
-                    <td style="padding:12px;border-bottom:1px solid #E5E7EB;color:#10233F;font-size:14px;font-weight:700;">${escapeHtml(alert.method)} ${escapeHtml(alert.route)}</td>
+                    <td style="padding:8px;border-bottom:1px solid #E5E7EB;color:#6B7280;font-size:12px;text-transform:uppercase;">Route</td>
+                    <td style="padding:8px;border-bottom:1px solid #E5E7EB;color:#10233F;font-size:14px;font-weight:700;">${escapeHtml(alert.method)} ${escapeHtml(alert.route)}</td>
                   </tr>
                   <tr>
-                    <td style="padding:12px;border-bottom:1px solid #E5E7EB;color:#6B7280;font-size:12px;text-transform:uppercase;">Status</td>
-                    <td style="padding:12px;border-bottom:1px solid #E5E7EB;color:#10233F;font-size:14px;font-weight:700;">${escapeHtml(alert.statusCode || "n/a")}</td>
+                    <td style="padding:8px;border-bottom:1px solid #E5E7EB;color:#6B7280;font-size:12px;text-transform:uppercase;">Status</td>
+                    <td style="padding:8px;border-bottom:1px solid #E5E7EB;color:#10233F;font-size:14px;font-weight:700;">${escapeHtml(alert.statusCode || "n/a")}</td>
                   </tr>
                   <tr>
-                    <td style="padding:12px;color:#6B7280;font-size:12px;text-transform:uppercase;">Duration</td>
-                    <td style="padding:12px;color:#10233F;font-size:14px;font-weight:700;">${escapeHtml(alert.durationMs ? `${alert.durationMs}ms` : "n/a")}</td>
+                    <td style="padding:8px;color:#6B7280;font-size:12px;text-transform:uppercase;">Duration</td>
+                    <td style="padding:8px;color:#10233F;font-size:14px;font-weight:700;">${escapeHtml(alert.durationMs ? `${alert.durationMs}ms` : "n/a")}</td>
                   </tr>
                 </table>
-                <a href="${escapeHtml(dashboardUrl)}" style="display:inline-block;margin-top:20px;background:#00337C;color:#FFFFFF;text-decoration:none;border-radius:6px;padding:11px 16px;font-size:14px;font-weight:700;">Open system logs</a>
+                <a href="${escapeHtml(dashboardUrl)}" style="display:inline-block;margin-top:16px;background:#00337C;color:#FFFFFF;text-decoration:none;border-radius:6px;padding:10px 14px;font-size:14px;font-weight:700;">Open system logs</a>
               </td>
             </tr>
             <tr>
-              <td style="background:#F5F9FF;border-top:1px solid #E5E7EB;padding:16px 24px;color:#6B7280;font-size:12px;line-height:1.5;">
+              <td style="background:#F5F9FF;border-top:1px solid #E5E7EB;padding:10px 16px;color:#6B7280;font-size:12px;line-height:1.5;">
                 This alert was generated automatically by BYBS LMS monitoring.
               </td>
             </tr>

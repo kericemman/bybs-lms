@@ -12,9 +12,11 @@ export function DiscussionsPage() {
         createDiscussion: mentorApi.createDiscussion,
         updateDiscussion: mentorApi.updateDiscussion,
         deleteDiscussion: mentorApi.deleteDiscussion,
+        toggleDiscussionReaction: mentorApi.toggleDiscussionReaction,
         replyDiscussion: mentorApi.replyDiscussion,
         updateDiscussionComment: mentorApi.updateDiscussionComment,
         deleteDiscussionComment: mentorApi.deleteDiscussionComment,
+        toggleDiscussionCommentReaction: mentorApi.toggleDiscussionCommentReaction,
         listModules: mentorApi.listModules,
         uploadFile: mentorApi.uploadSessionFile
       }}

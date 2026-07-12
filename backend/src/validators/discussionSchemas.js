@@ -2,6 +2,7 @@ import { z } from "zod";
 import { emptyToUndefined, objectIdSchema, paginationQuerySchema } from "./commonSchemas.js";
 
 const discussionAudienceSchema = z.enum(["all", "mentorsAdmins", "mentorsOnly", "mentorsMentees"]);
+const discussionReactionSchema = z.enum(["thumbsUp", "heart", "clap", "celebrate", "pray"]);
 
 export const discussionListSchema = z.object({
   query: paginationQuerySchema.extend({
@@ -27,7 +28,8 @@ export const createDiscussionCommentSchema = z.object({
     id: objectIdSchema
   }),
   body: z.object({
-    body: z.string().trim().min(2).max(5000)
+    body: z.string().trim().min(2).max(5000),
+    parentComment: z.preprocess(emptyToUndefined, objectIdSchema.optional())
   })
 });
 
@@ -58,5 +60,24 @@ export const updateDiscussionCommentSchema = z.object({
   }),
   body: z.object({
     body: z.string().trim().min(2).max(5000)
+  })
+});
+
+export const discussionReactionSchemaValidator = z.object({
+  params: z.object({
+    id: objectIdSchema
+  }),
+  body: z.object({
+    reaction: discussionReactionSchema
+  })
+});
+
+export const discussionCommentReactionSchemaValidator = z.object({
+  params: z.object({
+    id: objectIdSchema,
+    commentId: objectIdSchema
+  }),
+  body: z.object({
+    reaction: discussionReactionSchema
   })
 });

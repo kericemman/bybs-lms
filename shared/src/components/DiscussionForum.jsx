@@ -7,6 +7,7 @@ import { PageHeader } from "./PageHeader.jsx";
 import { SafeHtml } from "./SafeHtml.jsx";
 import { StatusBadge } from "./StatusBadge.jsx";
 import { ROLE_LABELS } from "../constants/roles.js";
+import { RESOURCE_UPLOAD_ACCEPT, validateResourceFile } from "../lib/uploadValidation.js";
 
 const inputClassName =
   "h-10 w-full rounded-md border border-bybs-border px-3 text-sm outline-none focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale";
@@ -15,6 +16,14 @@ const textAreaClassName =
 
 const contentClassName =
   "break-words text-sm leading-6 text-bybs-body [&_a]:font-medium [&_a]:text-bybs-blue [&_a]:underline [&_blockquote]:my-3 [&_blockquote]:border-l-4 [&_blockquote]:border-bybs-rose [&_blockquote]:bg-bybs-blush [&_blockquote]:px-4 [&_blockquote]:py-2 [&_h2]:mt-4 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-bybs-navy [&_h3]:mt-4 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:text-bybs-blue [&_ol]:ml-5 [&_ol]:list-decimal [&_ol]:space-y-1 [&_p]:my-2 [&_ul]:ml-5 [&_ul]:list-disc [&_ul]:space-y-1";
+
+const REACTION_OPTIONS = [
+  { value: "thumbsUp", label: "Thumbs up", icon: "👍" },
+  { value: "heart", label: "Heart", icon: "❤️" },
+  { value: "clap", label: "Clap", icon: "👏" },
+  { value: "celebrate", label: "Celebrate", icon: "🎉" },
+  { value: "pray", label: "Appreciate", icon: "🙏" }
+];
 
 export const DISCUSSION_AUDIENCE_OPTIONS = [
   { value: "all", label: "Everyone" },
@@ -142,6 +151,35 @@ function uploadedFileLine(file = {}) {
   return file.url ? `${label}: ${file.url}` : "";
 }
 
+function replyTargetKey(discussion, comment = null) {
+  return comment ? `comment:${idFor(comment)}` : `discussion:${idFor(discussion)}`;
+}
+
+function reactionCounts(reactions = []) {
+  return reactions.reduce((counts, item) => {
+    const reaction = item?.reaction;
+    if (reaction) counts[reaction] = (counts[reaction] || 0) + 1;
+    return counts;
+  }, {});
+}
+
+function currentUserReaction(reactions = [], currentUser) {
+  return reactions.find((item) => idFor(item?.user) === idFor(currentUser))?.reaction || "";
+}
+
+function childCommentsByParent(comments = []) {
+  const grouped = new Map();
+
+  comments.forEach((comment) => {
+    const parentId = idFor(comment.parentComment);
+    const current = grouped.get(parentId) || [];
+    current.push(comment);
+    grouped.set(parentId, current);
+  });
+
+  return grouped;
+}
+
 function uniqueCohorts({ modules = [], discussions = [] }) {
   const cohorts = new Map();
 
@@ -244,6 +282,39 @@ function ProfileModal({ onClose, user }) {
           </div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+function ReactionBar({ currentUser, onReact, reactions = [] }) {
+  const counts = reactionCounts(reactions);
+  const selectedReaction = currentUserReaction(reactions, currentUser);
+
+  if (!onReact) return null;
+
+  return (
+    <div className="mt-3 flex flex-wrap gap-1.5">
+      {REACTION_OPTIONS.map((option) => {
+        const count = counts[option.value] || 0;
+        const isSelected = selectedReaction === option.value;
+
+        return (
+          <button
+            aria-label={`${option.label}${count ? ` (${count})` : ""}`}
+            className={`inline-flex h-8 items-center gap-1 rounded-full border px-2 text-xs transition ${
+              isSelected
+                ? "border-bybs-blue bg-bybs-pale text-bybs-blue"
+                : "border-bybs-border bg-white text-bybs-body hover:border-bybs-blue hover:bg-bybs-pale"
+            }`}
+            key={option.value}
+            onClick={() => onReact(option.value)}
+            type="button"
+          >
+            <span aria-hidden="true">{option.icon}</span>
+            {count ? <span>{count}</span> : null}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -380,6 +451,15 @@ export function DiscussionForum({
 
     setError("");
     setFeedback("");
+
+    const validationError = validateResourceFile(file);
+    if (validationError) {
+      setError(validationError);
+      setUploadTarget(null);
+      event.target.value = "";
+      return;
+    }
+
     setIsUploading(true);
 
     try {
@@ -464,13 +544,22 @@ export function DiscussionForum({
     }
   }
 
-  async function sendReply(discussion) {
+  function updateDiscussionInState(updatedDiscussion) {
+    if (!updatedDiscussion?._id) return;
+    setDiscussions((current) =>
+      current.map((discussion) => (idFor(discussion) === idFor(updatedDiscussion) ? updatedDiscussion : discussion))
+    );
+  }
+
+  async function sendReply(discussion, parentComment = null) {
     setError("");
     setFeedback("");
     setIsReplying(true);
 
     try {
-      await api.replyDiscussion(idFor(discussion), { body: chatTextToHtml(replyBody) });
+      const payload = { body: chatTextToHtml(replyBody) };
+      if (parentComment) payload.parentComment = idFor(parentComment);
+      await api.replyDiscussion(idFor(discussion), payload);
       setReplyBody("");
       setActiveReplyId("");
       setFeedback("Reply posted.");
@@ -525,6 +614,34 @@ export function DiscussionForum({
     }
   }
 
+  async function toggleDiscussionReaction(discussion, reaction) {
+    if (!api.toggleDiscussionReaction) return;
+
+    setError("");
+    setFeedback("");
+
+    try {
+      const response = await api.toggleDiscussionReaction(idFor(discussion), reaction);
+      updateDiscussionInState(response.data);
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }
+
+  async function toggleCommentReaction(discussion, comment, reaction) {
+    if (!api.toggleDiscussionCommentReaction) return;
+
+    setError("");
+    setFeedback("");
+
+    try {
+      const response = await api.toggleDiscussionCommentReaction(idFor(discussion), idFor(comment), reaction);
+      updateDiscussionInState(response.data);
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -558,7 +675,7 @@ export function DiscussionForum({
       {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
       {feedback ? <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue">{feedback}</p> : null}
 
-      <input className="sr-only" onChange={uploadFile} ref={fileInputRef} type="file" />
+      <input accept={RESOURCE_UPLOAD_ACCEPT} className="sr-only" onChange={uploadFile} ref={fileInputRef} type="file" />
 
       {isComposerOpen ? (
         <Card>
@@ -701,6 +818,141 @@ export function DiscussionForum({
             const discussionId = idFor(discussion);
             const discussionActionTarget = `discussion:${discussionId}`;
             const canEditDiscussion = isOwner(discussion) && api.updateDiscussion && api.deleteDiscussion;
+            const groupedComments = childCommentsByParent(discussion.comments || []);
+            const topLevelComments = groupedComments.get("") || [];
+            const topLevelReplyKey = replyTargetKey(discussion);
+
+            const renderReplyForm = (parentComment = null) => {
+              const activeKey = replyTargetKey(discussion, parentComment);
+
+              if (activeReplyId !== activeKey) return null;
+
+              return (
+                <div className="mt-3 space-y-3">
+                  {parentComment ? (
+                    <p className="text-xs font-medium text-bybs-muted">
+                      Replying to {authorName(parentComment.createdBy)}
+                    </p>
+                  ) : null}
+                  <textarea
+                    className={textAreaClassName}
+                    onChange={(event) => setReplyBody(event.target.value)}
+                    placeholder="Write your reply..."
+                    value={replyBody}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button icon={LinkIcon} onClick={() => addLink({ type: "reply" })} type="button" variant="secondary">
+                      Add link
+                    </Button>
+                    <Button disabled={isUploading || !api.uploadFile} icon={Upload} onClick={() => chooseUpload({ type: "reply" })} type="button" variant="secondary">
+                      {isUploading && uploadTarget?.type === "reply" ? "Uploading..." : "Upload"}
+                    </Button>
+                    <Button disabled={isReplying} icon={Send} onClick={() => sendReply(discussion, parentComment)} type="button">
+                      {isReplying ? "Posting..." : "Post reply"}
+                    </Button>
+                    <Button icon={X} onClick={() => { setActiveReplyId(""); setReplyBody(""); }} type="button" variant="secondary">
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              );
+            };
+
+            const renderComment = (comment, depth = 0) => {
+              const commentId = idFor(comment);
+              const commentActionTarget = `comment:${commentId}`;
+              const canEditComment = isOwner(comment) && api.updateDiscussionComment && api.deleteDiscussionComment;
+              const isEditingComment = editingComment?.discussionId === discussionId && editingComment?.commentId === commentId;
+              const childComments = groupedComments.get(commentId) || [];
+
+              return (
+                <div className={`${depth ? "ml-4 border-l border-bybs-border pl-3 sm:ml-8 sm:pl-4" : ""}`} key={commentId || comment.createdAt}>
+                  <div className="rounded-md bg-bybs-pale p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <AuthorButton user={comment.createdBy}>{setProfileUser}</AuthorButton>
+                      <p className="text-xs text-bybs-muted">{formatDateTime(comment.createdAt)}</p>
+                    </div>
+                    {isEditingComment ? (
+                      <div className="mt-3 space-y-3">
+                        <textarea
+                          className={textAreaClassName}
+                          onChange={(event) => setCommentDraft(event.target.value)}
+                          value={commentDraft}
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          <Button icon={LinkIcon} onClick={() => addLink({ type: "comment" })} size="sm" type="button" variant="secondary">
+                            Add link
+                          </Button>
+                          <Button disabled={isUploading || !api.uploadFile} icon={Upload} onClick={() => chooseUpload({ type: "comment" })} size="sm" type="button" variant="secondary">
+                            {isUploading && uploadTarget?.type === "comment" ? "Uploading..." : "Upload"}
+                          </Button>
+                          <Button disabled={isReplying} icon={Pencil} onClick={updateComment} size="sm" type="button">
+                            {isReplying ? "Saving..." : "Save reply"}
+                          </Button>
+                          <Button icon={X} onClick={() => { setEditingComment(null); setCommentDraft(""); }} size="sm" type="button" variant="secondary">
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div
+                          className="mt-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bybs-pale"
+                          onClick={() => canEditComment ? setActionTarget(commentActionTarget) : undefined}
+                          onKeyDown={(event) => {
+                            if (canEditComment && (event.key === "Enter" || event.key === " ")) {
+                              event.preventDefault();
+                              setActionTarget(commentActionTarget);
+                            }
+                          }}
+                          role={canEditComment ? "button" : undefined}
+                          tabIndex={canEditComment ? 0 : undefined}
+                        >
+                          <SafeHtml className={contentClassName} html={comment.body} />
+                        </div>
+                        <ReactionBar
+                          currentUser={currentUser}
+                          onReact={api.toggleDiscussionCommentReaction ? (reaction) => toggleCommentReaction(discussion, comment, reaction) : null}
+                          reactions={comment.reactions}
+                        />
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {discussion.status === "open" ? (
+                            <Button
+                              icon={Send}
+                              onClick={() => {
+                                setActiveReplyId(replyTargetKey(discussion, comment));
+                                setReplyBody("");
+                              }}
+                              size="sm"
+                              type="button"
+                              variant="secondary"
+                            >
+                              Reply
+                            </Button>
+                          ) : null}
+                          {canEditComment && activeActionTarget === commentActionTarget ? (
+                            <>
+                              <Button icon={Pencil} onClick={() => startCommentEdit(discussion, comment)} size="sm" type="button" variant="secondary">
+                                Edit
+                              </Button>
+                              <Button icon={Trash2} onClick={() => deleteComment(discussion, comment)} size="sm" type="button" variant="danger">
+                                Delete
+                              </Button>
+                            </>
+                          ) : null}
+                        </div>
+                      </>
+                    )}
+                    {renderReplyForm(comment)}
+                  </div>
+                  {childComments.length ? (
+                    <div className="mt-3 space-y-3">
+                      {childComments.map((childComment) => renderComment(childComment, depth + 1))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            };
 
             return (
             <article className="rounded-lg border border-bybs-border bg-white p-5 shadow-sm" key={discussionId}>
@@ -754,103 +1006,24 @@ export function DiscussionForum({
                 </div>
               ) : null}
 
-              {discussion.comments?.length ? (
-                <div className="mt-5 space-y-3 border-t border-bybs-border pt-4">
-                  {discussion.comments.map((comment) => {
-                    const commentId = idFor(comment);
-                    const commentActionTarget = `comment:${commentId}`;
-                    const canEditComment = isOwner(comment) && api.updateDiscussionComment && api.deleteDiscussionComment;
-                    const isEditingComment = editingComment?.discussionId === discussionId && editingComment?.commentId === commentId;
+              <ReactionBar
+                currentUser={currentUser}
+                onReact={api.toggleDiscussionReaction ? (reaction) => toggleDiscussionReaction(discussion, reaction) : null}
+                reactions={discussion.reactions}
+              />
 
-                    return (
-                    <div className="rounded-md bg-bybs-pale p-4" key={commentId || comment.createdAt}>
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <AuthorButton user={comment.createdBy}>{setProfileUser}</AuthorButton>
-                        <p className="text-xs text-bybs-muted">{formatDateTime(comment.createdAt)}</p>
-                      </div>
-                      {isEditingComment ? (
-                        <div className="mt-3 space-y-3">
-                          <textarea
-                            className={textAreaClassName}
-                            onChange={(event) => setCommentDraft(event.target.value)}
-                            value={commentDraft}
-                          />
-                          <div className="flex flex-wrap gap-2">
-                            <Button icon={LinkIcon} onClick={() => addLink({ type: "comment" })} size="sm" type="button" variant="secondary">
-                              Add link
-                            </Button>
-                            <Button disabled={isUploading || !api.uploadFile} icon={Upload} onClick={() => chooseUpload({ type: "comment" })} size="sm" type="button" variant="secondary">
-                              {isUploading && uploadTarget?.type === "comment" ? "Uploading..." : "Upload"}
-                            </Button>
-                            <Button disabled={isReplying} icon={Pencil} onClick={updateComment} size="sm" type="button">
-                              {isReplying ? "Saving..." : "Save reply"}
-                            </Button>
-                            <Button icon={X} onClick={() => { setEditingComment(null); setCommentDraft(""); }} size="sm" type="button" variant="secondary">
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div
-                            className="mt-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bybs-pale"
-                            onClick={() => canEditComment ? setActionTarget(commentActionTarget) : undefined}
-                            onKeyDown={(event) => {
-                              if (canEditComment && (event.key === "Enter" || event.key === " ")) {
-                                event.preventDefault();
-                                setActionTarget(commentActionTarget);
-                              }
-                            }}
-                            role={canEditComment ? "button" : undefined}
-                            tabIndex={canEditComment ? 0 : undefined}
-                          >
-                            <SafeHtml className={contentClassName} html={comment.body} />
-                          </div>
-                          {canEditComment && activeActionTarget === commentActionTarget ? (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              <Button icon={Pencil} onClick={() => startCommentEdit(discussion, comment)} size="sm" type="button" variant="secondary">
-                                Edit
-                              </Button>
-                              <Button icon={Trash2} onClick={() => deleteComment(discussion, comment)} size="sm" type="button" variant="danger">
-                                Delete
-                              </Button>
-                            </div>
-                          ) : null}
-                        </>
-                      )}
-                    </div>
-                    );
-                  })}
+              {topLevelComments.length ? (
+                <div className="mt-5 space-y-3 border-t border-bybs-border pt-4">
+                  {topLevelComments.map((comment) => renderComment(comment))}
                 </div>
               ) : null}
 
               {discussion.status === "open" ? (
                 <div className="mt-5 border-t border-bybs-border pt-4">
-                  {activeReplyId === idFor(discussion) ? (
-                    <div className="space-y-3">
-                      <textarea
-                        className={textAreaClassName}
-                        onChange={(event) => setReplyBody(event.target.value)}
-                        placeholder="Write your reply..."
-                        value={replyBody}
-                      />
-                      <div className="flex flex-wrap gap-2">
-                        <Button icon={LinkIcon} onClick={() => addLink({ type: "reply" })} type="button" variant="secondary">
-                          Add link
-                        </Button>
-                        <Button disabled={isUploading || !api.uploadFile} icon={Upload} onClick={() => chooseUpload({ type: "reply" })} type="button" variant="secondary">
-                          {isUploading && uploadTarget?.type === "reply" ? "Uploading..." : "Upload"}
-                        </Button>
-                        <Button disabled={isReplying} icon={Send} onClick={() => sendReply(discussion)} type="button">
-                          {isReplying ? "Posting..." : "Post reply"}
-                        </Button>
-                        <Button icon={X} onClick={() => { setActiveReplyId(""); setReplyBody(""); }} type="button" variant="secondary">
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
+                  {activeReplyId === topLevelReplyKey ? (
+                    renderReplyForm()
                   ) : (
-                    <Button icon={Send} onClick={() => { setActiveReplyId(idFor(discussion)); setReplyBody(""); }} size="sm" type="button" variant="secondary">
+                    <Button icon={Send} onClick={() => { setActiveReplyId(topLevelReplyKey); setReplyBody(""); }} size="sm" type="button" variant="secondary">
                       Reply
                     </Button>
                   )}

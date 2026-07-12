@@ -55,7 +55,7 @@ function discussionSearchFilter(search = "") {
   if (!cleanSearch) return {};
 
   const pattern = { $regex: escapeRegExp(cleanSearch), $options: "i" };
-  return { $or: [{ title: pattern }, { body: pattern }] };
+  return { $or: [{ title: pattern }, { body: pattern }, { "comments.body": pattern }] };
 }
 
 const studentDiscussionAudiences = ["all", "mentorsMentees"];
@@ -82,7 +82,9 @@ function populateDiscussion(query) {
     .populate("cohort", "title status")
     .populate("module", "title status startDate endDate")
     .populate("createdBy", "name email role profileImage bio expertise")
-    .populate("comments.createdBy", "name email role profileImage bio expertise");
+    .populate("comments.createdBy", "name email role profileImage bio expertise")
+    .populate("reactions.user", "name email role")
+    .populate("comments.reactions.user", "name email role");
 }
 
 async function populateDiscussionDocument(discussion) {
@@ -90,6 +92,44 @@ async function populateDiscussionDocument(discussion) {
   await discussion.populate("module", "title status startDate endDate");
   await discussion.populate("createdBy", "name email role profileImage bio expertise");
   await discussion.populate("comments.createdBy", "name email role profileImage bio expertise");
+  await discussion.populate("reactions.user", "name email role");
+  await discussion.populate("comments.reactions.user", "name email role");
+}
+
+function toggleReaction(reactions = [], userId, reaction) {
+  const existingIndex = reactions.findIndex((item) => String(item.user?._id || item.user) === String(userId));
+
+  if (existingIndex >= 0) {
+    if (reactions[existingIndex].reaction === reaction) {
+      reactions.splice(existingIndex, 1);
+      return;
+    }
+
+    reactions[existingIndex].reaction = reaction;
+    return;
+  }
+
+  reactions.push({ user: userId, reaction });
+}
+
+function removeCommentTree(discussion, commentId) {
+  const idsToRemove = new Set([String(commentId)]);
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+    discussion.comments.forEach((comment) => {
+      const parentId = String(comment.parentComment || "");
+      const commentStringId = String(comment._id);
+
+      if (parentId && idsToRemove.has(parentId) && !idsToRemove.has(commentStringId)) {
+        idsToRemove.add(commentStringId);
+        changed = true;
+      }
+    });
+  }
+
+  idsToRemove.forEach((id) => discussion.comments.pull({ _id: id }));
 }
 
 async function assertStudentDiscussionModule(student, moduleId) {
@@ -294,10 +334,169 @@ async function assignmentRows(student, filter, { skip = 0, limit = 100 } = {}) {
   };
 }
 
+function searchPattern(search = "") {
+  const cleanSearch = sanitizePlainText(search).trim();
+  if (cleanSearch.length < 2) return null;
+  return { $regex: escapeRegExp(cleanSearch), $options: "i" };
+}
+
+function textPreview(value = "", limit = 130) {
+  const text = sanitizePlainText(value).replace(/\s+/g, " ").trim();
+  if (text.length <= limit) return text;
+  return `${text.slice(0, limit - 3).trimEnd()}...`;
+}
+
+function searchResult({ id, type, title, description, href, createdAt }) {
+  return {
+    id,
+    type,
+    title,
+    description,
+    href,
+    createdAt
+  };
+}
+
 function progressPercentage({ totalAssignments, submittedCount }) {
   if (!totalAssignments) return 0;
   return Math.round((submittedCount / totalAssignments) * 100);
 }
+
+export const studentSearch = asyncHandler(async (req, res) => {
+  const { limit } = getPagination(req.query);
+  const cohortId = requireStudentCohort(req.user);
+  const pattern = searchPattern(req.query.search);
+
+  if (!pattern) {
+    res.json({ data: [], meta: { total: 0, limit } });
+    return;
+  }
+
+  const perTypeLimit = Math.max(4, Math.ceil(limit / 4));
+  const [
+    assignments,
+    modules,
+    sessions,
+    resources,
+    discussions,
+    notifications
+  ] = await Promise.all([
+    Assignment.find({
+      ...assignmentFilter(req.user),
+      $or: [{ title: pattern }, { instructions: pattern }]
+    })
+      .populate("module", "title")
+      .sort({ dueDate: 1 })
+      .limit(perTypeLimit),
+    Module.find({
+      cohort: cohortId,
+      status: "published",
+      $or: [{ title: pattern }, { description: pattern }]
+    })
+      .sort({ startDate: 1, order: 1 })
+      .limit(perTypeLimit),
+    Session.find({
+      cohort: cohortId,
+      status: { $ne: "cancelled" },
+      $or: [{ title: pattern }, { description: pattern }, { zoomLink: pattern }, { recordingLink: pattern }]
+    })
+      .populate("module", "title")
+      .sort({ startsAt: 1 })
+      .limit(perTypeLimit),
+    Resource.find({
+      cohort: cohortId,
+      visibility: "published",
+      $or: [{ title: pattern }, { description: pattern }, { type: pattern }, { fileType: pattern }]
+    })
+      .populate("module", "title")
+      .sort({ createdAt: -1 })
+      .limit(perTypeLimit),
+    populateDiscussion(
+      Discussion.find(
+        attachAndFilters(
+          { status: { $ne: "archived" } },
+          [discussionAudienceFilter(studentDiscussionAudiences), discussionSearchFilter(req.query.search)]
+        )
+      )
+    )
+      .sort({ updatedAt: -1, createdAt: -1 })
+      .limit(perTypeLimit),
+    Notification.find({
+      recipient: req.user._id,
+      archivedAt: { $exists: false },
+      $or: [{ title: pattern }, { message: pattern }, { previewText: pattern }, { targetLabel: pattern }]
+    })
+      .sort({ createdAt: -1 })
+      .limit(perTypeLimit)
+  ]);
+
+  const results = [
+    ...assignments.map((assignment) =>
+      searchResult({
+        id: assignment.id,
+        type: "Assignment",
+        title: assignment.title,
+        description: `${assignment.module?.title || "General assignment"}${assignment.dueDate ? ` · Due ${assignment.dueDate.toISOString().slice(0, 10)}` : ""}`,
+        href: "/app/assignments",
+        createdAt: assignment.createdAt
+      })
+    ),
+    ...modules.map((module) =>
+      searchResult({
+        id: module.id,
+        type: "Module",
+        title: module.title,
+        description: textPreview(module.description || "Learning module"),
+        href: "/app/materials",
+        createdAt: module.createdAt
+      })
+    ),
+    ...sessions.map((session) =>
+      searchResult({
+        id: session.id,
+        type: "Session",
+        title: session.title,
+        description: `${session.module?.title || "Module session"}${session.startsAt ? ` · ${session.startsAt.toISOString().slice(0, 10)}` : ""}`,
+        href: "/app",
+        createdAt: session.createdAt
+      })
+    ),
+    ...resources.map((resource) =>
+      searchResult({
+        id: resource.id,
+        type: "Material",
+        title: resource.title,
+        description: textPreview(resource.description || resource.module?.title || resource.type),
+        href: "/app/materials",
+        createdAt: resource.createdAt
+      })
+    ),
+    ...discussions.map((discussion) =>
+      searchResult({
+        id: discussion.id,
+        type: "Forum",
+        title: discussion.title,
+        description: textPreview(discussion.body || discussion.comments?.[0]?.body || "Forum discussion"),
+        href: "/app/forum",
+        createdAt: discussion.updatedAt || discussion.createdAt
+      })
+    ),
+    ...notifications.map((notification) =>
+      searchResult({
+        id: notification.id,
+        type: "Notification",
+        title: notification.title,
+        description: textPreview(notification.previewText || notification.message),
+        href: "/app/notifications",
+        createdAt: notification.createdAt
+      })
+    )
+  ]
+    .sort((left, right) => new Date(right.createdAt || 0) - new Date(left.createdAt || 0))
+    .slice(0, limit);
+
+  res.json({ data: results, meta: { total: results.length, limit } });
+});
 
 export const studentDashboard = asyncHandler(async (req, res) => {
   const cohortId = requireStudentCohort(req.user);
@@ -513,12 +712,18 @@ export const replyStudentDiscussion = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Open discussion not found");
   }
 
-  const ownerId = discussion.createdBy;
+  const parentComment = req.body.parentComment ? discussion.comments.id(req.body.parentComment) : null;
+  if (req.body.parentComment && !parentComment) {
+    throw new ApiError(404, "Parent reply not found");
+  }
+
+  const ownerId = parentComment?.createdBy || discussion.createdBy;
   const cleanBody = sanitizeRichText(req.body.body);
 
   discussion.comments.push({
     body: cleanBody,
-    createdBy: req.user._id
+    createdBy: req.user._id,
+    parentComment: parentComment?._id
   });
   await discussion.save();
 
@@ -533,7 +738,7 @@ export const replyStudentDiscussion = asyncHandler(async (req, res) => {
         portalRole: owner.role,
         notification: {
           title: `New reply: ${discussion.title}`,
-          message: `${req.user.name} replied to your discussion.`,
+          message: `${req.user.name} replied to ${parentComment ? "your reply" : "your discussion"}.`,
           channel: "both",
           previewText: sanitizePlainText(cleanBody).slice(0, 160),
           type: "system",
@@ -590,7 +795,46 @@ export const deleteStudentDiscussionComment = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Reply not found");
   }
 
-  discussion.comments.pull({ _id: req.params.commentId });
+  removeCommentTree(discussion, req.params.commentId);
+  await discussion.save();
+  await populateDiscussionDocument(discussion);
+  res.json({ data: discussion });
+});
+
+export const toggleStudentDiscussionReaction = asyncHandler(async (req, res) => {
+  const discussion = await Discussion.findOne({
+    _id: req.params.id,
+    status: { $ne: "archived" },
+    $and: [discussionAudienceFilter(studentDiscussionAudiences)]
+  });
+
+  if (!discussion) {
+    throw new ApiError(404, "Discussion not found");
+  }
+
+  toggleReaction(discussion.reactions, req.user._id, req.body.reaction);
+  await discussion.save();
+  await populateDiscussionDocument(discussion);
+  res.json({ data: discussion });
+});
+
+export const toggleStudentDiscussionCommentReaction = asyncHandler(async (req, res) => {
+  const discussion = await Discussion.findOne({
+    _id: req.params.id,
+    status: "open",
+    $and: [discussionAudienceFilter(studentDiscussionAudiences)]
+  });
+
+  if (!discussion) {
+    throw new ApiError(404, "Open discussion not found");
+  }
+
+  const comment = discussion.comments.id(req.params.commentId);
+  if (!comment) {
+    throw new ApiError(404, "Reply not found");
+  }
+
+  toggleReaction(comment.reactions, req.user._id, req.body.reaction);
   await discussion.save();
   await populateDiscussionDocument(discussion);
   res.json({ data: discussion });
@@ -613,8 +857,8 @@ export const listStudentAssignments = asyncHandler(async (req, res) => {
 });
 
 export const submitStudentAssignment = asyncHandler(async (req, res) => {
-  if (!req.body.fileUrl && !req.body.writtenResponse) {
-    throw new ApiError(400, "Add a file or written response before submitting");
+  if (!req.body.fileUrl && !req.body.linkUrl && !req.body.writtenResponse) {
+    throw new ApiError(400, "Add a file, link, or written response before submitting");
   }
 
   const assignment = await Assignment.findOne({
@@ -646,6 +890,7 @@ export const submitStudentAssignment = asyncHandler(async (req, res) => {
   const isLate = new Date() > new Date(assignment.dueDate);
   const payload = {
     fileUrl: req.body.fileUrl,
+    linkUrl: req.body.linkUrl,
     writtenResponse: sanitizeRichText(req.body.writtenResponse || ""),
     submittedAt: new Date(),
     isLate,
@@ -677,7 +922,7 @@ export const submitStudentAssignment = asyncHandler(async (req, res) => {
           title: `Submission ready: ${assignment.title}`,
           message: `${req.user.name} submitted an assignment for review.`,
           channel: "both",
-          previewText: sanitizePlainText(req.body.writtenResponse || "A file submission was uploaded.").slice(0, 160),
+          previewText: sanitizePlainText(req.body.writtenResponse || req.body.linkUrl || "A file submission was uploaded.").slice(0, 160),
           type: "assignment",
           ctaLabel: "Review submission",
           ctaUrl: "/reviews",

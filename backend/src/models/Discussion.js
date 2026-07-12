@@ -1,12 +1,22 @@
 import mongoose from "mongoose";
 
 export const DISCUSSION_AUDIENCES = ["all", "mentorsAdmins", "mentorsOnly", "mentorsMentees"];
+export const DISCUSSION_REACTIONS = ["thumbsUp", "heart", "clap", "celebrate", "pray"];
+
+const reactionSchema = new mongoose.Schema(
+  {
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    reaction: { type: String, enum: DISCUSSION_REACTIONS, required: true }
+  },
+  { _id: false }
+);
 
 const commentSchema = new mongoose.Schema(
   {
     body: { type: String, required: true },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    reactions: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
+    parentComment: { type: mongoose.Schema.Types.ObjectId },
+    reactions: [reactionSchema]
   },
   { timestamps: true }
 );
@@ -19,6 +29,7 @@ const discussionSchema = new mongoose.Schema(
     body: { type: String },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     comments: [commentSchema],
+    reactions: [reactionSchema],
     audience: {
       type: String,
       enum: DISCUSSION_AUDIENCES,
