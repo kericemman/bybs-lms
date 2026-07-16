@@ -82,11 +82,11 @@ export function DashboardPage() {
       {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5">
-        <StatCard icon={Users} label="Assigned mentees" tone="blue" value={summary.assignedStudents} />
-        <StatCard icon={FileText} label="Assigned modules" tone="blue" value={summary.assignedModules} />
-        <StatCard icon={ClipboardCheck} label="Pending reviews" tone="gold" value={summary.pendingReviews} />
-        <StatCard icon={CalendarCheck} label="Upcoming sessions" tone="blue" value={summary.upcomingSessions} />
-        <StatCard icon={ClipboardList} label="Attendance pending" tone="gold" value={summary.attendancePendingSessions || 0} />
+        <StatCard icon={Users} label="Assigned mentees" onClick={() => { window.location.href = "/students"; }} tone="blue" value={summary.assignedStudents} />
+        <StatCard icon={FileText} label="Assigned modules" onClick={() => { window.location.href = "/modules"; }} tone="blue" value={summary.assignedModules} />
+        <StatCard icon={ClipboardCheck} label="Pending reviews" onClick={() => { window.location.href = "/reviews"; }} tone="gold" value={summary.pendingReviews} />
+        <StatCard icon={CalendarCheck} label="Upcoming sessions" onClick={() => { window.location.href = "/attendance"; }} tone="blue" value={summary.upcomingSessions} />
+        <StatCard icon={ClipboardList} label="Attendance pending" onClick={() => { window.location.href = "/attendance"; }} tone="gold" value={summary.attendancePendingSessions || 0} />
       </div>
 
       <Card>

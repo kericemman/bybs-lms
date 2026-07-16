@@ -1,5 +1,16 @@
 import { z } from "zod";
 
+const strongPasswordSchema = z
+  .string()
+  .min(12, "Password must be at least 12 characters")
+  .max(128)
+  .regex(/[a-z]/, "Password must include a lowercase letter")
+  .regex(/[A-Z]/, "Password must include an uppercase letter")
+  .regex(/[0-9]/, "Password must include a number")
+  .regex(/[^A-Za-z0-9]/, "Password must include a symbol");
+
+const portalRoleSchema = z.enum(["mentor", "student"]);
+
 export const loginSchema = z.object({
   body: z.object({
     email: z.string().trim().email(),
@@ -10,14 +21,21 @@ export const loginSchema = z.object({
 export const changePasswordSchema = z.object({
   body: z.object({
     currentPassword: z.string().min(1),
-    newPassword: z
-      .string()
-      .min(12, "Password must be at least 12 characters")
-      .max(128)
-      .regex(/[a-z]/, "Password must include a lowercase letter")
-      .regex(/[A-Z]/, "Password must include an uppercase letter")
-      .regex(/[0-9]/, "Password must include a number")
-      .regex(/[^A-Za-z0-9]/, "Password must include a symbol")
+    newPassword: strongPasswordSchema
+  })
+});
+
+export const forgotPasswordSchema = z.object({
+  body: z.object({
+    email: z.string().trim().email(),
+    role: portalRoleSchema.optional()
+  })
+});
+
+export const resetPasswordSchema = z.object({
+  body: z.object({
+    token: z.string().trim().min(32).max(256),
+    newPassword: strongPasswordSchema
   })
 });
 

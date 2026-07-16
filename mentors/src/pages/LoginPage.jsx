@@ -1,6 +1,6 @@
 import { ArrowRight, LockKeyhole } from "lucide-react";
 import { useState } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@bybs/shared";
 import { useAuth } from "../auth/AuthContext.jsx";
 
@@ -58,7 +58,12 @@ export function LoginPage() {
           </label>
 
           <label className="block">
-            <span className="text-sm font-medium text-bybs-body">Password</span>
+            <span className="flex items-center justify-between gap-3 text-sm font-medium text-bybs-body">
+              <span>Password</span>
+              <Link className="text-xs font-semibold text-bybs-blue hover:text-bybs-blueHover" to="/forgot-password">
+                Forgot password?
+              </Link>
+            </span>
             <input
               className="mt-1 h-11 w-full rounded-md border border-bybs-border px-3 text-sm outline-none focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale"
               onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}

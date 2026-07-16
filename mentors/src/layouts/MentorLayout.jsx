@@ -33,6 +33,7 @@ export function MentorLayout({ children }) {
       navItems={mentorNavItems}
       notificationCount={unreadNotifications}
       notificationsHref="/notifications"
+      onSignOut={logout}
       portalName="Mentor Portal"
       profileHref="/profile"
       sidebarFooter={

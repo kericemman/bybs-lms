@@ -1,4 +1,4 @@
-import { ArrowRight, Bell, Loader2, Menu, Search, X } from "lucide-react";
+import { ArrowRight, Bell, Loader2, LogOut, Menu, Search, UserCircle, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ROLE_LABELS } from "../constants/roles.js";
 import { cn } from "../lib/cn.js";
@@ -18,17 +18,21 @@ export function AppShell({
   globalSearch,
   notificationCount = 0,
   notificationsHref,
+  onSignOut,
   profileHref,
   searchPlaceholder = "Search",
   sidebarFooter
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
   const searchBoxRef = useRef(null);
+  const profileMenuRef = useRef(null);
   const currentYear = new Date().getFullYear();
   const roleLabel = user?.role ? ROLE_LABELS[user.role] || user.role : "Signed in";
   const visibleNotificationCount = Number(notificationCount || 0);
@@ -77,6 +81,9 @@ export function AppShell({
       if (!searchBoxRef.current?.contains(event.target)) {
         setIsSearchOpen(false);
       }
+      if (!profileMenuRef.current?.contains(event.target)) {
+        setIsProfileMenuOpen(false);
+      }
     }
 
     window.addEventListener("mousedown", handleClick);
@@ -111,6 +118,56 @@ export function AppShell({
     if (firstResult?.href) {
       window.location.href = firstResult.href;
     }
+  }
+
+  function clearSearch() {
+    setSearchQuery("");
+    setSearchResults([]);
+    setSearchError("");
+  }
+
+  function renderSearchResults() {
+    if (isSearching) {
+      return (
+        <div className="flex items-center gap-2 px-3 py-3 text-sm text-bybs-muted">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          Searching...
+        </div>
+      );
+    }
+
+    if (searchError) {
+      return <p className="px-3 py-3 text-sm text-bybs-rose">{searchError}</p>;
+    }
+
+    if (!searchResults.length) {
+      return <p className="px-3 py-3 text-sm text-bybs-muted">No matching content found.</p>;
+    }
+
+    return searchResults.map((result) => (
+      <a
+        className="flex items-start justify-between gap-3 rounded-md px-3 py-2 text-sm transition hover:bg-bybs-pale"
+        href={result.href}
+        key={`${result.type}-${result.id}`}
+        onClick={() => {
+          setIsSearchOpen(false);
+          setIsMobileSearchOpen(false);
+        }}
+      >
+        <span className="min-w-0">
+          <span className="block truncate font-semibold text-bybs-navy">{result.title}</span>
+          {result.description ? (
+            <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-bybs-muted">{result.description}</span>
+          ) : null}
+          {result.type ? (
+            <span className="mt-1 inline-flex rounded-md bg-bybs-pale px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-bybs-blue">
+              {result.type}
+            </span>
+          ) : null}
+        </span>
+        <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-bybs-muted" aria-hidden="true" />
+      </a>
+    ));
   }
 
   return (
@@ -182,38 +239,7 @@ export function AppShell({
                   {isSearchOpen && searchQuery.trim().length >= 2 ? (
                     <div className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-lg border border-bybs-border bg-white shadow-lg">
                       <div className="max-h-80 overflow-y-auto p-2">
-                        {isSearching ? (
-                          <div className="flex items-center gap-2 px-3 py-3 text-sm text-bybs-muted">
-                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                            Searching...
-                          </div>
-                        ) : searchError ? (
-                          <p className="px-3 py-3 text-sm text-bybs-rose">{searchError}</p>
-                        ) : searchResults.length ? (
-                          searchResults.map((result) => (
-                            <a
-                              className="flex items-start justify-between gap-3 rounded-md px-3 py-2 text-sm transition hover:bg-bybs-pale"
-                              href={result.href}
-                              key={`${result.type}-${result.id}`}
-                              onClick={() => setIsSearchOpen(false)}
-                            >
-                              <span className="min-w-0">
-                                <span className="block truncate font-semibold text-bybs-navy">{result.title}</span>
-                                {result.description ? (
-                                  <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-bybs-muted">{result.description}</span>
-                                ) : null}
-                                {result.type ? (
-                                  <span className="mt-1 inline-flex rounded-md bg-bybs-pale px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-bybs-blue">
-                                    {result.type}
-                                  </span>
-                                ) : null}
-                              </span>
-                              <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-bybs-muted" aria-hidden="true" />
-                            </a>
-                          ))
-                        ) : (
-                          <p className="px-3 py-3 text-sm text-bybs-muted">No matching content found.</p>
-                        )}
+                        {renderSearchResults()}
                       </div>
                     </div>
                   ) : null}
@@ -227,6 +253,22 @@ export function AppShell({
             </div>
 
             <div className="flex min-w-0 items-center gap-3">
+              {globalSearch ? (
+                <Button
+                  aria-label="Open search"
+                  className="md:hidden"
+                  onClick={() => {
+                    setIsMobileSearchOpen(true);
+                    setIsSearchOpen(true);
+                  }}
+                  size="icon"
+                  title="Open search"
+                  type="button"
+                  variant="ghost"
+                >
+                  <Search className="h-5 w-5" aria-hidden="true" />
+                </Button>
+              ) : null}
               {notificationsHref ? (
                 <span className="relative inline-flex">
                   <Button
@@ -246,30 +288,122 @@ export function AppShell({
                   ) : null}
                 </span>
               ) : null}
-              <a
-                aria-label="Open profile"
-                className="flex min-w-0 items-center gap-3 rounded-md px-1 py-1 transition hover:bg-bybs-pale focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bybs-pale"
-                href={profileHref || "#"}
-              >
-                {user?.profileImage ? (
-                  <img
-                    alt={user.name || "Profile"}
-                    className="h-10 w-10 rounded-full border border-bybs-border object-cover"
-                    src={user.profileImage}
-                  />
-                ) : (
-                  <div className="hidden h-10 w-10 items-center justify-center rounded-full border border-bybs-border bg-bybs-pale text-sm font-semibold text-bybs-blue sm:flex">
-                    {initials(user?.name || "BYBS User")}
+              <div className="relative" ref={profileMenuRef}>
+                <button
+                  aria-expanded={isProfileMenuOpen}
+                  aria-haspopup="menu"
+                  aria-label="Open account menu"
+                  className="flex min-w-0 items-center gap-3 rounded-md px-1 py-1 transition hover:bg-bybs-pale focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bybs-pale"
+                  onClick={() => setIsProfileMenuOpen((current) => !current)}
+                  type="button"
+                >
+                  {user?.profileImage ? (
+                    <img
+                      alt={user.name || "Profile"}
+                      className="h-10 w-10 rounded-full border border-bybs-border object-cover"
+                      src={user.profileImage}
+                    />
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-bybs-border bg-bybs-pale text-sm font-semibold text-bybs-blue">
+                      {initials(user?.name || "BYBS User")}
+                    </div>
+                  )}
+                  <div className="hidden min-w-0 text-right sm:block">
+                    <p className="truncate text-sm font-medium text-bybs-navy">{user?.name || "BYBS User"}</p>
+                    <p className="truncate text-xs text-bybs-muted">{roleLabel}</p>
                   </div>
-                )}
-                <div className="hidden min-w-0 text-right sm:block">
-                  <p className="truncate text-sm font-medium text-bybs-navy">{user?.name || "BYBS User"}</p>
-                  <p className="truncate text-xs text-bybs-muted">{roleLabel}</p>
-                </div>
-              </a>
+                </button>
+
+                {isProfileMenuOpen ? (
+                  <div
+                    className="absolute right-0 top-12 z-50 w-64 overflow-hidden rounded-lg border border-bybs-border bg-white shadow-lg"
+                    role="menu"
+                  >
+                    <div className="border-b border-bybs-border px-4 py-3">
+                      <p className="truncate text-sm font-semibold text-bybs-navy">{user?.name || "BYBS User"}</p>
+                      <p className="truncate text-xs text-bybs-muted">{user?.email || roleLabel}</p>
+                    </div>
+                    <a
+                      className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-bybs-body transition hover:bg-bybs-pale hover:text-bybs-blue"
+                      href={profileHref || "#"}
+                      onClick={() => setIsProfileMenuOpen(false)}
+                      role="menuitem"
+                    >
+                      <UserCircle className="h-4 w-4" aria-hidden="true" />
+                      Profile and settings
+                    </a>
+                    {onSignOut ? (
+                      <button
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-bybs-body transition hover:bg-bybs-blush hover:text-bybs-rose"
+                        onClick={() => {
+                          setIsProfileMenuOpen(false);
+                          onSignOut();
+                        }}
+                        role="menuitem"
+                        type="button"
+                      >
+                        <LogOut className="h-4 w-4" aria-hidden="true" />
+                        Sign out
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         </header>
+
+        {isMobileSearchOpen && globalSearch ? (
+          <div className="fixed inset-0 z-[70] bg-bybs-navy/40 px-4 py-5 md:hidden">
+            <div className="mx-auto max-w-lg overflow-hidden rounded-lg border border-bybs-border bg-white shadow-xl">
+              <div className="flex items-center justify-between border-b border-bybs-border px-4 py-3">
+                <p className="text-sm font-semibold text-bybs-navy">Search</p>
+                <Button
+                  aria-label="Close search"
+                  onClick={() => setIsMobileSearchOpen(false)}
+                  size="icon"
+                  type="button"
+                  variant="ghost"
+                >
+                  <X className="h-5 w-5" aria-hidden="true" />
+                </Button>
+              </div>
+              <form className="border-b border-bybs-border p-4" onSubmit={submitSearch}>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-bybs-muted" aria-hidden="true" />
+                  <input
+                    aria-label={searchPlaceholder}
+                    autoFocus
+                    className="h-10 w-full rounded-md border border-bybs-border bg-white px-9 text-sm text-bybs-body outline-none transition placeholder:text-bybs-muted focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale"
+                    onChange={(event) => {
+                      setSearchQuery(event.target.value);
+                      setIsSearchOpen(true);
+                    }}
+                    placeholder={searchPlaceholder}
+                    value={searchQuery}
+                  />
+                  {searchQuery ? (
+                    <button
+                      aria-label="Clear search"
+                      className="absolute right-3 top-2.5 text-bybs-muted transition hover:text-bybs-blue"
+                      onClick={clearSearch}
+                      type="button"
+                    >
+                      <X className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+              <div className="max-h-[60vh] overflow-y-auto p-2">
+                {searchQuery.trim().length >= 2 ? (
+                  renderSearchResults()
+                ) : (
+                  <p className="px-3 py-3 text-sm text-bybs-muted">Type at least two letters to search.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <main className="min-w-0 max-w-full flex-1 overflow-x-hidden px-4 pb-6 pt-[5.5rem] sm:px-6 lg:px-8">{children}</main>
         <footer className="border-t border-bybs-border bg-white px-4 py-5 sm:px-6 lg:px-8">

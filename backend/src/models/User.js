@@ -25,6 +25,9 @@ const userSchema = new mongoose.Schema(
       index: true
     },
     passwordResetRequired: { type: Boolean, default: false, index: true },
+    passwordResetTokenHash: { type: String, select: false, index: true },
+    passwordResetExpiresAt: { type: Date, select: false },
+    passwordResetRequestedAt: { type: Date, select: false },
     passwordChangedAt: { type: Date },
     lastLogin: { type: Date }
   },

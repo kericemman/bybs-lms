@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import { after, before, beforeEach, describe, test } from "node:test";
 
 process.env.NODE_ENV = "test";
@@ -49,6 +50,10 @@ async function login(email, password) {
     .expect(200);
 
   return response.body;
+}
+
+function hashResetToken(token) {
+  return crypto.createHash("sha256").update(token).digest("hex");
 }
 
 before(async () => {
@@ -136,6 +141,44 @@ describe("production readiness controls", () => {
 
     const nextLoginResponse = await login("student@example.com", "NewSecurePass123!");
     assert.equal(nextLoginResponse.user.passwordResetRequired, false);
+  });
+
+  test("mentors and mentees can reset passwords with a valid one-time token", async (t) => {
+    if (!requireDatabase(t)) return;
+    const token = crypto.randomBytes(32).toString("hex");
+    const user = await createUser({
+      email: "reset.student@example.com",
+      role: "student",
+      password: "TempPass123!",
+      passwordResetRequired: true
+    });
+    user.passwordResetTokenHash = hashResetToken(token);
+    user.passwordResetExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
+    user.passwordResetRequestedAt = new Date();
+    await user.save();
+
+    await request(app)
+      .post("/api/auth/reset-password")
+      .send({
+        token,
+        newPassword: "NewSecurePass123!"
+      })
+      .expect(200);
+
+    const loginResponse = await login("reset.student@example.com", "NewSecurePass123!");
+    assert.equal(loginResponse.user.passwordResetRequired, false);
+
+    const updatedUser = await User.findById(user._id).select("+passwordResetTokenHash +passwordResetExpiresAt");
+    assert.equal(updatedUser.passwordResetTokenHash, undefined);
+    assert.equal(updatedUser.passwordResetExpiresAt, undefined);
+
+    await request(app)
+      .post("/api/auth/reset-password")
+      .send({
+        token,
+        newPassword: "AnotherSecurePass123!"
+      })
+      .expect(400);
   });
 
   test("accepting a beta application creates tester access even when email is not configured", async (t) => {

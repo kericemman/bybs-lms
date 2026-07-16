@@ -1,11 +1,25 @@
 import { Router } from "express";
 import { env } from "../config/env.js";
-import { changePassword, login, me, updateProfile, updateProfileImage } from "../controllers/authController.js";
+import {
+  changePassword,
+  forgotPassword,
+  login,
+  me,
+  resetPassword,
+  updateProfile,
+  updateProfileImage
+} from "../controllers/authController.js";
 import { requireAuth } from "../middleware/auth.js";
 import { decompressCompressedUpload, finalizeProfileImageUpload, profileImageUpload } from "../middleware/upload.js";
 import { rateLimit } from "../middleware/rateLimit.js";
 import { validate } from "../middleware/validate.js";
-import { changePasswordSchema, loginSchema, updateProfileSchema } from "../validators/authSchemas.js";
+import {
+  changePasswordSchema,
+  forgotPasswordSchema,
+  loginSchema,
+  resetPasswordSchema,
+  updateProfileSchema
+} from "../validators/authSchemas.js";
 
 export const authRoutes = Router();
 
@@ -18,6 +32,24 @@ authRoutes.post(
   }),
   validate(loginSchema),
   login
+);
+authRoutes.post(
+  "/forgot-password",
+  rateLimit({
+    windowMs: env.loginRateLimitWindowMs,
+    max: env.loginRateLimitMax
+  }),
+  validate(forgotPasswordSchema),
+  forgotPassword
+);
+authRoutes.post(
+  "/reset-password",
+  rateLimit({
+    windowMs: env.loginRateLimitWindowMs,
+    max: env.loginRateLimitMax
+  }),
+  validate(resetPasswordSchema),
+  resetPassword
 );
 authRoutes.get("/me", requireAuth, me);
 authRoutes.patch("/profile", requireAuth, validate(updateProfileSchema), updateProfile);

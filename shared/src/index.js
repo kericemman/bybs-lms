@@ -11,6 +11,7 @@ export * from "./components/EmptyState.jsx";
 export * from "./components/GlobalLoader.jsx";
 export * from "./components/NotificationsWorkspace.jsx";
 export * from "./components/PageHeader.jsx";
+export * from "./components/PasswordResetPages.jsx";
 export * from "./components/PhoneInput.jsx";
 export * from "./components/ProfileWorkspace.jsx";
 export * from "./components/ProgressBar.jsx";

@@ -8,11 +8,13 @@ import { BetaFeedbackPage } from "./pages/BetaFeedbackPage.jsx";
 import { BookingsPage } from "./pages/BookingsPage.jsx";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { DiscussionsPage } from "./pages/DiscussionsPage.jsx";
+import { ForgotPasswordPage } from "./pages/ForgotPasswordPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { ModulesPage } from "./pages/ModulesPage.jsx";
 import { NotificationsPage } from "./pages/NotificationsPage.jsx";
 import { ProfilePage } from "./pages/ProfilePage.jsx";
 import { RemindersPage } from "./pages/RemindersPage.jsx";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage.jsx";
 import { ReportsPage } from "./pages/ReportsPage.jsx";
 import { ReviewsPage } from "./pages/ReviewsPage.jsx";
 import { SessionWorkPage } from "./pages/SessionWorkPage.jsx";
@@ -25,6 +27,8 @@ export default function App() {
       <GlobalLoader />
       <Routes>
         <Route element={<LoginPage />} path="/login" />
+        <Route element={<ForgotPasswordPage />} path="/forgot-password" />
+        <Route element={<ResetPasswordPage />} path="/reset-password" />
         <Route
           path="/*"
           element={

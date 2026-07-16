@@ -15,6 +15,7 @@ export function AdminLayout({ children }) {
       activePath={location.pathname}
       navItems={visibleNavItems}
       notificationsHref={hasRole(user, ["admin", "superAdmin"]) ? "/notifications" : undefined}
+      onSignOut={logout}
       portalName="Admin Portal"
       profileHref="/profile"
       sidebarFooter={

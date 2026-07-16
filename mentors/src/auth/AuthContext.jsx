@@ -31,6 +31,14 @@ export function AuthProvider({ children }) {
     return response.user;
   }
 
+  async function forgotPassword(email) {
+    return api.post("/auth/forgot-password", { email, role: "mentor" });
+  }
+
+  async function resetPassword(payload) {
+    return api.post("/auth/reset-password", payload);
+  }
+
   async function updateProfile(payload) {
     const response = await api.patch("/auth/profile", payload);
     window.localStorage.setItem("bybs_mentor_user", JSON.stringify(response.user));
@@ -57,6 +65,8 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(token),
       login,
       changePassword,
+      forgotPassword,
+      resetPassword,
       updateProfile,
       uploadProfileImage,
       logout,

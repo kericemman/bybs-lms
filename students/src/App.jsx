@@ -11,12 +11,14 @@ import { BookingsPage } from "./pages/BookingsPage.jsx";
 import { CertificatesPage } from "./pages/CertificatesPage.jsx";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { DiscussionsPage } from "./pages/DiscussionsPage.jsx";
+import { ForgotPasswordPage } from "./pages/ForgotPasswordPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { MaterialsPage } from "./pages/MaterialsPage.jsx";
 import { NotificationsPage } from "./pages/NotificationsPage.jsx";
 import { ProfilePage } from "./pages/ProfilePage.jsx";
 import { ProgressPage } from "./pages/ProgressPage.jsx";
 import { PublicPage } from "./pages/PublicPage.jsx";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage.jsx";
 import { SupportPage } from "./pages/SupportPage.jsx";
 import { VerifyCertificatePage } from "./pages/VerifyCertificatePage.jsx";
 
@@ -31,6 +33,8 @@ export default function App() {
           <Route element={<VerifyCertificatePage />} path="/verify-certificate/:code" />
           <Route element={<VerifyCertificatePage />} path="/v/:code" />
           <Route element={<LoginPage />} path="/login" />
+          <Route element={<ForgotPasswordPage />} path="/forgot-password" />
+          <Route element={<ResetPasswordPage />} path="/reset-password" />
           <Route element={<AdminAccessRedirect />} path="/admin-access" />
           <Route
             element={

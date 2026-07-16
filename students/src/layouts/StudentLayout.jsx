@@ -39,6 +39,7 @@ export function StudentLayout({ children }) {
       navItems={studentNavItems}
       notificationCount={unreadNotifications}
       notificationsHref="/app/notifications"
+      onSignOut={logout}
       portalName="Mentee Portal"
       profileHref="/app/profile"
       searchPlaceholder="Search assignments, sessions, materials..."
