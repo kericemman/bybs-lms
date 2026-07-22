@@ -51,6 +51,7 @@ export const env = {
   requireCompressedUploads: process.env.REQUIRE_COMPRESSED_UPLOADS !== "false",
   emailLogoUrl: process.env.EMAIL_LOGO_URL || "",
   publicWebsiteUrl: process.env.PUBLIC_WEBSITE_URL || "",
+  betaFeaturesEnabled: process.env.BETA_FEATURES_ENABLED === "true",
   mentorWhatsappUrl: process.env.MENTOR_WHATSAPP_URL || "",
   mentorChannelUrl: process.env.MENTOR_CHANNEL_URL || "",
   socialFacebookUrl: process.env.SOCIAL_FACEBOOK_URL || "",

@@ -9,7 +9,6 @@ export const api = createApiClient({
 });
 
 export const studentApi = {
-  submitBetaApplication: (payload) => api.post("/public/beta-applications", payload),
   dashboard: () => api.get("/student/dashboard"),
   globalSearch: (filters = {}) => api.get(`/student/search${toQueryString({ limit: 20, ...filters })}`),
   listModules: (filters = {}) => api.get(`/student/modules${toQueryString({ limit: 100, ...filters })}`),
@@ -37,8 +36,6 @@ export const studentApi = {
   listSupportTickets: (filters = {}) => api.get(`/student/support-tickets${toQueryString({ limit: 100, ...filters })}`),
   createSupportTicket: (payload) => api.post("/student/support-tickets", payload),
   replySupportTicket: (id, payload) => api.post(`/student/support-tickets/${id}/replies`, payload),
-  listBetaFeedback: (filters = {}) => api.get(`/student/beta-feedback${toQueryString({ limit: 100, ...filters })}`),
-  createBetaFeedback: (payload) => api.post("/student/beta-feedback", payload),
   listNotifications: (filters = {}) => api.get(`/student/notifications${toQueryString({ limit: 100, ...filters })}`),
   markNotificationRead: (id) => api.patch(`/student/notifications/${id}/read`, {})
 };

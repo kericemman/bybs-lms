@@ -1,7 +1,6 @@
 import {
   BookOpen,
   CalendarClock,
-  ClipboardCheck,
   ClipboardList,
   FileText,
   GraduationCap,
@@ -36,7 +35,6 @@ export const adminNavItems = [
   { href: "/announcements", label: "Announcements", icon: Megaphone },
   { href: "/notifications", label: "Notifications", icon: Megaphone, roles: ["admin", "superAdmin"] },
   { href: "/support", label: "Support Tickets", icon: LifeBuoy },
-  { href: "/beta-applications", label: "Beta Applications", icon: ClipboardCheck },
   { href: "/system-logs", label: "System Logs", icon: ShieldAlert, roles: ["admin", "superAdmin"] },
   { href: "/settings", label: "Settings", icon: Settings, roles: ["admin", "superAdmin"] },
   { href: "/profile", label: "Profile", icon: UserCircle }

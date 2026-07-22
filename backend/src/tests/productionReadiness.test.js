@@ -8,6 +8,7 @@ process.env.SEED_SUPER_ADMIN_ON_START = "false";
 process.env.REQUIRE_COMPRESSED_UPLOADS = "true";
 process.env.RESEND_API_KEY = "";
 process.env.JWT_SECRET = "test-secret-with-more-than-32-characters";
+process.env.BETA_FEATURES_ENABLED = "false";
 
 const request = (await import("supertest")).default;
 const mongoose = (await import("mongoose")).default;
@@ -181,7 +182,7 @@ describe("production readiness controls", () => {
       .expect(400);
   });
 
-  test("accepting a beta application creates tester access even when email is not configured", async (t) => {
+  test("beta intake and acceptance are closed for production onboarding", async (t) => {
     if (!requireDatabase(t)) return;
     await createUser({
       email: "admin@example.com",
@@ -189,6 +190,18 @@ describe("production readiness controls", () => {
       password: "AdminPass123!"
     });
     const { token } = await login("admin@example.com", "AdminPass123!");
+
+    await request(app)
+      .post("/api/public/beta-applications")
+      .send({
+        applicantType: "student",
+        name: "Closed Beta Student",
+        email: "closed.beta.student@example.com",
+        phone: "+211912345678",
+        motivation: "I want to join the old beta testing flow.",
+        consent: true
+      })
+      .expect(410);
 
     const application = await BetaApplication.create({
       applicantType: "student",
@@ -203,15 +216,12 @@ describe("production readiness controls", () => {
       .patch(`/api/admin/beta-applications/${application._id}`)
       .set("Authorization", `Bearer ${token}`)
       .send({ status: "accepted" })
-      .expect(200);
+      .expect(410);
 
-    assert.equal(response.body.data.status, "accepted");
-    assert.equal(response.body.data.testerAccountStatus, "created");
-    assert.equal(response.body.data.acceptanceEmailStatus, "notConfigured");
+    assert.match(response.body.message, /closed/i);
 
     const tester = await User.findOne({ email: "beta.student@example.com" });
-    assert.equal(tester.role, "student");
-    assert.equal(tester.passwordResetRequired, true);
+    assert.equal(tester, null);
   });
 
   test("resource uploads that bypass BYBS compression metadata are rejected", async (t) => {

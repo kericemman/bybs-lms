@@ -8,9 +8,11 @@ echo
 curl -fsS https://api.lms.buildyourbestself.org/ready
 echo
 curl -fsSI https://lms.buildyourbestself.org | head -n 1
-curl -fsSI https://lms.buildyourbestself.org/beta-testing | head -n 1
+curl -fsSI https://lms.buildyourbestself.org/login | head -n 1
+curl -fsSI https://lms.buildyourbestself.org/forgot-password | head -n 1
 curl -fsSI https://lms.buildyourbestself.org/verify-certificate/staging-check | head -n 1
 curl -fsSI https://admin.lms.buildyourbestself.org | head -n 1
 curl -fsSI https://mentor.lms.buildyourbestself.org | head -n 1
+curl -fsSI https://mentor.lms.buildyourbestself.org/forgot-password | head -n 1
 
 echo "Staging checks completed."

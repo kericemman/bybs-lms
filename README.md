@@ -82,9 +82,9 @@ The student portal root (`/`) is a public BYBS LMS access page that can be share
 - Student app after login: `/app`
 - Mentor login: configured by `VITE_MENTOR_LOGIN_URL` or `VITE_MENTOR_URL`
 - Hidden admin redirect: `/admin-access`
-- Beta application page: `/beta-testing`
-- Beta tester form API: `POST /api/public/beta-applications`
-- Admin beta queue: `/beta-applications`
+- Cohort 4 access guidance is shown on the public page
+- Beta application intake is closed for production
+- Historical beta records remain available to admins through the direct archive route: `/beta-applications`
 
 Useful frontend variables:
 
@@ -93,7 +93,6 @@ VITE_MAIN_WEBSITE_URL=https://example.com
 VITE_STUDENT_LOGIN_URL=https://students.example.com/login
 VITE_MENTOR_LOGIN_URL=https://mentors.example.com/login
 VITE_ADMIN_LOGIN_URL=https://admin.example.com/login
-VITE_BETA_TESTING_URL=https://students.example.com/beta-testing
 ```
 
 ## First Admin Account

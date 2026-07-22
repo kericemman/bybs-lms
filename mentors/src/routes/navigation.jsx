@@ -27,6 +27,5 @@ export const mentorNavItems = [
   { href: "/bookings", label: "Bookings", icon: UserCheck },
   { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/reports", label: "Reports", icon: FileText },
-  { href: "/beta-feedback", label: "Beta Feedback", icon: MessageSquareText },
   { href: "/profile", label: "Profile", icon: UserCircle }
 ];

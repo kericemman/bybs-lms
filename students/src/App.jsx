@@ -5,8 +5,6 @@ import { ProtectedRoute } from "./auth/ProtectedRoute.jsx";
 import { StudentLayout } from "./layouts/StudentLayout.jsx";
 import { AdminAccessRedirect } from "./pages/AdminAccessRedirect.jsx";
 import { AssignmentsPage } from "./pages/AssignmentsPage.jsx";
-import { BetaTestingPage } from "./pages/BetaTestingPage.jsx";
-import { BetaFeedbackPage } from "./pages/BetaFeedbackPage.jsx";
 import { BookingsPage } from "./pages/BookingsPage.jsx";
 import { CertificatesPage } from "./pages/CertificatesPage.jsx";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
@@ -29,7 +27,6 @@ export default function App() {
         <GlobalLoader />
         <Routes>
           <Route element={<PublicPage />} path="/" />
-          <Route element={<BetaTestingPage />} path="/beta-testing" />
           <Route element={<VerifyCertificatePage />} path="/verify-certificate/:code" />
           <Route element={<VerifyCertificatePage />} path="/v/:code" />
           <Route element={<LoginPage />} path="/login" />
@@ -50,7 +47,6 @@ export default function App() {
                     <Route element={<BookingsPage />} path="bookings" />
                     <Route element={<NotificationsPage />} path="notifications" />
                     <Route element={<ProfilePage />} path="profile" />
-                    <Route element={<BetaFeedbackPage />} path="beta-feedback" />
                     <Route element={<SupportPage />} path="support" />
                     <Route element={<Navigate to="/app" replace />} path="*" />
                   </Routes>

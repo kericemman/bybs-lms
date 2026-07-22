@@ -49,7 +49,5 @@ export const mentorApi = {
   listReports: (filters = {}) => api.get(`/mentor/reports${toQueryString({ limit: 100, ...filters })}`),
   createReport: (payload) => api.post("/mentor/reports", payload),
   updateReport: (id, payload) => api.patch(`/mentor/reports/${id}`, payload),
-  deleteReport: (id) => api.delete(`/mentor/reports/${id}`),
-  listBetaFeedback: (filters = {}) => api.get(`/mentor/beta-feedback${toQueryString({ limit: 100, ...filters })}`),
-  createBetaFeedback: (payload) => api.post("/mentor/beta-feedback", payload)
+  deleteReport: (id) => api.delete(`/mentor/reports/${id}`)
 };

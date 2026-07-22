@@ -1,7 +1,5 @@
 export * from "./components/AppShell.jsx";
 export * from "./components/AddToCalendarButton.jsx";
-export * from "./components/BetaApplicationPage.jsx";
-export * from "./components/BetaFeedbackWorkspace.jsx";
 export * from "./components/Button.jsx";
 export * from "./components/Card.jsx";
 export * from "./components/ChangePasswordPanel.jsx";

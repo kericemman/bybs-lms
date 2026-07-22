@@ -112,8 +112,7 @@ export function PublicGatewayPage({
   logoSrc = "/assets/Logo1.png",
   mainWebsiteUrl = "https://buildyourbestself.org",
   studentLoginUrl = "/login",
-  mentorLoginUrl = "http://localhost:5174/login",
-  betaUrl = "/beta-testing"
+  mentorLoginUrl = "http://localhost:5174/login"
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(true);
@@ -124,8 +123,9 @@ export function PublicGatewayPage({
   }, []);
 
   const navLinks = [
+    { label: "About", href: "#about" },
     { label: "Portals", href: "#portals" },
-    { label: "Beta", href: "#beta" },
+    { label: "Cohort 4", href: "#cohort-4" },
     { label: "BYBS website", href: mainWebsiteUrl }
   ];
 
@@ -159,8 +159,8 @@ export function PublicGatewayPage({
             <Button as="a" href={mentorLoginUrl} size="sm" variant="secondary">
               Mentor login
             </Button>
-            <Button as="a" href={betaUrl} size="sm">
-              Beta testing
+            <Button as="a" href="#cohort-4" size="sm">
+              Cohort 4 access
             </Button>
           </nav>
 
@@ -190,8 +190,8 @@ export function PublicGatewayPage({
                 <Button as="a" href={mentorLoginUrl} onClick={() => setMenuOpen(false)} size="sm" variant="secondary">
                   Mentor login
                 </Button>
-                <Button as="a" href={betaUrl} onClick={() => setMenuOpen(false)} size="sm">
-                  Beta testing
+                <Button as="a" href="#cohort-4" onClick={() => setMenuOpen(false)} size="sm">
+                  Cohort 4 access
                 </Button>
               </div>
             </div>
@@ -336,8 +336,8 @@ export function PublicGatewayPage({
                   Choose your BYBS workspace.
                 </h2>
               </div>
-              <Button as="a" className="w-full sm:w-auto" href={betaUrl} icon={ArrowRight} variant="secondary">
-                Apply for beta testing
+              <Button as="a" className="w-full sm:w-auto" href="#cohort-4" icon={ArrowRight} variant="secondary">
+                Cohort 4 onboarding
               </Button>
             </div>
 
@@ -393,43 +393,48 @@ export function PublicGatewayPage({
           </div>
         </section>
 
-        <section className="bg-white" id="beta">
+        <section className="bg-white" id="cohort-4">
           <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
             <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
               <div>
-                <p className="text-sm font-bold uppercase tracking-[0.16em] text-bybs-rose">BYBS LMS beta testing</p>
+                <p className="text-sm font-bold uppercase tracking-[0.16em] text-bybs-rose">Cohort 4 onboarding</p>
                 <h2 className="mt-3 font-display text-4xl font-semibold leading-tight text-bybs-navy sm:text-5xl">
-                  Help shape the final learning experience before launch.
+                  The BYBS LMS is ready for the live fellowship experience.
                 </h2>
                 <p className="mt-4 text-base leading-8 text-bybs-body">
-                  Selected mentees and mentors will be invited to test the system, explore the features, report issues,
-                  and share honest feedback before the LMS is fully launched.
+                  Cohort 4 mentees and mentors should use the portals below once their accounts have been created by the
+                  BYBS team. New applicants and general visitors should continue through the main BYBS website.
                 </p>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <Pillar
-                  description="Test resources, assignments, submissions, progress tracking, discussions, mentor booking, and support."
+                  description="Use your account to access modules, resources, assignments, submissions, mentor booking, progress, certificates, support, and announcements."
                   icon={GraduationCap}
-                  title="Mentee beta testing"
+                  title="Cohort 4 mentees"
                 />
                 <Pillar
-                  description="Test mentee tracking, assignment reviews, uploads, session management, reminders, availability, and reports."
+                  description="Use your mentor account to view assigned modules, upload session work, review submissions, track attendance, send reminders, and submit reports."
                   icon={UserRoundCheck}
-                  title="Mentor beta testing"
+                  title="Cohort 4 mentors"
                 />
               </div>
             </div>
             <div className="mt-8 rounded-lg border border-bybs-border bg-bybs-pale p-5 sm:flex sm:items-center sm:justify-between sm:gap-6">
               <div>
-                <h3 className="text-lg font-bold text-bybs-navy">Why your feedback matters</h3>
+                <h3 className="text-lg font-bold text-bybs-navy">Already received your LMS login?</h3>
                 <p className="mt-2 text-sm leading-6 text-bybs-body">
-                  Every comment, suggestion, and issue report helps BYBS make the LMS simple, reliable, organized, and
-                  meaningful for the fellowship community.
+                  Choose the correct portal and sign in with the details sent by the BYBS team. For access issues, use
+                  the support tools inside the platform or contact BYBS through the official website.
                 </p>
               </div>
-              <Button as="a" className="mt-4 w-full sm:mt-0 sm:w-auto" href={betaUrl} icon={ArrowRight}>
-                Join beta testing
-              </Button>
+              <div className="mt-4 grid gap-2 sm:mt-0 sm:grid-cols-2">
+                <Button as="a" className="w-full" href={studentLoginUrl} icon={GraduationCap}>
+                  Mentee login
+                </Button>
+                <Button as="a" className="w-full" href={mentorLoginUrl} icon={UserRoundCheck} variant="secondary">
+                  Mentor login
+                </Button>
+              </div>
             </div>
           </div>
         </section>
@@ -442,8 +447,8 @@ export function PublicGatewayPage({
                 Visit the main BYBS website for the wider mission, programs, and community.
               </h2>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-bybs-body">
-                If you are having trouble accessing your account, applying for beta testing, or using the platform,
-                contact the BYBS team through the official website.
+                If you are having trouble accessing your account, joining Cohort 4, or using the platform, contact the
+                BYBS team through the official website.
               </p>
             </div>
             <Button as="a" className="w-full sm:w-auto" href={mainWebsiteUrl} icon={ArrowRight}>
@@ -466,7 +471,7 @@ export function PublicGatewayPage({
             <a className="text-white/80 hover:text-white" href={mainWebsiteUrl}>Main website</a>
             <a className="text-white/80 hover:text-white" href={studentLoginUrl}>Mentee login</a>
             <a className="text-white/80 hover:text-white" href={mentorLoginUrl}>Mentor login</a>
-            <a className="text-white/80 hover:text-white" href={betaUrl}>Beta testing</a>
+            <a className="text-white/80 hover:text-white" href="#cohort-4">Cohort 4</a>
           </div>
           <p className="text-sm text-white/70">Designed and maintained by TDAG.</p>
         </div>

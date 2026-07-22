@@ -175,6 +175,10 @@ function acceptanceEmailFailureMessage(application) {
 }
 
 export const createBetaApplication = asyncHandler(async (req, res) => {
+  if (!env.betaFeaturesEnabled) {
+    throw new ApiError(410, "Beta testing applications are now closed.");
+  }
+
   const payload = sanitizeApplicationPayload(req.body);
   const existingApplication = await BetaApplication.findOne({
     email: payload.email,
@@ -241,6 +245,10 @@ export const updateBetaApplication = asyncHandler(async (req, res) => {
   const wasAccepted = application.status === "accepted";
   const willAccept = req.body.status === "accepted";
 
+  if (willAccept && !env.betaFeaturesEnabled) {
+    throw new ApiError(410, "Beta acceptance is closed. Manage Cohort 4 users from the live mentees and mentors sections.");
+  }
+
   if (Object.prototype.hasOwnProperty.call(req.body, "status")) {
     application.status = req.body.status;
     application.reviewedBy = req.user._id;
@@ -264,6 +272,10 @@ export const updateBetaApplication = asyncHandler(async (req, res) => {
 });
 
 export const sendBetaApplicationAcceptanceEmail = asyncHandler(async (req, res) => {
+  if (!env.betaFeaturesEnabled) {
+    throw new ApiError(410, "Beta acceptance emails are closed. Manage Cohort 4 users from the live mentees and mentors sections.");
+  }
+
   const application = await BetaApplication.findById(req.params.id);
 
   if (!application) {

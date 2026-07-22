@@ -4,7 +4,6 @@ import { ProtectedRoute } from "./auth/ProtectedRoute.jsx";
 import { MentorLayout } from "./layouts/MentorLayout.jsx";
 import { AttendancePage } from "./pages/AttendancePage.jsx";
 import { AvailabilityPage } from "./pages/AvailabilityPage.jsx";
-import { BetaFeedbackPage } from "./pages/BetaFeedbackPage.jsx";
 import { BookingsPage } from "./pages/BookingsPage.jsx";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { DiscussionsPage } from "./pages/DiscussionsPage.jsx";
@@ -48,7 +47,6 @@ export default function App() {
                   <Route element={<BookingsPage />} path="bookings" />
                   <Route element={<NotificationsPage />} path="notifications" />
                   <Route element={<ReportsPage />} path="reports" />
-                  <Route element={<BetaFeedbackPage />} path="beta-feedback" />
                   <Route element={<ProfilePage />} path="profile" />
                   <Route element={<Navigate to="/" replace />} path="*" />
                 </Routes>

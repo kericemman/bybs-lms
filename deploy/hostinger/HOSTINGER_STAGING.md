@@ -230,11 +230,11 @@ bash deploy/hostinger/check-staging.sh
 Then test manually:
 
 - Visit public page
-- Submit beta application
 - Login as super admin
-- Accept a beta tester
+- Confirm Cohort 4 cohorts, mentees, mentors, modules, and sessions are visible in admin
 - Confirm email delivery
-- Confirm tester login
+- Confirm mentor and mentee login
+- Confirm mentor and mentee forgot/reset password email delivery
 - Change temporary password
 - Upload a PDF/image/document and verify it lands in Cloudinary
 - Submit and review a student assignment
@@ -262,5 +262,4 @@ bash deploy/hostinger/check-staging.sh
 ## 12. Important
 
 Do not use local `/uploads` as permanent staging storage. If Cloudinary is not configured, uploads will fall back locally only for development-style testing.
-
 

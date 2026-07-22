@@ -29,7 +29,6 @@ import {
   updateStudentBooking
 } from "../controllers/studentController.js";
 import { uploadResourceFile } from "../controllers/uploadController.js";
-import { createBetaFeedback, listMyBetaFeedback } from "../controllers/betaFeedbackController.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { decompressCompressedUpload, finalizeResourceUpload, resourceUpload } from "../middleware/upload.js";
 import { validate } from "../middleware/validate.js";
@@ -44,7 +43,6 @@ import {
   submitAssignmentSchema,
   updateBookingSchema
 } from "../validators/studentSchemas.js";
-import { createBetaFeedbackSchema, listMyBetaFeedbackSchema } from "../validators/betaFeedbackSchemas.js";
 import {
   createDiscussionCommentSchema,
   createPortalDiscussionSchema,
@@ -87,6 +85,4 @@ studentRoutes.post("/support-tickets", validate(createSupportTicketSchema), crea
 studentRoutes.post("/support-tickets/:id/replies", validate(replySupportTicketSchema), replyStudentSupportTicket);
 studentRoutes.get("/notifications", validate(studentListSchema), listStudentNotifications);
 studentRoutes.patch("/notifications/:id/read", validate(notificationParamsSchema), markStudentNotificationRead);
-studentRoutes.get("/beta-feedback", validate(listMyBetaFeedbackSchema), listMyBetaFeedback);
-studentRoutes.post("/beta-feedback", validate(createBetaFeedbackSchema), createBetaFeedback);
 studentRoutes.post("/uploads", resourceUpload.single("file"), decompressCompressedUpload, finalizeResourceUpload, uploadResourceFile);

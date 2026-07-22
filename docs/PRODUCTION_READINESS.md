@@ -7,10 +7,10 @@ This checklist separates what is already in place from what must be verified in 
 - Separate admin, mentor, student, and shared frontend workspaces
 - Express API with MongoDB models and role-based route protection
 - Super admin seed flow
-- Public BYBS access page and beta application form
-- Admin beta queue, acceptance flow, accepted tester sections, and beta feedback review
-- Mentor session work, resource upload, assignment creation, reminders, reviews, reports, and beta feedback
-- Student materials, assignments, submissions, progress, bookings, support tickets, notifications, and beta feedback
+- Public BYBS access page for live Cohort 4 onboarding and portal login
+- Historical beta archive for admin review without public beta intake
+- Mentor session work, resource upload, assignment creation, reminders, reviews, and reports
+- Student materials, assignments, submissions, progress, bookings, support tickets, and notifications
 - Resend/SMTP email delivery support
 - Admin slow-request and server-error alerts
 - Cloudinary upload integration with local fallback
@@ -21,8 +21,8 @@ This checklist separates what is already in place from what must be verified in 
 
 - Real login for super admin, admin, mentor, and student accounts
 - First-login password change after temporary credentials are emailed
-- Beta application submission from the public page
-- Accepting beta applications creates/reuses tester accounts and sends email
+- Cohort 4 onboarding flow through cohorts, mentees, mentors, modules, sessions, announcements, and login emails
+- Forgot/reset password flow for mentor and mentee accounts
 - Cloudinary uploads for images, PDFs, docs, slides, CSV import, and student submission files
 - Announcement emails render logo and inline content images from public URLs
 - Student support ticket lifecycle from student reply to admin resolution

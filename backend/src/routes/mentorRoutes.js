@@ -43,7 +43,6 @@ import { requireAuth, requireRole } from "../middleware/auth.js";
 import { decompressCompressedUpload, finalizeResourceUpload, resourceUpload } from "../middleware/upload.js";
 import { validate } from "../middleware/validate.js";
 import { uploadResourceFile } from "../controllers/uploadController.js";
-import { createBetaFeedback, listMyBetaFeedback } from "../controllers/betaFeedbackController.js";
 import { idParamsSchema } from "../validators/commonSchemas.js";
 import {
   mentorGraduationApprovalSchema
@@ -68,7 +67,6 @@ import {
   updateMentorSessionAttendanceSchema,
   updateMentorReportSchema
 } from "../validators/mentorSchemas.js";
-import { createBetaFeedbackSchema, listMyBetaFeedbackSchema } from "../validators/betaFeedbackSchemas.js";
 import {
   createDiscussionCommentSchema,
   createPortalDiscussionSchema,
@@ -127,6 +125,3 @@ mentorRoutes.get("/reports", validate(mentorListSchema), listMentorReports);
 mentorRoutes.post("/reports", validate(createMentorReportSchema), createMentorReport);
 mentorRoutes.patch("/reports/:id", validate(updateMentorReportSchema), updateMentorReport);
 mentorRoutes.delete("/reports/:id", validate(idParamsSchema), archiveMentorReport);
-
-mentorRoutes.get("/beta-feedback", validate(listMyBetaFeedbackSchema), listMyBetaFeedback);
-mentorRoutes.post("/beta-feedback", validate(createBetaFeedbackSchema), createBetaFeedback);

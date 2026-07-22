@@ -21,6 +21,5 @@ export const studentNavItems = [
   { href: "/app/bookings", label: "Mentor Booking", icon: CalendarCheck },
   { href: "/app/notifications", label: "Notifications", icon: Bell },
   { href: "/app/profile", label: "Profile", icon: UserCircle },
-  { href: "/app/beta-feedback", label: "Beta Feedback", icon: MessageSquareText },
   { href: "/app/support", label: "Support", icon: LifeBuoy }
 ];

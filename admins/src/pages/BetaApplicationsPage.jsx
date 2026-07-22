@@ -385,8 +385,8 @@ export function BetaApplicationsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        description="Review mentee and mentor beta tester applications submitted from the public access page."
-        title="Beta Applications"
+        description="Archived beta applications and feedback from the completed BYBS LMS testing window."
+        title="Beta Archive"
       />
 
       <div className="rounded-lg border border-bybs-border bg-bybs-pale p-4 shadow-sm">
@@ -395,10 +395,11 @@ export function BetaApplicationsPage() {
             <CalendarCheck className="h-5 w-5" aria-hidden="true" />
           </span>
           <div>
-            <p className="text-sm font-semibold uppercase text-bybs-blue">Beta testing window</p>
+            <p className="text-sm font-semibold uppercase text-bybs-blue">Completed beta window</p>
             <h2 className="mt-1 text-lg font-semibold text-bybs-navy">July 3 to July 17, 2026</h2>
             <p className="mt-1 text-sm leading-6 text-bybs-body">
-              Use this page to review applications, confirm selected testers, and track follow-up during the two-week beta period.
+              This archive is kept for historical review. Cohort 4 onboarding should now be managed through the live cohorts,
+              mentees, mentors, modules, sessions, and announcements sections.
             </p>
           </div>
         </div>
@@ -408,7 +409,7 @@ export function BetaApplicationsPage() {
         <div className="space-y-3">
           <div>
             <p className="text-sm font-semibold uppercase text-bybs-blue">Accepted mentee testers</p>
-            <p className="mt-1 text-sm text-bybs-body">Mentees approved for BYBS LMS beta testing.</p>
+            <p className="mt-1 text-sm text-bybs-body">Mentees approved during the completed BYBS LMS beta.</p>
           </div>
           <DataTable
             columns={[
@@ -462,7 +463,7 @@ export function BetaApplicationsPage() {
         <div className="space-y-3">
           <div>
             <p className="text-sm font-semibold uppercase text-bybs-rose">Accepted mentor testers</p>
-            <p className="mt-1 text-sm text-bybs-body">Mentors approved for BYBS LMS beta testing.</p>
+            <p className="mt-1 text-sm text-bybs-body">Mentors approved during the completed BYBS LMS beta.</p>
           </div>
           <DataTable
             columns={[
@@ -724,10 +725,10 @@ export function BetaApplicationsPage() {
               <MessageSquareText className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
-              <p className="text-sm font-semibold uppercase text-bybs-blue">Beta feedback inbox</p>
+              <p className="text-sm font-semibold uppercase text-bybs-blue">Archived beta feedback</p>
               <h2 className="mt-1 text-lg font-semibold text-bybs-navy">Feedback from mentees and mentors</h2>
               <p className="mt-1 text-sm leading-6 text-bybs-body">
-                Review what testers are experiencing inside the mentee and mentor portals, then mark items reviewed or resolved.
+                Review what testers experienced inside the mentee and mentor portals during the completed beta window.
               </p>
             </div>
           </div>
