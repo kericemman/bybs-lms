@@ -53,6 +53,28 @@ npm --workspace backend run cleanup:beta -- --confirm --delete-beta-created-user
 
 The user cleanup only targets accounts linked from beta applications where the beta flow created the account. Existing users linked to beta applications are not included in that user cleanup.
 
+## Full Program Archive And Reset
+
+To clear the old program data before onboarding Cohort 4, run a dry run first:
+
+```bash
+npm --workspace backend run cleanup:program
+```
+
+Then archive the old records into `backend/archives/` and delete them from MongoDB:
+
+```bash
+npm --workspace backend run cleanup:program -- --confirm=ARCHIVE_AND_RESET_PROGRAM_DATA
+```
+
+This clears mentors, mentees, cohorts, modules, sessions, resources, assignments, submissions, bookings, reports, reminders, certificates, discussions, support tickets, beta records, mentor availability, and mentor/mentee notifications. Admin, admin manager, and super admin users are preserved.
+
+System logs are preserved by default. To archive and clear system logs too:
+
+```bash
+npm --workspace backend run cleanup:program -- --confirm=ARCHIVE_AND_RESET_PROGRAM_DATA --include-system-logs
+```
+
 ## Required Production Environment
 
 ```txt
