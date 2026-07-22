@@ -31,6 +31,28 @@ This checklist separates what is already in place from what must be verified in 
 - Admin alert emails for slow requests and server errors
 - Mobile navigation and form responsiveness across all three portals
 
+## Beta Record Cleanup
+
+Beta testing data should be cleared before live Cohort 4 onboarding. Run a dry run first:
+
+```bash
+npm --workspace backend run cleanup:beta
+```
+
+Then delete beta application and beta feedback records:
+
+```bash
+npm --workspace backend run cleanup:beta -- --confirm
+```
+
+Only if beta-created tester accounts should also be removed, run:
+
+```bash
+npm --workspace backend run cleanup:beta -- --confirm --delete-beta-created-users
+```
+
+The user cleanup only targets accounts linked from beta applications where the beta flow created the account. Existing users linked to beta applications are not included in that user cleanup.
+
 ## Required Production Environment
 
 ```txt
