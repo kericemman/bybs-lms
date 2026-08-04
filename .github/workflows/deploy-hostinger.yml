@@ -1,0 +1,84 @@
+name: Deploy BYBS LMS to Hostinger VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: hostinger-vps-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build, Test, And Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      APP_DIR: /var/www/bybs-lms
+      DEPLOY_BRANCH: main
+      SERVICE_NAME: bybs-lms-api
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Portals
+        run: npm run build
+
+      - name: Run Backend Tests
+        env:
+          MONGO_MEMORY_PORT: 27029
+          MONGO_MEMORY_DB_PATH: /tmp/bybs-lms-mongodb-27029
+          MONGO_MEMORY_DOWNLOAD_DIR: /tmp/bybs-lms-mongodb-binaries
+        run: npm run test:backend
+
+      - name: Configure SSH
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          if [ -z "$VPS_HOST" ]; then
+            echo "Missing GitHub secret: VPS_HOST"
+            exit 1
+          fi
+
+          if [ -z "$VPS_SSH_KEY" ]; then
+            echo "Missing GitHub secret: VPS_SSH_KEY"
+            exit 1
+          fi
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/bybs_lms_vps_key
+          chmod 600 ~/.ssh/bybs_lms_vps_key
+          ssh-keyscan -p "${VPS_PORT:-22}" "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy On VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          if [ -z "$VPS_USER" ]; then
+            echo "Missing GitHub secret: VPS_USER"
+            exit 1
+          fi
+
+          ssh -i ~/.ssh/bybs_lms_vps_key -p "${VPS_PORT:-22}" "$VPS_USER@$VPS_HOST" \
+            "APP_DIR='$APP_DIR' DEPLOY_BRANCH='$DEPLOY_BRANCH' SERVICE_NAME='$SERVICE_NAME' bash -s" \
+            < deploy/hostinger/deploy-latest.sh

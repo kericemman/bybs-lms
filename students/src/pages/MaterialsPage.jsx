@@ -33,6 +33,9 @@ const fileTypeLabels = {
   xlsx: "spreadsheet"
 };
 
+const materialButtonClassName =
+  "w-full !bg-bybs-blue !text-white shadow-sm hover:!bg-bybs-blueHover focus-visible:!ring-bybs-pale sm:w-auto";
+
 function materialActionTarget(material) {
   const fileType = String(material.fileType || "").trim().toLowerCase();
   const type = String(material.type || "").trim().toLowerCase();
@@ -101,16 +104,27 @@ export function MaterialsPage() {
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Button
                     as="a"
+                    className={materialButtonClassName}
                     href={materialUrl}
                     icon={ExternalLink}
                     rel="noreferrer"
                     size="sm"
                     target="_blank"
+                    variant="primary"
                   >
                     {viewActionLabel(material)}
                   </Button>
                   {canDownload ? (
-                    <Button as="a" download href={materialDownloadUrl} icon={Download} rel="noreferrer" size="sm">
+                    <Button
+                      as="a"
+                      className={materialButtonClassName}
+                      download
+                      href={materialDownloadUrl}
+                      icon={Download}
+                      rel="noreferrer"
+                      size="sm"
+                      variant="primary"
+                    >
                       Download {materialActionTarget(material)}
                     </Button>
                   ) : null}
