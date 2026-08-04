@@ -7,9 +7,9 @@ import { PageHeader } from "./PageHeader.jsx";
 import { PhoneInput } from "./PhoneInput.jsx";
 
 const inputClassName =
-  "h-11 w-full rounded-md border border-bybs-border bg-white px-3 text-sm outline-none transition focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale";
+  "h-11 w-full min-w-0 rounded-md border border-bybs-border bg-white px-3 text-sm outline-none transition focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale";
 const textAreaClassName =
-  "min-h-36 w-full rounded-md border border-bybs-border bg-white px-3 py-2 text-sm outline-none transition focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale";
+  "min-h-36 w-full min-w-0 resize-y rounded-md border border-bybs-border bg-white px-3 py-2 text-sm outline-none transition focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale";
 
 function fieldValue(value) {
   return value || "";
@@ -107,10 +107,10 @@ export function ProfileWorkspace({
   const roleLabel = user?.role ? ROLE_LABELS[user.role] || user.role : "BYBS user";
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full overflow-x-hidden space-y-6">
       <PageHeader description={description} title={title} />
 
-      <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
+      <div className="grid min-w-0 max-w-full gap-6 xl:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
         <Card className="self-start">
           <div className="flex flex-col items-center text-center">
             <div className="relative">
@@ -155,8 +155,8 @@ export function ProfileWorkspace({
         </Card>
 
         <Card>
-          <form className="grid gap-4 lg:grid-cols-2" onSubmit={handleSubmit}>
-            <label className="block">
+          <form className="grid min-w-0 max-w-full gap-4 lg:grid-cols-2" onSubmit={handleSubmit}>
+            <label className="block min-w-0">
               <span className="text-sm font-medium text-bybs-body">Full name</span>
               <input
                 className={`${inputClassName} mt-1`}
@@ -166,14 +166,14 @@ export function ProfileWorkspace({
               />
             </label>
 
-            <label className="block">
+            <label className="block min-w-0">
               <span className="text-sm font-medium text-bybs-body">Phone</span>
               <div className="mt-1">
                 <PhoneInput onChange={(phone) => updateField("phone", phone)} value={form.phone} />
               </div>
             </label>
 
-            <label className="block lg:col-span-2">
+            <label className="block min-w-0 lg:col-span-2">
               <span className="text-sm font-medium text-bybs-body">About</span>
               <textarea
                 className={`${textAreaClassName} mt-1`}

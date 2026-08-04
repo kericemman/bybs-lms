@@ -34,7 +34,18 @@ function safePublicId(file) {
     .replace(/^-+|-+$/g, "")
     .slice(0, 60) || "upload";
 
-  return `${Date.now()}-${cleanBase}`;
+  const shouldKeepExtension = !String(file.mimetype || "").startsWith("image/") && !String(file.mimetype || "").startsWith("video/");
+  return `${Date.now()}-${cleanBase}${shouldKeepExtension ? extension.toLowerCase() : ""}`;
+}
+
+function uploadResourceType(file) {
+  const mimeType = String(file.mimetype || "");
+
+  if (mimeType.startsWith("image/") || mimeType.startsWith("video/")) {
+    return "auto";
+  }
+
+  return "raw";
 }
 
 async function fileBlob(file) {
@@ -52,6 +63,7 @@ export async function uploadToCloudinary(file) {
   }
 
   const timestamp = Math.round(Date.now() / 1000);
+  const resourceType = uploadResourceType(file);
   const uploadParams = {
     folder: cloudinaryValue(env.cloudinaryFolder),
     public_id: safePublicId(file),
@@ -66,7 +78,7 @@ export async function uploadToCloudinary(file) {
   formData.append("signature", signatureFor(uploadParams));
   formData.append("file", await fileBlob(file), file.originalname || file.filename || "upload");
 
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryValue(env.cloudinaryCloudName)}/auto/upload`, {
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryValue(env.cloudinaryCloudName)}/${resourceType}/upload`, {
     method: "POST",
     body: formData
   });

@@ -12,6 +12,7 @@ export function AddToCalendarButton({
   variant = "secondary"
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState({});
   const menuRef = useRef(null);
   const canAdd = Boolean(event?.startsAt);
   const googleUrl = canAdd ? googleCalendarUrl(event) : "";
@@ -19,6 +20,42 @@ export function AddToCalendarButton({
 
   useEffect(() => {
     if (!isOpen) return undefined;
+
+    function updateMenuPosition() {
+      if (typeof window === "undefined" || !menuRef.current) return;
+
+      const rect = menuRef.current.getBoundingClientRect();
+      const margin = 12;
+      const gap = 8;
+      const menuWidth = 176;
+      const isSmallScreen = window.matchMedia("(max-width: 639px)").matches;
+
+      if (isSmallScreen) {
+        setMenuStyle({
+          bottom: 16,
+          left: margin,
+          maxHeight: "calc(100dvh - 2rem)",
+          right: margin
+        });
+        return;
+      }
+
+      const left = Math.min(Math.max(margin, rect.right - menuWidth), window.innerWidth - menuWidth - margin);
+      const availableBelow = window.innerHeight - rect.bottom - gap - margin;
+      const shouldOpenAbove = availableBelow < 132 && rect.top > availableBelow;
+      const top = shouldOpenAbove
+        ? Math.max(margin, rect.top - gap - 132)
+        : Math.min(rect.bottom + gap, window.innerHeight - margin);
+
+      setMenuStyle({
+        left,
+        maxHeight: `calc(100dvh - ${Math.max(margin, top)}px - ${margin}px)`,
+        top,
+        width: menuWidth
+      });
+    }
+
+    updateMenuPosition();
 
     function handlePointerDown(pointerEvent) {
       if (!menuRef.current?.contains(pointerEvent.target)) {
@@ -34,10 +71,14 @@ export function AddToCalendarButton({
 
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", updateMenuPosition);
+    window.addEventListener("scroll", updateMenuPosition, true);
 
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", updateMenuPosition);
+      window.removeEventListener("scroll", updateMenuPosition, true);
     };
   }, [isOpen]);
 
@@ -56,7 +97,7 @@ export function AddToCalendarButton({
       </Button>
 
       {isOpen ? (
-        <span className="absolute right-0 top-full z-30 mt-2 w-44 overflow-hidden rounded-md border border-bybs-border bg-white py-1 text-sm shadow-lg">
+        <span className="fixed z-[80] overflow-y-auto rounded-md border border-bybs-border bg-white py-1 text-sm shadow-lg" style={menuStyle}>
           {googleUrl ? (
             <a
               className="flex items-center gap-2 px-3 py-2 text-bybs-body hover:bg-bybs-pale hover:text-bybs-blue"

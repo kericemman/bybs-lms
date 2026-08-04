@@ -1,4 +1,4 @@
-import { ClipboardList, ExternalLink, Send, Upload } from "lucide-react";
+import { ClipboardList, Download, ExternalLink, Send, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   AddToCalendarButton,
@@ -9,10 +9,12 @@ import {
   RichTextEditor,
   SafeHtml,
   StatusBadge,
+  downloadFileUrl,
+  normalizeFileUrl,
   validateResourceFile
 } from "@bybs/shared";
 import { AssignmentInstructions } from "../components/AssignmentInstructions.jsx";
-import { studentApi } from "../services/api.js";
+import { apiBaseUrl, studentApi } from "../services/api.js";
 import { formatDate, titleFor } from "../utils/format.js";
 
 function submissionStatus(assignment) {
@@ -122,6 +124,15 @@ export function AssignmentsPage() {
     }
   }
 
+  const activeTemplateUrl = activeAssignment?.templateFileUrl
+    ? normalizeFileUrl(activeAssignment.templateFileUrl, apiBaseUrl)
+    : "";
+  const activeTemplateDownloadUrl = activeAssignment?.templateFileUrl
+    ? downloadFileUrl(activeAssignment.templateFileUrl, apiBaseUrl)
+    : "";
+  const uploadedFileUrl = uploadedFile?.url ? normalizeFileUrl(uploadedFile.url, apiBaseUrl) : "";
+  const uploadedFileDownloadUrl = uploadedFile?.url ? downloadFileUrl(uploadedFile.url, apiBaseUrl) : "";
+
   return (
     <div className="min-w-0 max-w-full overflow-x-hidden space-y-6">
       <PageHeader
@@ -147,19 +158,23 @@ export function AssignmentsPage() {
 
           <AssignmentInstructions instructions={activeAssignment.instructions} />
 
-          {activeAssignment.templateFileUrl ? (
-            <Button
-              as="a"
-              className="mt-4"
-              href={activeAssignment.templateFileUrl}
-              icon={ExternalLink}
-              rel="noreferrer"
-              size="sm"
-              target="_blank"
-              variant="secondary"
-            >
-              Open template
-            </Button>
+          {activeTemplateUrl ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                as="a"
+                href={activeTemplateUrl}
+                icon={ExternalLink}
+                rel="noreferrer"
+                size="sm"
+                target="_blank"
+                variant="secondary"
+              >
+                Open template
+              </Button>
+              <Button as="a" download href={activeTemplateDownloadUrl} icon={Download} rel="noreferrer" size="sm" variant="secondary">
+                Download template
+              </Button>
+            </div>
           ) : null}
 
           {activeAssignment.resourceLinks?.length ? (
@@ -194,7 +209,21 @@ export function AssignmentsPage() {
               <p className="mt-2 text-xs text-bybs-muted">
                 Supported: PDF, Word, PowerPoint, Excel, CSV, text, image, or MP4. Maximum size: 50 MB.
               </p>
-              {uploadedFile ? <p className="mt-2 text-sm text-bybs-body">{uploadedFile.originalName || uploadedFile.url}</p> : null}
+              {uploadedFile ? (
+                <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 text-sm text-bybs-body">
+                  <span className="min-w-0 truncate">{uploadedFile.originalName || "Submitted file"}</span>
+                  {uploadedFileUrl ? (
+                    <>
+                      <Button as="a" href={uploadedFileUrl} icon={ExternalLink} rel="noreferrer" size="sm" target="_blank" variant="secondary">
+                        Open file
+                      </Button>
+                      <Button as="a" download href={uploadedFileDownloadUrl} icon={Download} rel="noreferrer" size="sm" variant="secondary">
+                        Download
+                      </Button>
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
 
             <label className="block min-w-0">

@@ -82,7 +82,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full overflow-x-hidden space-y-6">
       <PageHeader
         actions={
           <>
@@ -174,18 +174,18 @@ export function DashboardPage() {
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
           <SectionHeader title="Next sessions" />
-          <div id="next-sessions">
+          <div className="min-w-0" id="next-sessions">
             {!sessions.length ? (
               <EmptyState description="Scheduled sessions will appear here." title="No upcoming sessions" />
             ) : (
               <div className="space-y-3">
                 {sessions.map((session) => (
-                  <div className="rounded-md bg-bybs-pale p-4" key={session._id}>
-                    <p className="font-medium text-bybs-navy">{session.title}</p>
-                    <p className="mt-1 text-sm text-bybs-body">{titleFor(session.module, "No module")} · {formatCatDateTime(session.startsAt)}</p>
+                  <div className="min-w-0 rounded-md bg-bybs-pale p-4" key={session._id}>
+                    <p className="break-words font-medium text-bybs-navy">{session.title}</p>
+                    <p className="mt-1 break-words text-sm text-bybs-body">{titleFor(session.module, "No module")} · {formatCatDateTime(session.startsAt)}</p>
                     <p className="mt-1 text-xs text-bybs-muted">Mentor: {sessionMentorName(session)}</p>
                     {session.zoomLink ? (
-                      <a className="mt-2 inline-block text-sm font-medium text-bybs-blue" href={session.zoomLink} rel="noreferrer" target="_blank">
+                      <a className="mt-2 inline-block max-w-full break-words text-sm font-medium text-bybs-blue" href={session.zoomLink} rel="noreferrer" target="_blank">
                         Join session
                       </a>
                     ) : null}
@@ -206,9 +206,9 @@ export function DashboardPage() {
           ) : (
             <div className="space-y-3">
               {assignments.map((assignment) => (
-                <div className="rounded-md bg-white p-4 ring-1 ring-bybs-border" key={assignment._id}>
-                  <p className="font-medium text-bybs-navy">{assignment.title}</p>
-                  <p className="mt-1 text-sm text-bybs-body">{titleFor(assignment.module, "No module")} · Due {formatDate(assignment.dueDate)}</p>
+                <div className="min-w-0 rounded-md bg-white p-4 ring-1 ring-bybs-border" key={assignment._id}>
+                  <p className="break-words font-medium text-bybs-navy">{assignment.title}</p>
+                  <p className="mt-1 break-words text-sm text-bybs-body">{titleFor(assignment.module, "No module")} · Due {formatDate(assignment.dueDate)}</p>
                   <p className="mt-1 text-sm text-bybs-muted">Posted by {postedBy(assignment)}</p>
                   <div className="mt-3">
                     <AddToCalendarButton event={assignmentCalendarEvent(assignment)} fileName={`bybs-assignment-${assignment._id}`} />
@@ -225,9 +225,9 @@ export function DashboardPage() {
           <SectionHeader title="Recent updates" />
           <div className="space-y-3">
             {notifications.map((notification) => (
-              <div className="rounded-md bg-bybs-pale p-4" key={notification._id}>
-                <p className="font-medium text-bybs-navy">{notification.title}</p>
-                <p className="mt-1 text-sm text-bybs-body">{notification.previewText || notification.message}</p>
+              <div className="min-w-0 rounded-md bg-bybs-pale p-4" key={notification._id}>
+                <p className="break-words font-medium text-bybs-navy">{notification.title}</p>
+                <p className="mt-1 break-words text-sm text-bybs-body">{notification.previewText || notification.message}</p>
               </div>
             ))}
           </div>

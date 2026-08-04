@@ -38,6 +38,17 @@ export function AppShell({
   const visibleNotificationCount = Number(notificationCount || 0);
 
   useEffect(() => {
+    if ((!isMenuOpen && !isMobileSearchOpen) || typeof document === "undefined") return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMenuOpen, isMobileSearchOpen]);
+
+  useEffect(() => {
     if (!globalSearch) return undefined;
 
     const cleanQuery = searchQuery.trim();
@@ -354,9 +365,13 @@ export function AppShell({
         </header>
 
         {isMobileSearchOpen && globalSearch ? (
-          <div className="fixed inset-0 z-[70] bg-bybs-navy/40 px-4 py-5 md:hidden">
-            <div className="mx-auto max-w-lg overflow-hidden rounded-lg border border-bybs-border bg-white shadow-xl">
-              <div className="flex items-center justify-between border-b border-bybs-border px-4 py-3">
+          <div className="fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-bybs-navy/40 px-3 py-4 md:hidden">
+            <div
+              aria-modal="true"
+              className="mx-auto flex max-h-[calc(100dvh-2rem)] max-w-lg flex-col overflow-hidden rounded-lg border border-bybs-border bg-white shadow-xl"
+              role="dialog"
+            >
+              <div className="flex shrink-0 items-center justify-between border-b border-bybs-border px-4 py-3">
                 <p className="text-sm font-semibold text-bybs-navy">Search</p>
                 <Button
                   aria-label="Close search"
@@ -368,7 +383,7 @@ export function AppShell({
                   <X className="h-5 w-5" aria-hidden="true" />
                 </Button>
               </div>
-              <form className="border-b border-bybs-border p-4" onSubmit={submitSearch}>
+              <form className="shrink-0 border-b border-bybs-border p-4" onSubmit={submitSearch}>
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-bybs-muted" aria-hidden="true" />
                   <input
@@ -394,7 +409,7 @@ export function AppShell({
                   ) : null}
                 </div>
               </form>
-              <div className="max-h-[60vh] overflow-y-auto p-2">
+              <div className="min-h-0 flex-1 overflow-y-auto p-2">
                 {searchQuery.trim().length >= 2 ? (
                   renderSearchResults()
                 ) : (

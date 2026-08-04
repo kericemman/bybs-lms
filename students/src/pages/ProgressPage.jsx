@@ -17,7 +17,7 @@ export function ProgressPage() {
   const breakdown = data.breakdown || {};
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full overflow-x-hidden space-y-6">
       <PageHeader
         description="Track submissions, feedback, revisions, scores, attendance, resources, discussions, and mentor sessions."
         title="My progress"
@@ -59,9 +59,9 @@ export function ProgressPage() {
               ["Attendance", breakdown.weights?.attendance, breakdown.attendance],
               ["Punctuality", breakdown.weights?.punctuality, breakdown.punctuality]
             ].map(([label, weight, value]) => (
-              <div className="rounded-md border border-bybs-border bg-white p-3" key={label}>
+              <div className="min-w-0 rounded-md border border-bybs-border bg-white p-3" key={label}>
                 <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-                  <span className="font-medium text-bybs-navy">{label}</span>
+                  <span className="min-w-0 break-words font-medium text-bybs-navy">{label}</span>
                   <span className="text-bybs-muted">{weight || 0}% weight</span>
                 </div>
                 <ProgressBar value={value || 0} />
@@ -79,8 +79,8 @@ export function ProgressPage() {
               ["Late attendance", data.lateAttendanceCount || 0],
               ["Late submissions", data.lateSubmissionCount || 0]
             ].map(([label, value]) => (
-              <div className="rounded-md border border-bybs-border bg-white p-3" key={label}>
-                <p className="text-sm text-bybs-body">{label}</p>
+              <div className="min-w-0 rounded-md border border-bybs-border bg-white p-3" key={label}>
+                <p className="break-words text-sm text-bybs-body">{label}</p>
                 <p className="mt-2 text-xl font-semibold text-bybs-navy">{value}</p>
               </div>
             ))}

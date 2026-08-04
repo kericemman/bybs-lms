@@ -2,15 +2,27 @@ import {
   AlertCircle,
   CheckCircle,
   ClipboardCopy,
+  Download,
+  ExternalLink,
   Mail,
   MessageCircle,
   Search,
   UserCircle
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Button, EmptyState, PageHeader, ProgressBar, SectionHeader, StatusBadge, formatInternationalPhone } from "@bybs/shared";
+import {
+  Button,
+  EmptyState,
+  PageHeader,
+  ProgressBar,
+  SectionHeader,
+  StatusBadge,
+  downloadFileUrl,
+  formatInternationalPhone,
+  normalizeFileUrl
+} from "@bybs/shared";
 import { inputClassName, textAreaClassName } from "../components/FormField.jsx";
-import { adminApi } from "../services/api.js";
+import { adminApi, apiBaseUrl } from "../services/api.js";
 import { formatDateTime, relatedTitle } from "../utils/format.js";
 
 const statusOptions = ["open", "inProgress", "resolved", "closed"];
@@ -293,15 +305,27 @@ export function SupportPage() {
                     <p className="text-sm text-bybs-muted">No submissions recorded.</p>
                   ) : (
                     <div className="space-y-3">
-                      {context.recentSubmissions.map((submission) => (
-                        <div className="rounded-md bg-bybs-pale p-3" key={submission._id}>
-                          <p className="text-sm font-medium text-bybs-navy">{relatedTitle(submission.assignment)}</p>
-                          <p className="mt-1 text-xs text-bybs-muted">{submission.status} · {formatDateTime(submission.submittedAt)}</p>
-                          {submission.fileUrl ? (
-                            <a className="mt-1 inline-block text-xs font-medium text-bybs-blue" href={submission.fileUrl} rel="noreferrer" target="_blank">Open file</a>
-                          ) : null}
-                        </div>
-                      ))}
+                      {context.recentSubmissions.map((submission) => {
+                        const submissionFileUrl = normalizeFileUrl(submission.fileUrl, apiBaseUrl);
+                        const submissionDownloadUrl = downloadFileUrl(submission.fileUrl, apiBaseUrl);
+
+                        return (
+                          <div className="rounded-md bg-bybs-pale p-3" key={submission._id}>
+                            <p className="text-sm font-medium text-bybs-navy">{relatedTitle(submission.assignment)}</p>
+                            <p className="mt-1 text-xs text-bybs-muted">{submission.status} · {formatDateTime(submission.submittedAt)}</p>
+                            {submissionFileUrl ? (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <Button as="a" href={submissionFileUrl} icon={ExternalLink} rel="noreferrer" size="sm" target="_blank" variant="secondary">
+                                  Open file
+                                </Button>
+                                <Button as="a" download href={submissionDownloadUrl} icon={Download} rel="noreferrer" size="sm" variant="secondary">
+                                  Download
+                                </Button>
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </section>

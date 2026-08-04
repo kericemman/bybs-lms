@@ -134,67 +134,71 @@ export function NotificationsWorkspace({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full overflow-x-hidden space-y-6">
       <PageHeader description={description} title={title} />
 
       {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
 
       {selectedNotification ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-bybs-navy/50 px-4 py-6"
+          className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-bybs-navy/50 px-3 py-4 sm:px-4 sm:py-6"
           onClick={() => setSelectedNotification(null)}
         >
-          <section
-            aria-labelledby={`notification-title-${selectedNotification._id}`}
-            aria-modal="true"
-            className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-lg bg-white shadow-xl"
-            onClick={(event) => event.stopPropagation()}
-            role="dialog"
-          >
-            <div className="flex flex-col gap-3 border-b border-bybs-border p-4 sm:flex-row sm:items-start sm:justify-between sm:p-5">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-lg font-semibold text-bybs-navy" id={`notification-title-${selectedNotification._id}`}>
-                    {selectedNotification.title}
-                  </h2>
-                  <StatusBadge
-                    label={selectedNotification.readStatus ? "Read" : "New"}
-                    status={selectedNotification.readStatus ? "reviewed" : "pending"}
-                  />
+          <div className="flex min-h-full items-center justify-center">
+            <section
+              aria-labelledby={`notification-title-${selectedNotification._id}`}
+              aria-modal="true"
+              className="my-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl sm:max-h-[calc(100dvh-3rem)]"
+              onClick={(event) => event.stopPropagation()}
+              role="dialog"
+            >
+              <div className="shrink-0 border-b border-bybs-border p-4 sm:p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-lg font-semibold text-bybs-navy" id={`notification-title-${selectedNotification._id}`}>
+                        {selectedNotification.title}
+                      </h2>
+                      <StatusBadge
+                        label={selectedNotification.readStatus ? "Read" : "New"}
+                        status={selectedNotification.readStatus ? "reviewed" : "pending"}
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-bybs-muted">{formatDateTime(selectedNotification.createdAt)}</p>
+                    {selectedNotification.targetLabel || selectedNotification.type ? (
+                      <p className="mt-2 text-sm text-bybs-muted">
+                        {selectedNotification.targetLabel || humanize(selectedNotification.type)}
+                      </p>
+                    ) : null}
+                  </div>
+                  <Button icon={X} onClick={() => setSelectedNotification(null)} size="sm" type="button" variant="ghost">
+                    Close
+                  </Button>
                 </div>
-                <p className="mt-1 text-xs text-bybs-muted">{formatDateTime(selectedNotification.createdAt)}</p>
-                {selectedNotification.targetLabel || selectedNotification.type ? (
-                  <p className="mt-2 text-sm text-bybs-muted">
-                    {selectedNotification.targetLabel || humanize(selectedNotification.type)}
-                  </p>
+              </div>
+
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
+                {selectedPreview ? (
+                  <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-body">{selectedPreview}</p>
+                ) : null}
+
+                <SafeHtml className="max-w-none text-sm leading-6 text-bybs-body" html={selectedNotification.message} />
+
+                {selectedNotification.ctaLabel && selectedNotification.ctaUrl ? (
+                  <Button
+                    as="a"
+                    href={selectedNotification.ctaUrl}
+                    icon={ExternalLink}
+                    rel={isExternalUrl(selectedNotification.ctaUrl) ? "noreferrer" : undefined}
+                    target={isExternalUrl(selectedNotification.ctaUrl) ? "_blank" : undefined}
+                    variant="secondary"
+                  >
+                    {selectedNotification.ctaLabel}
+                  </Button>
                 ) : null}
               </div>
-              <Button icon={X} onClick={() => setSelectedNotification(null)} size="sm" type="button" variant="ghost">
-                Close
-              </Button>
-            </div>
-
-            <div className="max-h-[calc(90vh-96px)] space-y-4 overflow-y-auto p-4 sm:p-5">
-              {selectedPreview ? (
-                <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-body">{selectedPreview}</p>
-              ) : null}
-
-              <SafeHtml className="max-w-none text-sm leading-6 text-bybs-body" html={selectedNotification.message} />
-
-              {selectedNotification.ctaLabel && selectedNotification.ctaUrl ? (
-                <Button
-                  as="a"
-                  href={selectedNotification.ctaUrl}
-                  icon={ExternalLink}
-                  rel={isExternalUrl(selectedNotification.ctaUrl) ? "noreferrer" : undefined}
-                  target={isExternalUrl(selectedNotification.ctaUrl) ? "_blank" : undefined}
-                  variant="secondary"
-                >
-                  {selectedNotification.ctaLabel}
-                </Button>
-              ) : null}
-            </div>
-          </section>
+            </section>
+          </div>
         </div>
       ) : null}
 
@@ -206,17 +210,17 @@ export function NotificationsWorkspace({
             const preview = truncatePreview(notification.previewText || notification.message);
 
             return (
-              <article className="rounded-lg border border-bybs-border bg-white p-4 shadow-sm" key={notification._id}>
+              <article className="min-w-0 max-w-full overflow-hidden rounded-lg border border-bybs-border bg-white p-4 shadow-sm" key={notification._id}>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-base font-semibold text-bybs-navy">{notification.title}</h2>
+                      <h2 className="break-words text-base font-semibold text-bybs-navy">{notification.title}</h2>
                       <StatusBadge
                         label={notification.readStatus ? "Read" : "New"}
                         status={notification.readStatus ? "reviewed" : "pending"}
                       />
                     </div>
-                    {preview ? <p className="mt-2 text-sm leading-6 text-bybs-body">{preview}</p> : null}
+                    {preview ? <p className="mt-2 break-words text-sm leading-6 text-bybs-body">{preview}</p> : null}
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-bybs-muted">
                       <span>{formatDateTime(notification.createdAt)}</span>
                       {notification.type ? <span>{humanize(notification.type)}</span> : null}

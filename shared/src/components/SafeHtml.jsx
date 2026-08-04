@@ -1,5 +1,9 @@
 import DOMPurify from "dompurify";
 import { useMemo } from "react";
+import { cn } from "../lib/cn.js";
+
+const safeHtmlClassName =
+  "min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_a]:break-words [&_a]:[overflow-wrap:anywhere] [&_img]:h-auto [&_img]:max-w-full [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto";
 
 function hasHtml(value = "") {
   return /<\/?[a-z][\s\S]*>/i.test(value);
@@ -32,8 +36,8 @@ export function SafeHtml({ html = "", className = "" }) {
   );
 
   if (!hasHtml(html)) {
-    return <div className={`whitespace-pre-line ${className}`.trim()}>{html}</div>;
+    return <div className={cn("whitespace-pre-line", safeHtmlClassName, className)}>{html}</div>;
   }
 
-  return <div className={className} dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />;
+  return <div className={cn(safeHtmlClassName, className)} dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />;
 }

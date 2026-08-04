@@ -15,7 +15,7 @@ const textAreaClassName =
   "min-h-28 w-full resize-y rounded-md border border-bybs-border px-3 py-2 text-sm leading-6 outline-none focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale";
 
 const contentClassName =
-  "break-words text-sm leading-6 text-bybs-body [&_a]:font-medium [&_a]:text-bybs-blue [&_a]:underline [&_blockquote]:my-3 [&_blockquote]:border-l-4 [&_blockquote]:border-bybs-rose [&_blockquote]:bg-bybs-blush [&_blockquote]:px-4 [&_blockquote]:py-2 [&_h2]:mt-4 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-bybs-navy [&_h3]:mt-4 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:text-bybs-blue [&_ol]:ml-5 [&_ol]:list-decimal [&_ol]:space-y-1 [&_p]:my-2 [&_ul]:ml-5 [&_ul]:list-disc [&_ul]:space-y-1";
+  "min-w-0 max-w-full break-words text-sm leading-6 text-bybs-body [overflow-wrap:anywhere] [&_a]:font-medium [&_a]:text-bybs-blue [&_a]:underline [&_blockquote]:my-3 [&_blockquote]:border-l-4 [&_blockquote]:border-bybs-rose [&_blockquote]:bg-bybs-blush [&_blockquote]:px-4 [&_blockquote]:py-2 [&_h2]:mt-4 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-bybs-navy [&_h3]:mt-4 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:text-bybs-blue [&_img]:h-auto [&_img]:max-w-full [&_ol]:ml-5 [&_ol]:list-decimal [&_ol]:space-y-1 [&_p]:my-2 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_ul]:ml-5 [&_ul]:list-disc [&_ul]:space-y-1";
 
 const REACTION_OPTIONS = [
   { value: "thumbsUp", label: "Thumbs up", icon: "👍" },
@@ -242,45 +242,60 @@ function AuthorButton({ children, user }) {
 }
 
 function ProfileModal({ onClose, user }) {
+  useEffect(() => {
+    if (!user || typeof document === "undefined") return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [user]);
+
   if (!user) return null;
 
   const aboutHtml = user.bio || user.about || user.profile?.bio || "";
   const expertise = Array.isArray(user.expertise) ? user.expertise.filter(Boolean) : [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
-      <div className="w-full max-w-md rounded-lg border border-bybs-border bg-white p-5 shadow-xl">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <AuthorAvatar user={user} />
-            <div className="min-w-0">
-              <h2 className="truncate text-lg font-semibold text-bybs-navy">{authorName(user)}</h2>
-              <p className="text-sm text-bybs-muted">{authorRole(user)}</p>
+    <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-black/40 px-3 py-4 sm:px-4 sm:py-6">
+      <div className="flex min-h-full items-center justify-center">
+        <div className="my-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-lg border border-bybs-border bg-white shadow-xl sm:max-h-[calc(100dvh-3rem)]">
+          <div className="flex shrink-0 items-start justify-between gap-4 border-b border-bybs-border p-4 sm:p-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <AuthorAvatar user={user} />
+              <div className="min-w-0">
+                <h2 className="truncate text-lg font-semibold text-bybs-navy">{authorName(user)}</h2>
+                <p className="text-sm text-bybs-muted">{authorRole(user)}</p>
+              </div>
             </div>
+            <Button aria-label="Close profile" icon={X} onClick={onClose} size="icon" type="button" variant="ghost" />
           </div>
-          <Button aria-label="Close profile" icon={X} onClick={onClose} size="icon" type="button" variant="ghost" />
+
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+            {aboutHtml ? (
+              <div>
+                <p className="text-xs font-semibold uppercase text-bybs-muted">About</p>
+                <SafeHtml className={`mt-2 ${contentClassName}`} html={aboutHtml} />
+              </div>
+            ) : (
+              <p className="rounded-md bg-bybs-pale px-3 py-3 text-sm text-bybs-muted">
+                No about section has been added yet.
+              </p>
+            )}
+
+            {expertise.length ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {expertise.map((item) => (
+                  <span className="rounded-md bg-bybs-pale px-2 py-1 text-xs font-medium text-bybs-blue" key={item}>
+                    {item}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </div>
-
-        {aboutHtml ? (
-          <div className="mt-5">
-            <p className="text-xs font-semibold uppercase text-bybs-muted">About</p>
-            <SafeHtml className={`mt-2 ${contentClassName}`} html={aboutHtml} />
-          </div>
-        ) : (
-          <p className="mt-5 rounded-md bg-bybs-pale px-3 py-3 text-sm text-bybs-muted">
-            No about section has been added yet.
-          </p>
-        )}
-
-        {expertise.length ? (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {expertise.map((item) => (
-              <span className="rounded-md bg-bybs-pale px-2 py-1 text-xs font-medium text-bybs-blue" key={item}>
-                {item}
-              </span>
-            ))}
-          </div>
-        ) : null}
       </div>
     </div>
   );
@@ -643,7 +658,7 @@ export function DiscussionForum({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full overflow-x-hidden space-y-6">
       <PageHeader
         actions={
           <div className="flex flex-wrap gap-2">
@@ -679,12 +694,12 @@ export function DiscussionForum({
 
       {isComposerOpen ? (
         <Card>
-          <form className="grid gap-4 lg:grid-cols-4" onSubmit={submitDiscussion}>
+          <form className="grid min-w-0 max-w-full gap-4 lg:grid-cols-4" onSubmit={submitDiscussion}>
             <div className="lg:col-span-4">
               <p className="text-sm font-semibold text-bybs-navy">{editingDiscussion ? "Edit discussion" : "Start a discussion"}</p>
               <p className="mt-1 text-sm text-bybs-body">{createDescription}</p>
             </div>
-            <label className={!showCohortField && !showModuleField && !canChooseAudience ? "block lg:col-span-4" : "block lg:col-span-2"}>
+            <label className={!showCohortField && !showModuleField && !canChooseAudience ? "block min-w-0 lg:col-span-4" : "block min-w-0 lg:col-span-2"}>
               <span className="text-sm font-medium text-bybs-body">Title</span>
               <input
                 className={`${inputClassName} mt-1`}
@@ -694,7 +709,7 @@ export function DiscussionForum({
               />
             </label>
             {canChooseAudience ? (
-              <label className="block">
+              <label className="block min-w-0">
                 <span className="text-sm font-medium text-bybs-body">Who can see this?</span>
                 <select className={`${inputClassName} mt-1`} onChange={(event) => updateForm("audience", event.target.value)} value={form.audience}>
                   {DISCUSSION_AUDIENCE_OPTIONS.map((option) => (
@@ -704,7 +719,7 @@ export function DiscussionForum({
               </label>
             ) : null}
             {showCohortField ? (
-              <label className="block">
+              <label className="block min-w-0">
                 <span className="text-sm font-medium text-bybs-body">Cohort</span>
                 <select className={`${inputClassName} mt-1`} onChange={(event) => updateForm("cohort", event.target.value)} value={form.cohort}>
                   <option value="">Auto / choose cohort</option>
@@ -715,7 +730,7 @@ export function DiscussionForum({
               </label>
             ) : null}
             {showModuleField ? (
-              <label className={showCohortField ? "block" : "block lg:col-span-2"}>
+              <label className={showCohortField ? "block min-w-0" : "block min-w-0 lg:col-span-2"}>
                 <span className="text-sm font-medium text-bybs-body">Module</span>
                 <select className={`${inputClassName} mt-1`} onChange={(event) => updateForm("module", event.target.value)} value={form.module}>
                   <option value="">General discussion</option>
@@ -726,7 +741,7 @@ export function DiscussionForum({
               </label>
             ) : null}
             <div className="lg:col-span-4">
-              <label className="block">
+              <label className="block min-w-0">
                 <span className="text-sm font-medium text-bybs-body">Message</span>
                 <textarea
                   className={`${textAreaClassName} mt-1`}
@@ -761,8 +776,8 @@ export function DiscussionForum({
         </Card>
       ) : null}
 
-      <div className="grid gap-3 rounded-lg border border-bybs-border bg-white p-4 md:grid-cols-4">
-        <label className="block md:col-span-2">
+      <div className="grid min-w-0 max-w-full gap-3 overflow-hidden rounded-lg border border-bybs-border bg-white p-4 md:grid-cols-4">
+        <label className="block min-w-0 md:col-span-2">
           <span className="text-sm font-medium text-bybs-body">Search</span>
           <div className="relative mt-1">
             <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-bybs-muted" />
@@ -775,7 +790,7 @@ export function DiscussionForum({
           </div>
         </label>
         {showCohortField ? (
-          <label className="block">
+          <label className="block min-w-0">
             <span className="text-sm font-medium text-bybs-body">Cohort</span>
             <select className={`${inputClassName} mt-1`} onChange={(event) => updateFilters("cohort", event.target.value)} value={filters.cohort}>
               <option value="">All cohorts</option>
@@ -786,7 +801,7 @@ export function DiscussionForum({
           </label>
         ) : null}
         {showModuleField ? (
-          <label className="block">
+          <label className="block min-w-0">
             <span className="text-sm font-medium text-bybs-body">Module</span>
             <select className={`${inputClassName} mt-1`} onChange={(event) => updateFilters("module", event.target.value)} value={filters.module}>
               <option value="">All modules</option>
@@ -796,7 +811,7 @@ export function DiscussionForum({
             </select>
           </label>
         ) : null}
-        <label className="block">
+        <label className="block min-w-0">
           <span className="text-sm font-medium text-bybs-body">Status</span>
           <select className={`${inputClassName} mt-1`} onChange={(event) => updateFilters("status", event.target.value)} value={filters.status}>
             <option value="">Open and closed</option>
@@ -866,8 +881,8 @@ export function DiscussionForum({
               const childComments = groupedComments.get(commentId) || [];
 
               return (
-                <div className={`${depth ? "ml-4 border-l border-bybs-border pl-3 sm:ml-8 sm:pl-4" : ""}`} key={commentId || comment.createdAt}>
-                  <div className="rounded-md bg-bybs-pale p-4">
+                <div className={`${depth ? "border-l border-bybs-border pl-3 sm:ml-6 sm:pl-4" : ""}`} key={commentId || comment.createdAt}>
+                  <div className="min-w-0 rounded-md bg-bybs-pale p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <AuthorButton user={comment.createdBy}>{setProfileUser}</AuthorButton>
                       <p className="text-xs text-bybs-muted">{formatDateTime(comment.createdAt)}</p>
@@ -955,11 +970,11 @@ export function DiscussionForum({
             };
 
             return (
-            <article className="rounded-lg border border-bybs-border bg-white p-5 shadow-sm" key={discussionId}>
+            <article className="min-w-0 max-w-full overflow-hidden rounded-lg border border-bybs-border bg-white p-4 shadow-sm sm:p-5" key={discussionId}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-lg font-semibold text-bybs-navy">{discussion.title}</h2>
+                    <h2 className="break-words text-lg font-semibold text-bybs-navy">{discussion.title}</h2>
                     <StatusBadge status={discussion.status} />
                     <span className="rounded-md bg-bybs-pale px-2 py-1 text-xs font-medium text-bybs-blue">
                       {audienceLabel(discussion.audience)}

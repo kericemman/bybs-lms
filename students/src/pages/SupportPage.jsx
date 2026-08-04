@@ -4,8 +4,8 @@ import { Button, EmptyState, PageHeader, SafeHtml, StatusBadge } from "@bybs/sha
 import { studentApi } from "../services/api.js";
 import { formatDateTime } from "../utils/format.js";
 
-const inputClassName = "h-10 w-full rounded-md border border-bybs-border px-3 text-sm outline-none focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale";
-const textareaClassName = "min-h-28 w-full rounded-md border border-bybs-border px-3 py-2 text-sm outline-none focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale";
+const inputClassName = "h-10 w-full min-w-0 rounded-md border border-bybs-border px-3 text-sm outline-none focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale";
+const textareaClassName = "min-h-28 w-full min-w-0 resize-y rounded-md border border-bybs-border px-3 py-2 text-sm outline-none focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale";
 const categories = [
   ["assignment", "Assignment"],
   ["mentor", "Mentor"],
@@ -73,7 +73,7 @@ export function SupportPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full overflow-x-hidden space-y-6">
       <PageHeader
         actions={<Button icon={Plus} onClick={() => setShowForm((current) => !current)} type="button">New ticket</Button>}
         description="Ask for help with login, assignments, mentor sessions, resources, or technical issues."
@@ -81,9 +81,9 @@ export function SupportPage() {
       />
 
       {showForm ? (
-        <section className="rounded-lg border border-bybs-border bg-white p-5 shadow-sm">
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
-            <label className="block">
+        <section className="min-w-0 max-w-full overflow-hidden rounded-lg border border-bybs-border bg-white p-4 shadow-sm sm:p-5">
+          <form className="grid min-w-0 max-w-full gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+            <label className="block min-w-0">
               <span className="text-sm font-medium text-bybs-body">Category</span>
               <select
                 className={inputClassName}
@@ -93,7 +93,7 @@ export function SupportPage() {
                 {categories.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
             </label>
-            <label className="block">
+            <label className="block min-w-0">
               <span className="text-sm font-medium text-bybs-body">Subject</span>
               <input
                 className={inputClassName}
@@ -102,7 +102,7 @@ export function SupportPage() {
                 value={form.subject}
               />
             </label>
-            <label className="block md:col-span-2">
+            <label className="block min-w-0 md:col-span-2">
               <span className="text-sm font-medium text-bybs-body">Message</span>
               <textarea
                 className={textareaClassName}
@@ -131,11 +131,11 @@ export function SupportPage() {
       ) : (
         <div className="space-y-3">
           {tickets.map((ticket) => (
-            <article className="rounded-lg border border-bybs-border bg-white p-4 shadow-sm" key={ticket._id}>
+            <article className="min-w-0 max-w-full overflow-hidden rounded-lg border border-bybs-border bg-white p-4 shadow-sm" key={ticket._id}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-bybs-blue">{ticket.category}</p>
-                  <h2 className="mt-1 text-base font-semibold text-bybs-navy">{ticket.subject}</h2>
+                  <h2 className="mt-1 break-words text-base font-semibold text-bybs-navy">{ticket.subject}</h2>
                   <SafeHtml className="mt-2 text-sm text-bybs-body" html={ticket.message} />
                   <p className="mt-2 text-xs text-bybs-muted">{formatDateTime(ticket.createdAt)}</p>
                 </div>
@@ -145,7 +145,7 @@ export function SupportPage() {
               {ticket.replies?.length ? (
                 <div className="mt-4 space-y-2">
                   {ticket.replies.map((ticketReply) => (
-                    <div className="rounded-md bg-bybs-pale p-3" key={ticketReply._id || ticketReply.createdAt}>
+                    <div className="min-w-0 rounded-md bg-bybs-pale p-3" key={ticketReply._id || ticketReply.createdAt}>
                       <SafeHtml className="text-sm text-bybs-body" html={ticketReply.message} />
                       <p className="mt-1 text-xs text-bybs-muted">{ticketReply.createdBy?.name || "BYBS"} · {formatDateTime(ticketReply.createdAt)}</p>
                     </div>

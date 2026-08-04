@@ -1,10 +1,10 @@
 import { createApiClient } from "@bybs/shared";
 import { toQueryString } from "../utils/query.js";
 
-const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5050/api";
+export const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5050/api";
 
 export const api = createApiClient({
-  baseUrl,
+  baseUrl: apiBaseUrl,
   getToken: () => window.localStorage.getItem("bybs_mentor_token")
 });
 

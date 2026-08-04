@@ -44,7 +44,7 @@ export function CertificatesPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full overflow-x-hidden space-y-6">
       <PageHeader
         description="Download your verified BYBS completion certificate when admin has approved it."
         title="My certificates"
@@ -69,10 +69,10 @@ export function CertificatesPage() {
         {certificates.map((certificate) => (
           <Card key={certificate._id}>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <div className="flex items-center gap-2">
+              <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-2">
                   <Award className="h-5 w-5 text-bybs-blue" />
-                  <h2 className="text-lg font-semibold text-bybs-navy">BYBS Certificate</h2>
+                  <h2 className="break-words text-lg font-semibold text-bybs-navy">BYBS Certificate</h2>
                 </div>
                 <p className="mt-2 text-sm leading-6 text-bybs-body">
                   {certificate.greeting} Your verified certificate is ready to download and share.
@@ -82,11 +82,11 @@ export function CertificatesPage() {
             </div>
 
             <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-center">
-              <div className="space-y-3 text-sm text-bybs-body">
-                <p><span className="font-medium text-bybs-navy">Certificate number:</span> {certificate.certificateNumber}</p>
-                <p><span className="font-medium text-bybs-navy">Cohort:</span> {certificate.cohort?.title || "BYBS Program"}</p>
+              <div className="min-w-0 space-y-3 text-sm text-bybs-body">
+                <p className="break-words"><span className="font-medium text-bybs-navy">Certificate number:</span> {certificate.certificateNumber}</p>
+                <p className="break-words"><span className="font-medium text-bybs-navy">Cohort:</span> {certificate.cohort?.title || "BYBS Program"}</p>
                 <p><span className="font-medium text-bybs-navy">Issued:</span> {formatDate(certificate.issuedAt)}</p>
-                <p><span className="font-medium text-bybs-navy">Verification:</span> {certificate.verificationCode}</p>
+                <p className="break-words"><span className="font-medium text-bybs-navy">Verification:</span> {certificate.verificationCode}</p>
               </div>
               {certificate.qrCodeSvg ? (
                 <div className="w-fit rounded-md border border-bybs-border bg-white p-3">

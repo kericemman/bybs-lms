@@ -4,8 +4,8 @@ import { AddToCalendarButton, Button, EmptyState, PageHeader, StatusBadge } from
 import { studentApi } from "../services/api.js";
 import { formatDateTime } from "../utils/format.js";
 
-const inputClassName = "h-10 w-full rounded-md border border-bybs-border px-3 text-sm outline-none focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale";
-const textareaClassName = "min-h-24 w-full rounded-md border border-bybs-border px-3 py-2 text-sm outline-none focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale";
+const inputClassName = "h-10 w-full min-w-0 rounded-md border border-bybs-border px-3 text-sm outline-none focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale";
+const textareaClassName = "min-h-24 w-full min-w-0 resize-y rounded-md border border-bybs-border px-3 py-2 text-sm outline-none focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale";
 
 const dayLabels = {
   monday: "Monday",
@@ -130,7 +130,7 @@ export function BookingsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full overflow-x-hidden space-y-6">
       <PageHeader
         actions={<Button icon={Plus} onClick={() => setShowForm((current) => !current)} type="button">Book session</Button>}
         description="Book 1:1 sessions based on available time slots from your cohort mentors."
@@ -138,9 +138,9 @@ export function BookingsPage() {
       />
 
       {showForm ? (
-        <section className="rounded-lg border border-bybs-border bg-white p-5 shadow-sm">
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
-            <label className="block">
+        <section className="min-w-0 max-w-full overflow-hidden rounded-lg border border-bybs-border bg-white p-4 shadow-sm sm:p-5">
+          <form className="grid min-w-0 max-w-full gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+            <label className="block min-w-0">
               <span className="text-sm font-medium text-bybs-body">Available time</span>
               <select
                 className={inputClassName}
@@ -157,15 +157,15 @@ export function BookingsPage() {
                 ))}
               </select>
             </label>
-            <div className="rounded-md bg-bybs-pale p-3 text-sm text-bybs-body">
+            <div className="min-w-0 rounded-md bg-bybs-pale p-3 text-sm text-bybs-body">
               <p className="font-medium text-bybs-navy">Mentor availability</p>
               {availability.length ? (
-                <p className="mt-1">{availability.map((slot) => slotLabel(slot)).join(", ")}</p>
+                <p className="mt-1 break-words">{availability.map((slot) => slotLabel(slot)).join(", ")}</p>
               ) : (
                 <p className="mt-1">No availability has been published yet.</p>
               )}
             </div>
-            <label className="block md:col-span-2">
+            <label className="block min-w-0 md:col-span-2">
               <span className="text-sm font-medium text-bybs-body">Reason</span>
               <textarea
                 className={textareaClassName}
@@ -194,14 +194,14 @@ export function BookingsPage() {
       ) : (
         <div className="space-y-3">
           {bookings.map((booking) => (
-            <article className="rounded-lg border border-bybs-border bg-white p-4 shadow-sm" key={booking._id}>
+            <article className="min-w-0 max-w-full overflow-hidden rounded-lg border border-bybs-border bg-white p-4 shadow-sm" key={booking._id}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h2 className="font-semibold text-bybs-navy">{formatDateTime(booking.startsAt)}</h2>
-                  <p className="mt-1 text-sm text-bybs-body">{booking.reason}</p>
+                <div className="min-w-0">
+                  <h2 className="break-words font-semibold text-bybs-navy">{formatDateTime(booking.startsAt)}</h2>
+                  <p className="mt-1 break-words text-sm text-bybs-body">{booking.reason}</p>
                   <p className="mt-1 text-xs text-bybs-muted">Mentor: {booking.mentor?.name || "Assigned mentor"}</p>
                   {booking.meetingLink ? (
-                    <a className="mt-2 inline-block text-sm font-medium text-bybs-blue" href={booking.meetingLink} rel="noreferrer" target="_blank">
+                    <a className="mt-2 inline-block max-w-full break-words text-sm font-medium text-bybs-blue" href={booking.meetingLink} rel="noreferrer" target="_blank">
                       Join meeting
                     </a>
                   ) : null}

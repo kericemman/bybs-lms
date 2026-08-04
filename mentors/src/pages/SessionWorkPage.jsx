@@ -1,9 +1,20 @@
-import { ClipboardCheck, Eye, Link, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
+import { ClipboardCheck, Download, ExternalLink, Eye, Link, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { AddToCalendarButton, Button, Card, DataTable, PageHeader, RichTextEditor, SafeHtml, StatusBadge } from "@bybs/shared";
+import {
+  AddToCalendarButton,
+  Button,
+  Card,
+  DataTable,
+  PageHeader,
+  RichTextEditor,
+  SafeHtml,
+  StatusBadge,
+  downloadFileUrl,
+  normalizeFileUrl
+} from "@bybs/shared";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { FormField, inputClassName } from "../components/FormField.jsx";
-import { mentorApi } from "../services/api.js";
+import { apiBaseUrl, mentorApi } from "../services/api.js";
 import { formatCatDateTime, formatDate } from "../utils/format.js";
 
 function tomorrowIsoDate() {
@@ -146,6 +157,8 @@ function sectionsFromInstructions(instructions = "") {
 
 function AssignmentDetailsCard({ assignment, canEdit, onClose, onEdit }) {
   const sections = sectionsFromInstructions(assignment.instructions);
+  const attachedFileUrl = assignment.templateFileUrl ? normalizeFileUrl(assignment.templateFileUrl, apiBaseUrl) : "";
+  const attachedFileDownloadUrl = assignment.templateFileUrl ? downloadFileUrl(assignment.templateFileUrl, apiBaseUrl) : "";
   const sectionRows = [
     ["Assignment overview", sections.assignmentOverview],
     ["Tasks and steps", sections.assignmentTasks],
@@ -195,12 +208,17 @@ function AssignmentDetailsCard({ assignment, canEdit, onClose, onEdit }) {
         </div>
       </div>
 
-      {assignment.templateFileUrl ? (
+      {attachedFileUrl ? (
         <div className="mt-5 rounded-md border border-bybs-border p-4">
           <p className="text-sm font-semibold text-bybs-navy">Attached file</p>
-          <a className="mt-2 inline-block text-sm font-medium text-bybs-blue" href={assignment.templateFileUrl} rel="noreferrer" target="_blank">
-            Open attached material
-          </a>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button as="a" href={attachedFileUrl} icon={ExternalLink} rel="noreferrer" size="sm" target="_blank" variant="secondary">
+              Open attached material
+            </Button>
+            <Button as="a" download href={attachedFileDownloadUrl} icon={Download} rel="noreferrer" size="sm" variant="secondary">
+              Download
+            </Button>
+          </div>
         </div>
       ) : null}
 
@@ -544,6 +562,14 @@ export function SessionWorkPage() {
     : modules;
   const selectedModule = modules.find((module) => module._id === form.module);
   const statusOptions = editingAssignment ? assignmentStatusOptions : createStatusOptions;
+  const currentTemplateUrl = editingAssignment?.templateFileUrl && !uploadedFile
+    ? normalizeFileUrl(editingAssignment.templateFileUrl, apiBaseUrl)
+    : "";
+  const currentTemplateDownloadUrl = editingAssignment?.templateFileUrl && !uploadedFile
+    ? downloadFileUrl(editingAssignment.templateFileUrl, apiBaseUrl)
+    : "";
+  const uploadedMaterialUrl = uploadedFile?.url ? normalizeFileUrl(uploadedFile.url, apiBaseUrl) : "";
+  const uploadedMaterialDownloadUrl = uploadedFile?.url ? downloadFileUrl(uploadedFile.url, apiBaseUrl) : "";
 
   return (
     <div className="min-w-0 max-w-full overflow-x-hidden space-y-6">
@@ -639,10 +665,15 @@ export function SessionWorkPage() {
                       ? "Upload a replacement file for this assignment if needed."
                       : "Upload the session material mentees should read or download."}
                 </p>
-                {editingAssignment?.templateFileUrl && !uploadedFile ? (
-                  <a className="mt-2 inline-block text-sm font-medium text-bybs-blue" href={editingAssignment.templateFileUrl} rel="noreferrer" target="_blank">
-                    Open current file
-                  </a>
+                {currentTemplateUrl ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button as="a" href={currentTemplateUrl} icon={ExternalLink} rel="noreferrer" size="sm" target="_blank" variant="secondary">
+                      Open current file
+                    </Button>
+                    <Button as="a" download href={currentTemplateDownloadUrl} icon={Download} rel="noreferrer" size="sm" variant="secondary">
+                      Download
+                    </Button>
+                  </div>
                 ) : null}
               </div>
               <div className="flex min-w-0 max-w-full flex-wrap gap-2">
@@ -665,6 +696,16 @@ export function SessionWorkPage() {
             </div>
             {uploadedFile ? (
               <div className="mt-4 min-w-0">
+                {uploadedMaterialUrl ? (
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    <Button as="a" href={uploadedMaterialUrl} icon={ExternalLink} rel="noreferrer" size="sm" target="_blank" variant="secondary">
+                      Open uploaded file
+                    </Button>
+                    <Button as="a" download href={uploadedMaterialDownloadUrl} icon={Download} rel="noreferrer" size="sm" variant="secondary">
+                      Download
+                    </Button>
+                  </div>
+                ) : null}
                 <FormField label="Material title">
                   <input className={inputClassName} onChange={(event) => updateField("materialTitle", event.target.value)} value={form.materialTitle} />
                 </FormField>

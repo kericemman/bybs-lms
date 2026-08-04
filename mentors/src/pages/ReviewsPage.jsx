@@ -1,10 +1,23 @@
-import { BookOpen, ClipboardCheck, ExternalLink, Eye, MessageSquare, Save, X } from "lucide-react";
+import { BookOpen, ClipboardCheck, Download, ExternalLink, Eye, MessageSquare, Save, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Button, Card, DataTable, EmptyState, PageHeader, RichTextEditor, SafeHtml, SectionHeader, StatusBadge } from "@bybs/shared";
+import {
+  Button,
+  Card,
+  DataTable,
+  EmptyState,
+  PageHeader,
+  RichTextEditor,
+  SafeHtml,
+  SectionHeader,
+  StatusBadge,
+  downloadFileUrl,
+  isUploadedFileUrl,
+  normalizeFileUrl
+} from "@bybs/shared";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { FormField, inputClassName } from "../components/FormField.jsx";
-import { mentorApi } from "../services/api.js";
+import { apiBaseUrl, mentorApi } from "../services/api.js";
 import { formatDate, formatDateTime } from "../utils/format.js";
 
 const statusOptions = [
@@ -96,7 +109,11 @@ function attachmentKind(url = "") {
 }
 
 function AttachmentPreview({ url }) {
-  if (!url) {
+  const attachmentUrl = normalizeFileUrl(url, apiBaseUrl);
+  const attachmentDownloadUrl = downloadFileUrl(url, apiBaseUrl);
+  const canDownload = isUploadedFileUrl(url);
+
+  if (!attachmentUrl) {
     return (
       <p className="rounded-md bg-bybs-pale px-3 py-3 text-sm text-bybs-muted">
         No attachment was uploaded for this submission.
@@ -104,31 +121,57 @@ function AttachmentPreview({ url }) {
     );
   }
 
-  const kind = attachmentKind(url);
+  const kind = attachmentKind(attachmentUrl);
 
   if (kind === "image") {
     return (
-      <a href={url} rel="noreferrer" target="_blank">
-        <img alt="Submitted attachment" className="max-h-80 w-full rounded-md border border-bybs-border object-contain" src={url} />
-      </a>
+      <div className="space-y-2">
+        <a href={attachmentUrl} rel="noreferrer" target="_blank">
+          <img alt="Submitted attachment" className="max-h-80 w-full rounded-md border border-bybs-border object-contain" src={attachmentUrl} />
+        </a>
+        <div className="flex flex-wrap gap-2">
+          <Button as="a" href={attachmentUrl} icon={ExternalLink} rel="noreferrer" size="sm" target="_blank" variant="secondary">
+            Open attachment
+          </Button>
+          {canDownload ? (
+            <Button as="a" download href={attachmentDownloadUrl} icon={Download} rel="noreferrer" size="sm" variant="secondary">
+              Download
+            </Button>
+          ) : null}
+        </div>
+      </div>
     );
   }
 
   if (kind === "pdf" || kind === "document") {
     return (
       <div className="space-y-2">
-        <iframe className="h-80 w-full rounded-md border border-bybs-border" src={url} title="Submitted attachment preview" />
-        <Button as="a" href={url} icon={ExternalLink} rel="noreferrer" size="sm" target="_blank" variant="secondary">
-          Open attachment
-        </Button>
+        <iframe className="h-80 w-full rounded-md border border-bybs-border" src={attachmentUrl} title="Submitted attachment preview" />
+        <div className="flex flex-wrap gap-2">
+          <Button as="a" href={attachmentUrl} icon={ExternalLink} rel="noreferrer" size="sm" target="_blank" variant="secondary">
+            Open attachment
+          </Button>
+          {canDownload ? (
+            <Button as="a" download href={attachmentDownloadUrl} icon={Download} rel="noreferrer" size="sm" variant="secondary">
+              Download
+            </Button>
+          ) : null}
+        </div>
       </div>
     );
   }
 
   return (
-    <Button as="a" href={url} icon={ExternalLink} rel="noreferrer" target="_blank" variant="secondary">
-      Open submitted file
-    </Button>
+    <div className="flex flex-wrap gap-2">
+      <Button as="a" href={attachmentUrl} icon={ExternalLink} rel="noreferrer" target="_blank" variant="secondary">
+        Open submitted file
+      </Button>
+      {canDownload ? (
+        <Button as="a" download href={attachmentDownloadUrl} icon={Download} rel="noreferrer" variant="secondary">
+          Download
+        </Button>
+      ) : null}
+    </div>
   );
 }
 

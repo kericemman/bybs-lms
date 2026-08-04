@@ -1,11 +1,11 @@
-import { Plus, Save, Upload, X } from "lucide-react";
+import { Download, ExternalLink, Plus, Save, Upload, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Button, Card, DataTable, PageHeader, StatusBadge } from "@bybs/shared";
+import { Button, Card, DataTable, PageHeader, StatusBadge, downloadFileUrl, isUploadedFileUrl, normalizeFileUrl } from "@bybs/shared";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { FilterBar } from "../components/FilterBar.jsx";
 import { FormField, inputClassName, textAreaClassName } from "../components/FormField.jsx";
 import { RowActions } from "../components/RowActions.jsx";
-import { adminApi } from "../services/api.js";
+import { adminApi, apiBaseUrl } from "../services/api.js";
 import { relatedTitle } from "../utils/format.js";
 import { canDeleteOperationalRecords } from "../utils/permissions.js";
 
@@ -244,13 +244,30 @@ export function ResourcesPage() {
           {
             key: "actions",
             header: "Actions",
-            render: (row) => (
-              <RowActions
-                confirmMessage={`Delete ${row.title}? This will remove the resource record.`}
-                onDelete={canDelete ? () => handleDelete(row) : undefined}
-                onEdit={() => startEdit(row)}
-              />
-            )
+            render: (row) => {
+              const resourceUrl = normalizeFileUrl(row.url, apiBaseUrl);
+              const resourceDownloadUrl = downloadFileUrl(row.url, apiBaseUrl);
+
+              return (
+                <div className="flex flex-wrap items-center gap-2">
+                  {resourceUrl ? (
+                    <Button as="a" href={resourceUrl} icon={ExternalLink} rel="noreferrer" size="sm" target="_blank" variant="secondary">
+                      Open
+                    </Button>
+                  ) : null}
+                  {resourceUrl && isUploadedFileUrl(row.url) ? (
+                    <Button as="a" download href={resourceDownloadUrl} icon={Download} rel="noreferrer" size="sm" variant="secondary">
+                      Download
+                    </Button>
+                  ) : null}
+                  <RowActions
+                    confirmMessage={`Delete ${row.title}? This will remove the resource record.`}
+                    onDelete={canDelete ? () => handleDelete(row) : undefined}
+                    onEdit={() => startEdit(row)}
+                  />
+                </div>
+              );
+            }
           }
         ]}
         rows={resources}
