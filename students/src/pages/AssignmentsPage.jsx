@@ -35,6 +35,39 @@ function assignmentCalendarEvent(assignment) {
   };
 }
 
+const assignmentButtonClassName =
+  "w-full !bg-bybs-blue !text-white shadow-sm hover:!bg-bybs-blueHover focus-visible:!ring-bybs-pale sm:w-auto";
+
+const assignmentFileTypeLabels = {
+  csv: "CSV",
+  doc: "Word file",
+  docx: "Word file",
+  jpeg: "image",
+  jpg: "image",
+  mp4: "video",
+  pdf: "PDF",
+  png: "image",
+  ppt: "slides",
+  pptx: "slides",
+  txt: "text file",
+  webp: "image",
+  xls: "spreadsheet",
+  xlsx: "spreadsheet"
+};
+
+function fileTargetLabel(value, fallback) {
+  const source = String(value || "");
+  const path = source.split("?")[0].split("#")[0];
+  const extension = path.includes(".") ? path.split(".").pop().toLowerCase() : "";
+
+  return assignmentFileTypeLabels[extension] || fallback;
+}
+
+function resourceButtonLabel(link, index) {
+  const title = String(link?.title || "").trim();
+  return title ? `Open resource: ${title}` : `Open resource ${index + 1}`;
+}
+
 export function AssignmentsPage() {
   const fileInputRef = useRef(null);
   const [assignments, setAssignments] = useState([]);
@@ -132,6 +165,8 @@ export function AssignmentsPage() {
     : "";
   const uploadedFileUrl = uploadedFile?.url ? normalizeFileUrl(uploadedFile.url, apiBaseUrl) : "";
   const uploadedFileDownloadUrl = uploadedFile?.url ? downloadFileUrl(uploadedFile.url, apiBaseUrl) : "";
+  const activeTemplateLabel = fileTargetLabel(activeAssignment?.templateFileUrl, "assignment template");
+  const uploadedFileLabel = fileTargetLabel(uploadedFile?.originalName || uploadedFile?.url, "submitted file");
 
   return (
     <div className="min-w-0 max-w-full overflow-x-hidden space-y-6">
@@ -162,26 +197,46 @@ export function AssignmentsPage() {
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
                 as="a"
+                className={assignmentButtonClassName}
                 href={activeTemplateUrl}
                 icon={ExternalLink}
                 rel="noreferrer"
                 size="sm"
                 target="_blank"
-                variant="secondary"
+                variant="primary"
               >
-                Open template
+                View {activeTemplateLabel}
               </Button>
-              <Button as="a" download href={activeTemplateDownloadUrl} icon={Download} rel="noreferrer" size="sm" variant="secondary">
-                Download template
+              <Button
+                as="a"
+                className={assignmentButtonClassName}
+                download
+                href={activeTemplateDownloadUrl}
+                icon={Download}
+                rel="noreferrer"
+                size="sm"
+                variant="primary"
+              >
+                Download {activeTemplateLabel}
               </Button>
             </div>
           ) : null}
 
           {activeAssignment.resourceLinks?.length ? (
             <div className="mt-4 flex flex-wrap gap-2">
-              {activeAssignment.resourceLinks.map((link) => (
-                <Button as="a" href={link.url} key={link.url} rel="noreferrer" size="sm" target="_blank" variant="secondary">
-                  {link.title || "Resource"}
+              {activeAssignment.resourceLinks.map((link, index) => (
+                <Button
+                  as="a"
+                  className={assignmentButtonClassName}
+                  href={link.url}
+                  icon={ExternalLink}
+                  key={link.url}
+                  rel="noreferrer"
+                  size="sm"
+                  target="_blank"
+                  variant="primary"
+                >
+                  {resourceButtonLabel(link, index)}
                 </Button>
               ))}
             </div>
@@ -203,7 +258,14 @@ export function AssignmentsPage() {
 
             <div>
               <input accept={RESOURCE_UPLOAD_ACCEPT} className="sr-only" onChange={handleUpload} ref={fileInputRef} type="file" />
-              <Button disabled={isUploading} icon={Upload} onClick={() => fileInputRef.current?.click()} type="button" variant="secondary">
+              <Button
+                className={assignmentButtonClassName}
+                disabled={isUploading}
+                icon={Upload}
+                onClick={() => fileInputRef.current?.click()}
+                type="button"
+                variant="primary"
+              >
                 {isUploading ? "Uploading..." : uploadedFile ? "Replace file" : "Upload file"}
               </Button>
               <p className="mt-2 text-xs text-bybs-muted">
@@ -214,11 +276,29 @@ export function AssignmentsPage() {
                   <span className="min-w-0 truncate">{uploadedFile.originalName || "Submitted file"}</span>
                   {uploadedFileUrl ? (
                     <>
-                      <Button as="a" href={uploadedFileUrl} icon={ExternalLink} rel="noreferrer" size="sm" target="_blank" variant="secondary">
-                        Open file
+                      <Button
+                        as="a"
+                        className={assignmentButtonClassName}
+                        href={uploadedFileUrl}
+                        icon={ExternalLink}
+                        rel="noreferrer"
+                        size="sm"
+                        target="_blank"
+                        variant="primary"
+                      >
+                        View {uploadedFileLabel}
                       </Button>
-                      <Button as="a" download href={uploadedFileDownloadUrl} icon={Download} rel="noreferrer" size="sm" variant="secondary">
-                        Download
+                      <Button
+                        as="a"
+                        className={assignmentButtonClassName}
+                        download
+                        href={uploadedFileDownloadUrl}
+                        icon={Download}
+                        rel="noreferrer"
+                        size="sm"
+                        variant="primary"
+                      >
+                        Download {uploadedFileLabel}
                       </Button>
                     </>
                   ) : null}
@@ -276,8 +356,8 @@ export function AssignmentsPage() {
                 <SafeHtml className="mt-3 rounded-md bg-bybs-pale p-3 text-sm text-bybs-body" html={assignment.submission.feedback} />
               ) : null}
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button onClick={() => chooseAssignment(assignment)} size="sm" type="button">
-                  {assignment.submission ? "View / resubmit" : "Open assignment"}
+                <Button className={assignmentButtonClassName} onClick={() => chooseAssignment(assignment)} size="sm" type="button">
+                  {assignment.submission ? "View submission and resources" : "View assignment and resources"}
                 </Button>
                 <AddToCalendarButton event={assignmentCalendarEvent(assignment)} fileName={`bybs-assignment-${assignment._id}`} />
               </div>
