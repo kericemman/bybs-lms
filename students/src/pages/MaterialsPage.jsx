@@ -4,6 +4,54 @@ import { Button, EmptyState, PageHeader, StatusBadge, downloadFileUrl, isUploade
 import { apiBaseUrl, studentApi } from "../services/api.js";
 import { formatDateTime, titleFor } from "../utils/format.js";
 
+const materialTypeLabels = {
+  external: "external link",
+  pdf: "PDF",
+  reading: "reading",
+  recording: "recording",
+  reflection: "reflection",
+  slides: "slides",
+  template: "template",
+  video: "video",
+  zoom: "Zoom link"
+};
+
+const fileTypeLabels = {
+  csv: "CSV file",
+  doc: "Word document",
+  docx: "Word document",
+  jpeg: "image",
+  jpg: "image",
+  mp4: "video",
+  pdf: "PDF",
+  png: "image",
+  ppt: "slides",
+  pptx: "slides",
+  txt: "text file",
+  webp: "image",
+  xls: "spreadsheet",
+  xlsx: "spreadsheet"
+};
+
+function materialActionTarget(material) {
+  const fileType = String(material.fileType || "").trim().toLowerCase();
+  const type = String(material.type || "").trim().toLowerCase();
+
+  return fileTypeLabels[fileType] || materialTypeLabels[type] || "material";
+}
+
+function viewActionLabel(material) {
+  const type = String(material.type || "").trim().toLowerCase();
+  const target = materialActionTarget(material);
+
+  if (type === "recording" || type === "video") return `Watch ${target}`;
+  if (type === "reading") return `Read ${target}`;
+  if (type === "zoom") return "Open Zoom link";
+  if (type === "external") return "Open external link";
+
+  return `View ${target}`;
+}
+
 export function MaterialsPage() {
   const [materials, setMaterials] = useState([]);
   const [error, setError] = useState("");
@@ -58,13 +106,12 @@ export function MaterialsPage() {
                     rel="noreferrer"
                     size="sm"
                     target="_blank"
-                    variant="secondary"
                   >
-                    Open material
+                    {viewActionLabel(material)}
                   </Button>
                   {canDownload ? (
-                    <Button as="a" download href={materialDownloadUrl} icon={Download} rel="noreferrer" size="sm" variant="secondary">
-                      Download
+                    <Button as="a" download href={materialDownloadUrl} icon={Download} rel="noreferrer" size="sm">
+                      Download {materialActionTarget(material)}
                     </Button>
                   ) : null}
                 </div>
