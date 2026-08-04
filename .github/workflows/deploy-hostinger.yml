@@ -53,6 +53,8 @@ jobs:
           VPS_PORT: ${{ secrets.VPS_PORT }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
+          set -euo pipefail
+
           if [ -z "$VPS_HOST" ]; then
             echo "Missing GitHub secret: VPS_HOST"
             exit 1
@@ -63,10 +65,17 @@ jobs:
             exit 1
           fi
 
+          SSH_PORT="${VPS_PORT:-22}"
+
           mkdir -p ~/.ssh
           printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/bybs_lms_vps_key
           chmod 600 ~/.ssh/bybs_lms_vps_key
-          ssh-keyscan -p "${VPS_PORT:-22}" "$VPS_HOST" >> ~/.ssh/known_hosts
+          touch ~/.ssh/known_hosts
+
+          echo "Preparing SSH access for configured VPS host on port ${SSH_PORT}."
+          ssh-keyscan -T 20 -H -p "$SSH_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || {
+            echo "Warning: ssh-keyscan could not read the host key. The deploy step will try SSH with StrictHostKeyChecking=accept-new."
+          }
 
       - name: Deploy On VPS
         env:
@@ -79,6 +88,8 @@ jobs:
             exit 1
           fi
 
-          ssh -i ~/.ssh/bybs_lms_vps_key -p "${VPS_PORT:-22}" "$VPS_USER@$VPS_HOST" \
+          ssh -i ~/.ssh/bybs_lms_vps_key \
+            -o StrictHostKeyChecking=accept-new \
+            -p "${VPS_PORT:-22}" "$VPS_USER@$VPS_HOST" \
             "APP_DIR='$APP_DIR' DEPLOY_BRANCH='$DEPLOY_BRANCH' SERVICE_NAME='$SERVICE_NAME' bash -s" \
             < deploy/hostinger/deploy-latest.sh
