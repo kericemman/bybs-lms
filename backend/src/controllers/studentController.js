@@ -13,6 +13,7 @@ import { User } from "../models/User.js";
 import { notifyUser, notifyUsers } from "../services/portalNotificationService.js";
 import { calculateStudentProgress } from "../services/progressService.js";
 import { ApiError } from "../utils/apiError.js";
+import { isPastAssignmentDeadline } from "../utils/assignmentDeadlines.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getPagination, paginatedResponse } from "../utils/pagination.js";
 import { sanitizePlainText, sanitizeRichText } from "../utils/sanitizeRichText.js";
@@ -887,7 +888,7 @@ export const submitStudentAssignment = asyncHandler(async (req, res) => {
     throw new ApiError(409, "This assignment is closed");
   }
 
-  const isLate = new Date() > new Date(assignment.dueDate);
+  const isLate = isPastAssignmentDeadline(assignment.dueDate);
   const payload = {
     fileUrl: req.body.fileUrl,
     linkUrl: req.body.linkUrl,

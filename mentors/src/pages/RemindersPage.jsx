@@ -1,6 +1,6 @@
 import { Pencil, Send, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { AddToCalendarButton, Button, Card, DataTable, PageHeader, SectionHeader, StatusBadge } from "@bybs/shared";
+import { AddToCalendarButton, Button, Card, DataTable, PageHeader, SectionHeader, StatusBadge, formatAssignmentDeadline } from "@bybs/shared";
 import { FormField, inputClassName, textAreaClassName } from "../components/FormField.jsx";
 import { mentorApi } from "../services/api.js";
 import { formatDate } from "../utils/format.js";
@@ -26,7 +26,7 @@ function reminderMessage(assignment) {
     return "Please complete and submit your assignment. Reach out if you are blocked or need clarification.";
   }
 
-  return `Please complete and submit "${assignment.title}" by ${formatDate(assignment.dueDate)}. Reach out if you are blocked or need clarification.`;
+  return `Please complete and submit "${assignment.title}" by ${formatAssignmentDeadline(assignment.dueDate)}. Reach out if you are blocked or need clarification.`;
 }
 
 function targetLabel(value) {
@@ -55,10 +55,9 @@ function assignmentCalendarEvent(assignment) {
   if (!assignment?.dueDate) return {};
 
   return {
-    allDay: true,
     id: assignment._id,
     title: `BYBS assignment due: ${assignment.title}`,
-    description: `${assignment.module?.title || "Assignment"} deadline for mentees.`,
+    description: `${assignment.module?.title || "Assignment"} deadline for mentees. Due ${formatAssignmentDeadline(assignment.dueDate, { includeLocalTime: false })}.`,
     startsAt: assignment.dueDate
   };
 }
@@ -296,7 +295,7 @@ export function RemindersPage() {
         columns={[
           { key: "title", header: "Assignment", wrap: true },
           { key: "module", header: "Module", render: (row) => row.module?.title || "Unassigned" },
-          { key: "dueDate", header: "Due", render: (row) => formatDate(row.dueDate) },
+          { key: "dueDate", header: "Due", render: (row) => formatAssignmentDeadline(row.dueDate) },
           { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
           {
             key: "calendar",

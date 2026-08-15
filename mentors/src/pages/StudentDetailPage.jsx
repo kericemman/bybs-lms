@@ -10,10 +10,11 @@ import {
   SafeHtml,
   StatCard,
   StatusBadge,
+  formatAssignmentDeadline,
   formatInternationalPhone
 } from "@bybs/shared";
 import { mentorApi } from "../services/api.js";
-import { formatDate, formatDateTime } from "../utils/format.js";
+import { formatDateTime } from "../utils/format.js";
 
 const emptyMessage = {
   title: "",
@@ -341,7 +342,7 @@ export function StudentDetailPage() {
           { key: "title", header: "Assignment", wrap: true },
           { key: "module", header: "Module", render: (row) => row.module?.title || "General" },
           { key: "postedBy", header: "Posted by", render: (row) => row.postedBy?.name || "BYBS" },
-          { key: "dueDate", header: "Due", render: (row) => formatDate(row.dueDate) },
+          { key: "dueDate", header: "Due", render: (row) => formatAssignmentDeadline(row.dueDate) },
           { key: "submittedAt", header: "Submitted", render: (row) => formatDateTime(row.submittedAt) },
           { key: "score", header: "Score", render: (row) => (row.score === null ? "Not scored" : `${row.score}/${row.maxScore}`) },
           { key: "status", header: "Status", render: (row) => <StatusBadge status={row.submissionStatus} /> }

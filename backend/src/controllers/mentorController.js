@@ -23,6 +23,7 @@ import { serializeCertificate } from "../services/certificateService.js";
 import { notifyUser, notifyUsers } from "../services/portalNotificationService.js";
 import { calculateStudentProgress } from "../services/progressService.js";
 import { ApiError } from "../utils/apiError.js";
+import { formatAssignmentDeadlineForNotification } from "../utils/assignmentDeadlines.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getPagination, paginatedResponse } from "../utils/pagination.js";
 import { sanitizePlainText, sanitizeRichText } from "../utils/sanitizeRichText.js";
@@ -603,7 +604,7 @@ async function notifyStudentsAboutAssignment({ assignment, cohortId }) {
     portalRole: "student",
     notification: {
       title: `New assignment: ${assignment.title}`,
-      message: `A new assignment has been posted. Submit it by ${new Date(assignment.dueDate).toLocaleDateString()}.`,
+      message: `A new assignment has been posted. Submit it by ${formatAssignmentDeadlineForNotification(assignment.dueDate)}.`,
       channel: "both",
       previewText: assignment.instructions.slice(0, 160),
       ctaLabel: "Open assignment",

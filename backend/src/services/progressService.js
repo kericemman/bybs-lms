@@ -3,6 +3,7 @@ import { Cohort } from "../models/Cohort.js";
 import { Session } from "../models/Session.js";
 import { Submission } from "../models/Submission.js";
 import { User } from "../models/User.js";
+import { isOnOrBeforeAssignmentDeadline } from "../utils/assignmentDeadlines.js";
 import { ApiError } from "../utils/apiError.js";
 
 const assignmentStatuses = ["published", "closed"];
@@ -109,7 +110,7 @@ function buildProgressRow({ student, assignments, submissions, sessions, rank = 
   const onTimeSubmissions = submitted.filter((submission) => {
     const assignment = assignmentsById.get(idFor(submission.assignment));
     if (!assignment?.dueDate) return !submission.isLate && submission.status !== "lateSubmission";
-    return !submission.isLate && new Date(submission.submittedAt || submission.createdAt) <= new Date(assignment.dueDate);
+    return !submission.isLate && isOnOrBeforeAssignmentDeadline(submission.submittedAt || submission.createdAt, assignment.dueDate);
   });
   const score = scoreSummary({ assignments, submissions });
   const attendance = sessionAttendanceForStudent(sessions, studentId);

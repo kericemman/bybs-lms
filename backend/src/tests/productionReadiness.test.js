@@ -19,6 +19,11 @@ const { BetaApplication } = await import("../models/BetaApplication.js");
 const { Cohort } = await import("../models/Cohort.js");
 const { Module } = await import("../models/Module.js");
 const { User } = await import("../models/User.js");
+const {
+  effectiveAssignmentDeadline,
+  isPastAssignmentDeadline,
+  normalizeAssignmentDueDateInput
+} = await import("../utils/assignmentDeadlines.js");
 const { changePasswordSchema, updateProfileSchema } = await import("../validators/authSchemas.js");
 
 let databaseReady = false;
@@ -86,6 +91,14 @@ function requireDatabase(t) {
 }
 
 describe("production readiness controls", () => {
+  test("assignment deadlines use the official BYBS CAT deadline moment", () => {
+    assert.equal(normalizeAssignmentDueDateInput("2026-08-21").toISOString(), "2026-08-21T21:59:00.000Z");
+    assert.equal(normalizeAssignmentDueDateInput("2026-08-21T23:59").toISOString(), "2026-08-21T21:59:00.000Z");
+    assert.equal(effectiveAssignmentDeadline(new Date("2026-08-21T00:00:00.000Z")).toISOString(), "2026-08-21T21:59:00.000Z");
+    assert.equal(isPastAssignmentDeadline("2026-08-21", new Date("2026-08-21T21:58:59.000Z")), false);
+    assert.equal(isPastAssignmentDeadline("2026-08-21", new Date("2026-08-21T21:59:01.000Z")), true);
+  });
+
   test("password policy requires strong replacement passwords", () => {
     assert.throws(() => changePasswordSchema.parse({
       body: {

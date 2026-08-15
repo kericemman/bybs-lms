@@ -18,10 +18,11 @@ import {
   QuickAction,
   SectionHeader,
   StatCard,
-  StatusBadge
+  StatusBadge,
+  formatAssignmentDeadline
 } from "@bybs/shared";
 import { studentApi } from "../services/api.js";
-import { formatCatDateTime, formatDate, formatDateTime, titleFor } from "../utils/format.js";
+import { formatCatDateTime, formatDateTime, titleFor } from "../utils/format.js";
 
 function postedBy(assignment) {
   return assignment.createdBy?.name || "BYBS team";
@@ -49,10 +50,9 @@ function sessionCalendarEvent(session) {
 
 function assignmentCalendarEvent(assignment) {
   return {
-    allDay: true,
     id: assignment._id,
     title: `BYBS assignment due: ${assignment.title}`,
-    description: `${titleFor(assignment.module, "No module")} assignment posted by ${postedBy(assignment)}.`,
+    description: `${titleFor(assignment.module, "No module")} assignment posted by ${postedBy(assignment)}. Due ${formatAssignmentDeadline(assignment.dueDate, { includeLocalTime: false })}.`,
     startsAt: assignment.dueDate
   };
 }
@@ -208,7 +208,7 @@ export function DashboardPage() {
               {assignments.map((assignment) => (
                 <div className="min-w-0 rounded-md bg-white p-4 ring-1 ring-bybs-border" key={assignment._id}>
                   <p className="break-words font-medium text-bybs-navy">{assignment.title}</p>
-                  <p className="mt-1 break-words text-sm text-bybs-body">{titleFor(assignment.module, "No module")} · Due {formatDate(assignment.dueDate)}</p>
+                  <p className="mt-1 break-words text-sm text-bybs-body">{titleFor(assignment.module, "No module")} · Due {formatAssignmentDeadline(assignment.dueDate)}</p>
                   <p className="mt-1 text-sm text-bybs-muted">Posted by {postedBy(assignment)}</p>
                   <div className="mt-3">
                     <AddToCalendarButton event={assignmentCalendarEvent(assignment)} fileName={`bybs-assignment-${assignment._id}`} />

@@ -8,6 +8,7 @@ import {
 } from "../services/mentorScopeService.js";
 import { notifyUsers } from "../services/portalNotificationService.js";
 import { ApiError } from "../utils/apiError.js";
+import { formatAssignmentDeadlineForNotification, normalizeAssignmentDueDateInput } from "../utils/assignmentDeadlines.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getPagination, paginatedResponse } from "../utils/pagination.js";
 import { sanitizePlainText, sanitizeRichText } from "../utils/sanitizeRichText.js";
@@ -43,7 +44,7 @@ async function notifyStudentsAboutPublishedAssignment(assignment) {
     portalRole: "student",
     notification: {
       title: `New assignment: ${assignment.title}`,
-      message: `A new assignment has been posted. Submit it by ${new Date(assignment.dueDate).toLocaleDateString()}.`,
+      message: `A new assignment has been posted. Submit it by ${formatAssignmentDeadlineForNotification(assignment.dueDate)}.`,
       channel: "both",
       previewText: sanitizePlainText(assignment.instructions || "").slice(0, 160),
       ctaLabel: "Open assignment",
@@ -170,6 +171,10 @@ function sanitizeAssignmentPayload(payload) {
 
   if (Object.prototype.hasOwnProperty.call(nextPayload, "instructions")) {
     nextPayload.instructions = sanitizeRichText(nextPayload.instructions);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(nextPayload, "dueDate")) {
+    nextPayload.dueDate = normalizeAssignmentDueDateInput(nextPayload.dueDate);
   }
 
   if (Array.isArray(nextPayload.resourceLinks)) {

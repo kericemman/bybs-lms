@@ -10,12 +10,13 @@ import {
   SafeHtml,
   StatusBadge,
   downloadFileUrl,
+  formatAssignmentDeadline,
   normalizeFileUrl,
   validateResourceFile
 } from "@bybs/shared";
 import { AssignmentInstructions } from "../components/AssignmentInstructions.jsx";
 import { apiBaseUrl, studentApi } from "../services/api.js";
-import { formatDate, titleFor } from "../utils/format.js";
+import { titleFor } from "../utils/format.js";
 
 function submissionStatus(assignment) {
   return assignment.submission?.status || "notStarted";
@@ -27,10 +28,9 @@ function postedBy(assignment) {
 
 function assignmentCalendarEvent(assignment) {
   return {
-    allDay: true,
     id: assignment._id,
     title: `BYBS assignment due: ${assignment.title}`,
-    description: `${titleFor(assignment.module, "General assignment")} assignment posted by ${postedBy(assignment)}.`,
+    description: `${titleFor(assignment.module, "General assignment")} assignment posted by ${postedBy(assignment)}. Due ${formatAssignmentDeadline(assignment.dueDate, { includeLocalTime: false })}.`,
     startsAt: assignment.dueDate
   };
 }
@@ -182,7 +182,7 @@ export function AssignmentsPage() {
               <p className="text-sm font-medium text-bybs-blue">{titleFor(activeAssignment.module, "General assignment")}</p>
               <h2 className="mt-1 text-lg font-semibold text-bybs-navy">{activeAssignment.title}</h2>
               <p className="mt-1 text-sm text-bybs-body">
-                Due {formatDate(activeAssignment.dueDate)} · Posted by {postedBy(activeAssignment)}
+                Due {formatAssignmentDeadline(activeAssignment.dueDate)} · Posted by {postedBy(activeAssignment)}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -347,7 +347,7 @@ export function AssignmentsPage() {
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-bybs-blue">{titleFor(assignment.module, "General assignment")}</p>
                   <h2 className="mt-1 text-base font-semibold text-bybs-navy">{assignment.title}</h2>
-                  <p className="mt-1 text-sm text-bybs-body">Due {formatDate(assignment.dueDate)}</p>
+                  <p className="mt-1 text-sm text-bybs-body">Due {formatAssignmentDeadline(assignment.dueDate)}</p>
                   <p className="mt-1 text-sm text-bybs-muted">Posted by {postedBy(assignment)}</p>
                 </div>
                 <StatusBadge status={submissionStatus(assignment)} />

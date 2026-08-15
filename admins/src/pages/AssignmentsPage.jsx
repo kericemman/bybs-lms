@@ -1,6 +1,16 @@
 import { Plus, Save, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Button, Card, DataTable, PageHeader, StatusBadge } from "@bybs/shared";
+import {
+  Button,
+  Card,
+  DataTable,
+  PageHeader,
+  StatusBadge,
+  assignmentDeadlineInputToIso,
+  defaultAssignmentDeadlineInputValue,
+  formatAssignmentDeadline,
+  toAssignmentDeadlineInput
+} from "@bybs/shared";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { FilterBar } from "../components/FilterBar.jsx";
 import { FormField, inputClassName, textAreaClassName } from "../components/FormField.jsx";
@@ -12,7 +22,7 @@ const initialForm = {
   title: "",
   instructions: "",
   cohort: "",
-  dueDate: "",
+  dueDate: defaultAssignmentDeadlineInputValue(),
   maxScore: 100,
   status: "draft",
   allowResubmission: true
@@ -24,12 +34,6 @@ const statusOptions = [
   { value: "closed", label: "Closed" },
   { value: "archived", label: "Archived" }
 ];
-
-function toDateTimeInput(value) {
-  if (!value) return "";
-  const date = new Date(value);
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-}
 
 export function AssignmentsPage() {
   const { user } = useAuth();
@@ -69,7 +73,7 @@ export function AssignmentsPage() {
       title: assignment.title || "",
       instructions: assignment.instructions || "",
       cohort: assignment.cohort?._id || "",
-      dueDate: toDateTimeInput(assignment.dueDate),
+      dueDate: toAssignmentDeadlineInput(assignment.dueDate),
       maxScore: assignment.maxScore || 100,
       status: assignment.status || "draft",
       allowResubmission: Boolean(assignment.allowResubmission)
@@ -94,7 +98,7 @@ export function AssignmentsPage() {
     setIsSubmitting(true);
 
     try {
-      const payload = { ...form, maxScore: Number(form.maxScore) };
+      const payload = { ...form, dueDate: assignmentDeadlineInputToIso(form.dueDate), maxScore: Number(form.maxScore) };
       if (editingId) {
         await adminApi.updateAssignment(editingId, payload);
       } else {
@@ -137,7 +141,7 @@ export function AssignmentsPage() {
               {cohorts.map((cohort) => <option key={cohort._id} value={cohort._id}>{cohort.title}</option>)}
             </select>
           </FormField>
-          <FormField label="Due date">
+          <FormField hint="Official BYBS deadline time in CAT. Use 23:59 for an end-of-day deadline." label="Due date and time">
             <input className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, dueDate: event.target.value }))} required type="datetime-local" value={form.dueDate} />
           </FormField>
           <FormField label="Max score">
@@ -170,7 +174,7 @@ export function AssignmentsPage() {
         columns={[
           { key: "title", header: "Assignment" },
           { key: "cohort", header: "Cohort", render: (row) => row.cohort?.title || "Unassigned" },
-          { key: "dueDate", header: "Due date", render: (row) => new Date(row.dueDate).toLocaleString() },
+          { key: "dueDate", header: "Due date", render: (row) => formatAssignmentDeadline(row.dueDate) },
           { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
           {
             key: "actions",

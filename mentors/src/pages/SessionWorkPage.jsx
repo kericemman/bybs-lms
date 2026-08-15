@@ -9,19 +9,17 @@ import {
   RichTextEditor,
   SafeHtml,
   StatusBadge,
+  assignmentDeadlineInputToIso,
+  defaultAssignmentDeadlineInputValue,
   downloadFileUrl,
-  normalizeFileUrl
+  formatAssignmentDeadline,
+  normalizeFileUrl,
+  toAssignmentDeadlineInput
 } from "@bybs/shared";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { FormField, inputClassName } from "../components/FormField.jsx";
 import { apiBaseUrl, mentorApi } from "../services/api.js";
 import { formatCatDateTime, formatDate } from "../utils/format.js";
-
-function tomorrowIsoDate() {
-  const date = new Date();
-  date.setDate(date.getDate() + 7);
-  return date.toISOString().slice(0, 10);
-}
 
 const createStatusOptions = [
   { value: "published", label: "Publish now" },
@@ -49,7 +47,7 @@ function initialForm(overrides = {}) {
     gradingGuide: "",
     supportNotes: "",
     resourceLinks: [{ title: "", url: "" }],
-    dueDate: tomorrowIsoDate(),
+    dueDate: defaultAssignmentDeadlineInputValue(),
     maxScore: 100,
     allowResubmission: true,
     status: "published",
@@ -62,9 +60,7 @@ function entityId(value) {
 }
 
 function toDateInput(value) {
-  if (!value) return tomorrowIsoDate();
-  const date = new Date(value);
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  return toAssignmentDeadlineInput(value);
 }
 
 function sessionMentorName(session) {
@@ -73,10 +69,9 @@ function sessionMentorName(session) {
 
 function assignmentCalendarEvent(assignment) {
   return {
-    allDay: true,
     id: assignment._id,
     title: `BYBS assignment due: ${assignment.title}`,
-    description: `${assignment.module?.title || "Assignment"} deadline for mentees.`,
+    description: `${assignment.module?.title || "Assignment"} deadline for mentees. Due ${formatAssignmentDeadline(assignment.dueDate, { includeLocalTime: false })}.`,
     startsAt: assignment.dueDate
   };
 }
@@ -174,7 +169,7 @@ function AssignmentDetailsCard({ assignment, canEdit, onClose, onEdit }) {
           <p className="text-sm font-semibold uppercase text-bybs-blue">Assignment details</p>
           <h2 className="mt-1 text-lg font-semibold text-bybs-navy">{assignment.title}</h2>
           <p className="mt-1 text-sm text-bybs-body">
-            {assignment.module?.title || "Unassigned module"} · Due {formatDate(assignment.dueDate)}
+            {assignment.module?.title || "Unassigned module"} · Due {formatAssignmentDeadline(assignment.dueDate)}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -491,7 +486,7 @@ export function SessionWorkPage() {
         const updatePayload = {
           title: form.assignmentTitle.trim(),
           instructions: assignmentBreakdown,
-          dueDate: form.dueDate,
+          dueDate: assignmentDeadlineInputToIso(form.dueDate),
           resourceLinks,
           maxScore: Number(form.maxScore),
           allowResubmission: form.allowResubmission,
@@ -528,7 +523,7 @@ export function SessionWorkPage() {
           supportNotes: form.supportNotes.trim()
         },
         resourceLinks,
-        dueDate: form.dueDate,
+        dueDate: assignmentDeadlineInputToIso(form.dueDate),
         maxScore: Number(form.maxScore),
         allowResubmission: form.allowResubmission,
         status: form.status
@@ -641,8 +636,8 @@ export function SessionWorkPage() {
               value={form.assignmentTitle}
             />
           </FormField>
-          <FormField label="Due date">
-            <input className={inputClassName} onChange={(event) => updateField("dueDate", event.target.value)} required type="date" value={form.dueDate} />
+          <FormField hint="Official BYBS deadline time in CAT. Default is 11:59 PM CAT." label="Due date and time">
+            <input className={inputClassName} onChange={(event) => updateField("dueDate", event.target.value)} required type="datetime-local" value={form.dueDate} />
           </FormField>
 
           {!editingAssignment && selectedSession ? (
@@ -886,7 +881,7 @@ export function SessionWorkPage() {
           columns={[
             { key: "title", header: "Assignment", wrap: true },
             { key: "module", header: "Module", render: (row) => row.module?.title || "Unassigned" },
-            { key: "dueDate", header: "Due", render: (row) => formatDate(row.dueDate) },
+            { key: "dueDate", header: "Due", render: (row) => formatAssignmentDeadline(row.dueDate) },
             { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
             { key: "createdBy", header: "Posted by", render: (row) => row.createdBy?.name || "BYBS team" },
             {

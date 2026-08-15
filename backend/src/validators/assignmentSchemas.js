@@ -1,10 +1,13 @@
 import { z } from "zod";
+import { normalizeAssignmentDueDateInput } from "../utils/assignmentDeadlines.js";
 import { emptyToUndefined, objectIdSchema, paginationQuerySchema } from "./commonSchemas.js";
 
 const resourceLinkSchema = z.object({
   title: z.preprocess(emptyToUndefined, z.string().trim().max(120).optional()),
   url: z.string().trim().url()
 });
+
+const assignmentDueDateSchema = z.preprocess(normalizeAssignmentDueDateInput, z.date());
 
 export const listAssignmentsSchema = z.object({
   query: paginationQuerySchema.extend({
@@ -19,7 +22,7 @@ export const createAssignmentSchema = z.object({
     instructions: z.string().trim().min(10),
     cohort: objectIdSchema,
     module: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
-    dueDate: z.coerce.date(),
+    dueDate: assignmentDueDateSchema,
     templateFileUrl: z.preprocess(emptyToUndefined, z.string().trim().url().optional()),
     resourceLinks: z.array(resourceLinkSchema).max(10).default([]),
     maxScore: z.coerce.number().min(1).max(1000).default(100),
@@ -37,7 +40,7 @@ export const updateAssignmentSchema = z.object({
     instructions: z.string().trim().min(10).optional(),
     cohort: objectIdSchema.optional(),
     module: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
-    dueDate: z.coerce.date().optional(),
+    dueDate: assignmentDueDateSchema.optional(),
     templateFileUrl: z.preprocess(emptyToUndefined, z.string().trim().url().optional()),
     resourceLinks: z.array(resourceLinkSchema).max(10).optional(),
     maxScore: z.coerce.number().min(1).max(1000).optional(),

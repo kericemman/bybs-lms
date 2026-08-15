@@ -27,6 +27,7 @@ export * from "./hooks/useLocalStorage.js";
 export * from "./lib/apiClient.js";
 export * from "./lib/calendar.js";
 export * from "./lib/cn.js";
+export * from "./lib/deadlines.js";
 export * from "./lib/fileUrls.js";
 export * from "./lib/phone.js";
 export * from "./lib/uploadValidation.js";

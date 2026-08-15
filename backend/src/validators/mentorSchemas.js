@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeAssignmentDueDateInput } from "../utils/assignmentDeadlines.js";
 import { emptyToUndefined, objectIdSchema, paginationQuerySchema } from "./commonSchemas.js";
 
 const timeSchema = z
@@ -115,6 +116,8 @@ const assignmentResourceLinkSchema = z.object({
   url: z.string().trim().url()
 });
 
+const assignmentDueDateSchema = z.preprocess(normalizeAssignmentDueDateInput, z.date());
+
 export const createSessionWorkSchema = z.object({
   body: z.object({
     session: objectIdSchema,
@@ -126,7 +129,7 @@ export const createSessionWorkSchema = z.object({
     assignmentBreakdown: z.string().trim().min(10),
     assignmentSections: assignmentSectionSchema,
     resourceLinks: z.array(assignmentResourceLinkSchema).max(10).default([]),
-    dueDate: z.coerce.date(),
+    dueDate: assignmentDueDateSchema,
     maxScore: z.coerce.number().min(1).max(1000).default(100),
     allowResubmission: z.boolean().default(true),
     status: z.enum(["draft", "published"]).default("published")
