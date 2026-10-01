@@ -6,7 +6,8 @@ export function signAccessToken(user) {
     {
       sub: user.id,
       role: user.role,
-      email: user.email
+      email: user.email,
+      ver: Number(user.authVersion || 0)
     },
     env.jwtSecret,
     { expiresIn: env.jwtExpiresIn }

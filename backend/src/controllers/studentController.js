@@ -13,13 +13,14 @@ import { User } from "../models/User.js";
 import { notifyUser, notifyUsers } from "../services/portalNotificationService.js";
 import { calculateStudentProgress } from "../services/progressService.js";
 import { ApiError } from "../utils/apiError.js";
-import { isPastAssignmentDeadline } from "../utils/assignmentDeadlines.js";
+import { formatAssignmentDeadlineForNotification, isPastAssignmentDeadline } from "../utils/assignmentDeadlines.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getPagination, paginatedResponse } from "../utils/pagination.js";
+import { notificationLinks } from "../utils/notificationLinks.js";
 import { sanitizePlainText, sanitizeRichText } from "../utils/sanitizeRichText.js";
 
 const activeAssignmentStatuses = ["published", "closed"];
-const submittedStatuses = ["submitted", "lateSubmission", "reviewed", "needsRevision", "approved"];
+const submittedStatuses = ["submitted", "resubmitted", "lateSubmission", "reviewed", "needsRevision", "approved"];
 const dayIndexes = {
   sunday: 0,
   monday: 1,
@@ -319,7 +320,9 @@ async function assignmentRows(student, filter, { skip = 0, limit = 100 } = {}) {
       .skip(skip)
       .limit(limit),
     Assignment.countDocuments(filter),
-    Submission.find({ student: student._id }).populate("reviewedBy", "name email")
+    Submission.find({ student: student._id })
+      .populate("reviewedBy", "name email")
+      .populate("history.reviewedBy", "name email")
   ]);
 
   const submissionsByAssignment = new Map(
@@ -358,9 +361,64 @@ function searchResult({ id, type, title, description, href, createdAt }) {
   };
 }
 
-function progressPercentage({ totalAssignments, submittedCount }) {
-  if (!totalAssignments) return 0;
-  return Math.round((submittedCount / totalAssignments) * 100);
+function moduleTimelineStatus(module, now) {
+  if (module.startDate && new Date(module.startDate) > now) return "upcoming";
+  if (module.endDate && new Date(module.endDate) < now) return "completed";
+  return "current";
+}
+
+function assignmentDashboardSummary(assignment, submission = null) {
+  if (!assignment) return null;
+
+  const source = typeof assignment.toObject === "function" ? assignment.toObject() : assignment;
+
+  return {
+    _id: source._id,
+    title: source.title,
+    dueDate: source.dueDate,
+    status: source.status,
+    maxScore: source.maxScore,
+    createdAt: source.createdAt,
+    module: source.module,
+    createdBy: source.createdBy,
+    submissionStatus: submission?.status || "notStarted"
+  };
+}
+
+function feedbackDashboardSummary(submission, assignmentsById) {
+  if (!submission) return null;
+
+  const assignment = assignmentsById.get(idString(submission.assignment));
+  if (!assignment) return null;
+
+  return {
+    _id: submission._id,
+    status: submission.status,
+    score: submission.score,
+    feedback: submission.feedback,
+    feedbackPreview: textPreview(submission.feedback || "Feedback is ready to review.", 180),
+    feedbackFileUrl: submission.feedbackFileUrl,
+    reviewedAt: submission.reviewedAt,
+    reviewedBy: submission.reviewedBy,
+    assignment: assignmentDashboardSummary(assignment, submission)
+  };
+}
+
+function selectDashboardModule(modules, now) {
+  const withTimeline = modules.map((module) => ({
+    module,
+    timelineStatus: moduleTimelineStatus(module, now)
+  }));
+
+  return (
+    withTimeline.find(
+      (item) => item.timelineStatus === "current" && (item.module.startDate || item.module.endDate)
+    ) ||
+    withTimeline.find((item) => item.timelineStatus === "current") ||
+    withTimeline.find((item) => item.timelineStatus === "upcoming") ||
+    [...withTimeline].reverse().find((item) => item.timelineStatus === "completed") ||
+    null
+  );
 }
 
 export const studentSearch = asyncHandler(async (req, res) => {
@@ -438,7 +496,7 @@ export const studentSearch = asyncHandler(async (req, res) => {
         type: "Assignment",
         title: assignment.title,
         description: `${assignment.module?.title || "General assignment"}${assignment.dueDate ? ` · Due ${assignment.dueDate.toISOString().slice(0, 10)}` : ""}`,
-        href: "/app/assignments",
+        href: `/app/assignments?assignment=${assignment.id}`,
         createdAt: assignment.createdAt
       })
     ),
@@ -504,18 +562,16 @@ export const studentDashboard = asyncHandler(async (req, res) => {
   const now = new Date();
 
   const [
-    totalAssignments,
-    submittedCount,
-    pendingAssignments,
     upcomingSessions,
     unreadNotifications,
     recentNotifications,
     nextSessions,
-    latestAssignments
+    assignments,
+    submissions,
+    modules,
+    cohort,
+    progress
   ] = await Promise.all([
-    Assignment.countDocuments(assignmentFilter(req.user)),
-    Submission.countDocuments({ student: req.user._id, status: { $in: submittedStatuses } }),
-    Assignment.countDocuments(assignmentFilter(req.user, { dueDate: { $gte: now } })),
     Session.countDocuments({ cohort: cohortId, status: "scheduled", startsAt: { $gte: now } }),
     Notification.countDocuments({ recipient: req.user._id, readStatus: false, archivedAt: { $exists: false } }),
     Notification.find({ recipient: req.user._id, archivedAt: { $exists: false } })
@@ -532,9 +588,123 @@ export const studentDashboard = asyncHandler(async (req, res) => {
     Assignment.find(assignmentFilter(req.user))
       .populate("module", "title")
       .populate("createdBy", "name email role")
-      .sort({ dueDate: 1 })
-      .limit(4)
+      .select("title dueDate status maxScore createdAt module createdBy")
+      .sort({ dueDate: 1 }),
+    Submission.find({ student: req.user._id })
+      .select("assignment status submittedAt resubmittedAt score feedback feedbackFileUrl reviewedAt reviewedBy isLate")
+      .populate("reviewedBy", "name email role")
+      .sort({ reviewedAt: -1, updatedAt: -1 }),
+    Module.find({ cohort: cohortId, status: "published" })
+      .select("title startDate endDate order assignedMentor")
+      .populate("assignedMentor", "name email role profileImage")
+      .sort({ startDate: 1, order: 1 }),
+    Cohort.findById(cohortId).select("title startDate endDate status"),
+    calculateStudentProgress(req.user, { now })
   ]);
+
+  const assignmentsById = new Map(assignments.map((assignment) => [idString(assignment), assignment]));
+  const submissionsByAssignment = new Map(
+    submissions
+      .filter((submission) => assignmentsById.has(idString(submission.assignment)))
+      .map((submission) => [idString(submission.assignment), submission])
+  );
+  const pendingPublishedAssignments = assignments.filter(
+    (assignment) => assignment.status === "published" && !submissionsByAssignment.has(idString(assignment))
+  );
+  const overdueAssignment = [...pendingPublishedAssignments]
+    .filter((assignment) => new Date(assignment.dueDate) < now)
+    .sort((left, right) => new Date(left.dueDate) - new Date(right.dueDate))[0];
+  const nearestDeadline = [...pendingPublishedAssignments]
+    .filter((assignment) => new Date(assignment.dueDate) >= now)
+    .sort((left, right) => new Date(left.dueDate) - new Date(right.dueDate))[0];
+  const pendingAssignment = overdueAssignment || nearestDeadline || pendingPublishedAssignments[0];
+  const feedbackSubmissions = submissions.filter(
+    (submission) => ["reviewed", "needsRevision", "approved"].includes(submission.status) && assignmentsById.has(idString(submission.assignment))
+  );
+  const revisionSubmission = feedbackSubmissions.find((submission) => submission.status === "needsRevision");
+  const recentFeedback = feedbackDashboardSummary(feedbackSubmissions[0], assignmentsById);
+  const revisionRequest = feedbackDashboardSummary(revisionSubmission, assignmentsById);
+  const selectedModule = selectDashboardModule(modules, now);
+  let currentModule = null;
+
+  if (selectedModule) {
+    const moduleId = idString(selectedModule.module);
+    const moduleAssignments = assignments.filter((assignment) => idString(assignment.module) === moduleId);
+    const submittedModuleAssignments = moduleAssignments.filter((assignment) => {
+      const submission = submissionsByAssignment.get(idString(assignment));
+      return submission && submittedStatuses.includes(submission.status);
+    });
+    const moduleNextAssignment =
+      moduleAssignments.find((assignment) => submissionsByAssignment.get(idString(assignment))?.status === "needsRevision") ||
+      moduleAssignments.find((assignment) => assignment.status === "published" && !submissionsByAssignment.has(idString(assignment)));
+    const moduleObject = selectedModule.module.toObject();
+
+    currentModule = {
+      ...moduleObject,
+      timelineStatus: selectedModule.timelineStatus,
+      assignmentSummary: {
+        total: moduleAssignments.length,
+        submitted: submittedModuleAssignments.length,
+        pending: Math.max(moduleAssignments.length - submittedModuleAssignments.length, 0),
+        progress: moduleAssignments.length
+          ? Math.round((submittedModuleAssignments.length / moduleAssignments.length) * 100)
+          : 0
+      },
+      nextAssignment: assignmentDashboardSummary(
+        moduleNextAssignment,
+        moduleNextAssignment ? submissionsByAssignment.get(idString(moduleNextAssignment)) : null
+      )
+    };
+  }
+
+  const nextSession = nextSessions[0] || null;
+  let nextAction;
+
+  if (revisionRequest) {
+    nextAction = {
+      type: "revision",
+      title: `Revise ${revisionRequest.assignment.title}`,
+      description: revisionRequest.feedbackPreview,
+      href: `/app/assignments?assignment=${revisionRequest.assignment._id}`
+    };
+  } else if (overdueAssignment) {
+    nextAction = {
+      type: "overdueAssignment",
+      title: `Submit ${overdueAssignment.title}`,
+      description: "This assignment is past its deadline and still needs your submission.",
+      href: `/app/assignments?assignment=${overdueAssignment._id}`
+    };
+  } else if (nearestDeadline) {
+    nextAction = {
+      type: "assignment",
+      title: `Complete ${nearestDeadline.title}`,
+      description: `Your nearest assignment deadline is ${formatAssignmentDeadlineForNotification(nearestDeadline.dueDate)}.`,
+      href: `/app/assignments?assignment=${nearestDeadline._id}`
+    };
+  } else if (currentModule) {
+    nextAction = {
+      type: "module",
+      title: `Continue ${currentModule.title}`,
+      description: currentModule.assignmentSummary.total
+        ? `${currentModule.assignmentSummary.submitted} of ${currentModule.assignmentSummary.total} module assignments submitted.`
+        : "Open your learning materials and continue with this module.",
+      href: "/app/materials"
+    };
+  } else if (nextSession) {
+    nextAction = {
+      type: "session",
+      title: `Prepare for ${nextSession.title}`,
+      description: "Review the session schedule and add it to your calendar.",
+      href: "/app#next-sessions"
+    };
+  } else {
+    nextAction = {
+      type: "progress",
+      title: "Review your fellowship progress",
+      description: "See your assignment, score, attendance, and punctuality results.",
+      href: "/app/progress"
+    };
+  }
 
   res.json({
     data: {
@@ -543,19 +713,45 @@ export const studentDashboard = asyncHandler(async (req, res) => {
         name: req.user.name,
         email: req.user.email,
         role: req.user.role,
-        cohort: req.user.cohort,
+        cohort: cohort || req.user.cohort,
         mentor: req.user.mentor
       },
       summary: {
-        totalAssignments,
-        submittedCount,
-        pendingAssignments: Math.max(totalAssignments - submittedCount, 0),
+        totalAssignments: progress.totalAssignments,
+        submittedCount: progress.submittedCount,
+        pendingAssignments: progress.pendingCount,
         upcomingSessions,
         unreadNotifications,
-        progress: progressPercentage({ totalAssignments, submittedCount })
+        progress: progress.progress,
+        assignmentCompletionPercentage: progress.assignmentCompletionPercentage,
+        scorePercentage: progress.scorePercentage,
+        attendancePercentage: progress.attendancePercentage,
+        punctualityPercentage: progress.punctualityPercentage,
+        needsRevisionCount: progress.needsRevisionCount
       },
+      currentModule,
+      nextAction,
+      upcoming: {
+        nextSession,
+        nearestDeadline: assignmentDashboardSummary(
+          nearestDeadline,
+          nearestDeadline ? submissionsByAssignment.get(idString(nearestDeadline)) : null
+        ),
+        overdueAssignment: assignmentDashboardSummary(
+          overdueAssignment,
+          overdueAssignment ? submissionsByAssignment.get(idString(overdueAssignment)) : null
+        ),
+        pendingAssignment: assignmentDashboardSummary(
+          pendingAssignment,
+          pendingAssignment ? submissionsByAssignment.get(idString(pendingAssignment)) : null
+        ),
+        revisionRequest
+      },
+      recentFeedback,
       nextSessions,
-      latestAssignments,
+      latestAssignments: assignments.slice(0, 4).map((assignment) =>
+        assignmentDashboardSummary(assignment, submissionsByAssignment.get(idString(assignment)))
+      ),
       notifications: recentNotifications
     }
   });
@@ -604,7 +800,7 @@ export const listStudentMaterials = asyncHandler(async (req, res) => {
 
   const [resources, total] = await Promise.all([
     Resource.find({ cohort: cohortId, visibility: "published" })
-      .populate("module", "title")
+      .populate("module", "title description startDate endDate order assignedMentor")
       .populate("session", "title startsAt")
       .populate("uploadedBy", "name role")
       .sort({ createdAt: -1 })
@@ -624,6 +820,10 @@ export const listStudentDiscussions = asyncHandler(async (req, res) => {
     },
     [discussionAudienceFilter(studentDiscussionAudiences), discussionSearchFilter(req.query.search)]
   );
+
+  if (req.query.discussion) {
+    filter._id = req.query.discussion;
+  }
 
   if (req.query.cohort) {
     filter.cohort = req.query.cohort;
@@ -732,8 +932,6 @@ export const replyStudentDiscussion = asyncHandler(async (req, res) => {
     const owner = await User.findById(ownerId).select("name email role");
 
     if (owner) {
-      const ownerPortalUrl = owner.role === "student" ? "/app/forum" : owner.role === "mentor" ? "/forum" : "/discussions";
-
       await notifyUser({
         recipient: owner,
         portalRole: owner.role,
@@ -744,7 +942,7 @@ export const replyStudentDiscussion = asyncHandler(async (req, res) => {
           previewText: sanitizePlainText(cleanBody).slice(0, 160),
           type: "system",
           ctaLabel: "Open forum",
-          ctaUrl: ownerPortalUrl,
+          ctaUrl: notificationLinks.discussion(owner.role, discussion._id),
           targetType: "discussion",
           targetRole: owner.role,
           targetLabel: "Forum discussion",
@@ -878,27 +1076,30 @@ export const submitStudentAssignment = asyncHandler(async (req, res) => {
   const existingSubmission = await Submission.findOne({
     assignment: assignment._id,
     student: req.user._id
-  });
+  }).select("+reviewDraft");
 
   if (existingSubmission && !assignment.allowResubmission) {
     throw new ApiError(409, "This assignment does not allow resubmission");
   }
 
-  if (assignment.status === "closed" && !assignment.allowResubmission) {
-    throw new ApiError(409, "This assignment is closed");
-  }
-
   const isLate = isPastAssignmentDeadline(assignment.dueDate);
+  const submittedAt = new Date();
+  const isResubmission = Boolean(existingSubmission);
+  const previousAttemptNumber = Number(existingSubmission?.attemptNumber || 1);
   const payload = {
     fileUrl: req.body.fileUrl,
     linkUrl: req.body.linkUrl,
     writtenResponse: sanitizeRichText(req.body.writtenResponse || ""),
-    submittedAt: new Date(),
+    attemptNumber: isResubmission ? previousAttemptNumber + 1 : 1,
+    submittedAt,
+    resubmittedAt: isResubmission ? submittedAt : undefined,
     isLate,
-    status: isLate ? "lateSubmission" : "submitted",
+    status: isLate ? "lateSubmission" : isResubmission ? "resubmitted" : "submitted",
     reviewedBy: undefined,
     reviewedAt: undefined,
     feedback: undefined,
+    feedbackFileUrl: undefined,
+    reviewDraft: undefined,
     score: undefined
   };
 
@@ -907,10 +1108,28 @@ export const submitStudentAssignment = asyncHandler(async (req, res) => {
     student: req.user._id
   });
 
+  if (existingSubmission) {
+    submission.history.push({
+      attemptNumber: previousAttemptNumber,
+      fileUrl: existingSubmission.fileUrl,
+      linkUrl: existingSubmission.linkUrl,
+      writtenResponse: existingSubmission.writtenResponse,
+      submittedAt: existingSubmission.submittedAt,
+      isLate: existingSubmission.isLate,
+      status: existingSubmission.status,
+      score: existingSubmission.score,
+      feedback: existingSubmission.feedback,
+      feedbackFileUrl: existingSubmission.feedbackFileUrl,
+      reviewedBy: existingSubmission.reviewedBy,
+      reviewedAt: existingSubmission.reviewedAt
+    });
+  }
+
   Object.assign(submission, payload);
   await submission.save();
   await submission.populate("assignment", "title dueDate maxScore status");
   await submission.populate("reviewedBy", "name email");
+  await submission.populate("history.reviewedBy", "name email");
 
   if (req.user.mentor) {
     const mentor = await User.findById(req.user.mentor).select("name email role");
@@ -920,13 +1139,13 @@ export const submitStudentAssignment = asyncHandler(async (req, res) => {
         recipient: mentor,
         portalRole: "mentor",
         notification: {
-          title: `Submission ready: ${assignment.title}`,
-          message: `${req.user.name} submitted an assignment for review.`,
+          title: `${isResubmission ? "Resubmission" : "Submission"} ready: ${assignment.title}`,
+          message: `${req.user.name} ${isResubmission ? "resubmitted" : "submitted"} an assignment for review.`,
           channel: "both",
           previewText: sanitizePlainText(req.body.writtenResponse || req.body.linkUrl || "A file submission was uploaded.").slice(0, 160),
           type: "assignment",
           ctaLabel: "Review submission",
-          ctaUrl: "/reviews",
+          ctaUrl: notificationLinks.mentorSubmission({ module: assignment.module, submission: submission._id }),
           targetType: "assignment",
           targetRole: "mentor",
           targetLabel: assignment.title,
@@ -963,14 +1182,16 @@ export const listStudentMentorAvailability = asyncHandler(async (req, res) => {
 
 export const listStudentBookings = asyncHandler(async (req, res) => {
   const { page, limit, skip } = getPagination(req.query);
+  const filter = { student: req.user._id };
+  if (req.query.booking) filter._id = req.query.booking;
   const [bookings, total] = await Promise.all([
-    Booking.find({ student: req.user._id })
+    Booking.find(filter)
       .populate("mentor", "name email")
       .populate("availabilitySlot", "dayOfWeek startTime endTime isActive")
       .sort({ startsAt: -1 })
       .skip(skip)
       .limit(limit),
-    Booking.countDocuments({ student: req.user._id })
+    Booking.countDocuments(filter)
   ]);
 
   res.json(paginatedResponse({ data: bookings, total, page, limit }));
@@ -1041,7 +1262,7 @@ export const createStudentBooking = asyncHandler(async (req, res) => {
         previewText: sanitizePlainText(req.body.reason).slice(0, 160),
         type: "booking",
         ctaLabel: "Review booking",
-        ctaUrl: "/bookings",
+        ctaUrl: notificationLinks.mentorBooking(booking._id),
         targetType: "booking",
         targetRole: "mentor",
         targetLabel: "Mentee booking request",
@@ -1082,7 +1303,7 @@ export const updateStudentBooking = asyncHandler(async (req, res) => {
         previewText: `Cancelled booking for ${new Date(booking.startsAt).toLocaleString()}.`,
         type: "booking",
         ctaLabel: "Open bookings",
-        ctaUrl: "/bookings",
+        ctaUrl: notificationLinks.mentorBooking(booking._id),
         targetType: "booking",
         targetRole: "mentor",
         targetLabel: "Cancelled booking",
@@ -1096,14 +1317,16 @@ export const updateStudentBooking = asyncHandler(async (req, res) => {
 
 export const listStudentSupportTickets = asyncHandler(async (req, res) => {
   const { page, limit, skip } = getPagination(req.query);
+  const filter = { student: req.user._id };
+  if (req.query.ticket) filter._id = req.query.ticket;
   const [tickets, total] = await Promise.all([
-    SupportTicket.find({ student: req.user._id })
+    SupportTicket.find(filter)
       .populate("assignedTo", "name email")
       .populate("replies.createdBy", "name role")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit),
-    SupportTicket.countDocuments({ student: req.user._id })
+    SupportTicket.countDocuments(filter)
   ]);
 
   res.json(paginatedResponse({ data: tickets, total, page, limit }));
@@ -1135,7 +1358,7 @@ export const createStudentSupportTicket = asyncHandler(async (req, res) => {
         previewText: sanitizePlainText(req.body.message).slice(0, 160),
         type: "support",
         ctaLabel: "Open support",
-        ctaUrl: "/support",
+        ctaUrl: notificationLinks.adminSupportTicket(ticket._id),
         targetType: "support",
         targetRole: "admin",
         targetLabel: ticket.subject,
@@ -1181,7 +1404,7 @@ export const replyStudentSupportTicket = asyncHandler(async (req, res) => {
         previewText: sanitizePlainText(req.body.message).slice(0, 160),
         type: "support",
         ctaLabel: "Open support",
-        ctaUrl: "/support",
+        ctaUrl: notificationLinks.adminSupportTicket(ticket._id),
         targetType: "support",
         targetRole: "admin",
         targetLabel: ticket.subject,
@@ -1195,12 +1418,14 @@ export const replyStudentSupportTicket = asyncHandler(async (req, res) => {
 
 export const listStudentNotifications = asyncHandler(async (req, res) => {
   const { page, limit, skip } = getPagination(req.query);
+  const filter = { recipient: req.user._id, archivedAt: { $exists: false } };
+  if (req.query.notification) filter._id = req.query.notification;
   const [notifications, total] = await Promise.all([
-    Notification.find({ recipient: req.user._id, archivedAt: { $exists: false } })
+    Notification.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit),
-    Notification.countDocuments({ recipient: req.user._id, archivedAt: { $exists: false } })
+    Notification.countDocuments(filter)
   ]);
 
   res.json(paginatedResponse({ data: notifications, total, page, limit }));

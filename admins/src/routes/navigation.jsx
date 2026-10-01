@@ -1,6 +1,7 @@
 import {
   BookOpen,
   CalendarClock,
+  ChartNoAxesCombined,
   ClipboardList,
   FileText,
   GraduationCap,
@@ -26,6 +27,7 @@ export const adminNavItems = [
   { href: "/resources", label: "Resources", icon: FileText },
   { href: "/assignments", label: "Assignments", icon: ClipboardList },
   { href: "/students", label: "Mentees", icon: GraduationCap },
+  { href: "/learner-overview", label: "Learner Overview", icon: ChartNoAxesCombined },
   { href: "/mentors", label: "Mentors", icon: Users },
   { href: "/admin-managers", label: "Admin Managers", icon: UserCog, roles: ["superAdmin"] },
   { href: "/bookings", label: "Bookings", icon: UserCheck },

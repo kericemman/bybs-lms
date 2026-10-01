@@ -1,11 +1,17 @@
 import { Router } from "express";
 import {
+  listMentorQuestions,
+  replyMentorQuestion,
+  updateMentorQuestionStatus
+} from "../controllers/mentorQuestionController.js";
+import {
   createMentorAvailability,
   createMentorDiscussion,
   createMentorReport,
   createAssignmentReminder,
   archiveAssignmentReminder,
   createSessionWork,
+  deleteSubmissionReviewDraft,
   archiveMentorDiscussion,
   deleteMentorAvailability,
   deleteMentorDiscussionComment,
@@ -26,6 +32,7 @@ import {
   listMentorSubmissions,
   mentorDashboard,
   reviewSubmission,
+  saveSubmissionReviewDraft,
   replyMentorDiscussion,
   markMentorNotificationRead,
   sendMentorStudentMessage,
@@ -61,6 +68,7 @@ import {
   mentorStudentDetailSchema,
   mentorSubmissionListSchema,
   reviewSubmissionSchema,
+  saveSubmissionReviewDraftSchema,
   sendMentorStudentMessageSchema,
   updateAvailabilitySchema,
   updateMentorBookingSchema,
@@ -77,6 +85,11 @@ import {
   updateDiscussionCommentSchema,
   updatePortalDiscussionSchema
 } from "../validators/discussionSchemas.js";
+import {
+  mentorQuestionListSchema,
+  mentorQuestionReplySchema,
+  updateMentorQuestionStatusSchema
+} from "../validators/mentorQuestionSchemas.js";
 
 export const mentorRoutes = Router();
 
@@ -97,6 +110,9 @@ mentorRoutes.patch("/discussions/:id/comments/:commentId", validate(updateDiscus
 mentorRoutes.delete("/discussions/:id/comments/:commentId", validate(discussionCommentParamsSchema), deleteMentorDiscussionComment);
 mentorRoutes.patch("/discussions/:id/comments/:commentId/reactions", validate(discussionCommentReactionSchemaValidator), toggleMentorDiscussionCommentReaction);
 mentorRoutes.get("/assignments", validate(mentorAssignmentListSchema), listMentorAssignments);
+mentorRoutes.get("/mentor-questions", validate(mentorQuestionListSchema), listMentorQuestions);
+mentorRoutes.post("/mentor-questions/:id/replies", validate(mentorQuestionReplySchema), replyMentorQuestion);
+mentorRoutes.patch("/mentor-questions/:id/status", validate(updateMentorQuestionStatusSchema), updateMentorQuestionStatus);
 mentorRoutes.get("/assignment-reminders", validate(mentorListSchema), listAssignmentReminders);
 mentorRoutes.post("/assignment-reminders", validate(createAssignmentReminderSchema), createAssignmentReminder);
 mentorRoutes.patch("/assignment-reminders/:id", validate(updateAssignmentReminderSchema), updateAssignmentReminder);
@@ -108,6 +124,8 @@ mentorRoutes.get("/students/:id", validate(mentorStudentDetailSchema), getMentor
 mentorRoutes.post("/students/:id/messages", validate(sendMentorStudentMessageSchema), sendMentorStudentMessage);
 mentorRoutes.post("/students/:id/graduation-approval", validate(mentorGraduationApprovalSchema), approveStudentGraduation);
 mentorRoutes.get("/submissions", validate(mentorSubmissionListSchema), listMentorSubmissions);
+mentorRoutes.patch("/submissions/:id/review-draft", validate(saveSubmissionReviewDraftSchema), saveSubmissionReviewDraft);
+mentorRoutes.delete("/submissions/:id/review-draft", validate(idParamsSchema), deleteSubmissionReviewDraft);
 mentorRoutes.patch("/submissions/:id/review", validate(reviewSubmissionSchema), reviewSubmission);
 
 mentorRoutes.get("/availability", listMentorAvailability);

@@ -6,6 +6,7 @@ const discussionReactionSchema = z.enum(["thumbsUp", "heart", "clap", "celebrate
 
 export const discussionListSchema = z.object({
   query: paginationQuerySchema.extend({
+    discussion: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
     cohort: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
     module: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
     status: z.enum(["open", "closed"]).optional(),

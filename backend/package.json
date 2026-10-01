@@ -9,6 +9,7 @@
     "test": "NODE_ENV=test MONGODB_URI=memory SEED_SUPER_ADMIN_ON_START=false REQUIRE_COMPRESSED_UPLOADS=true RESEND_API_KEY= node --test src/tests/*.test.js",
     "cleanup:beta": "node src/scripts/cleanupBetaRecords.js",
     "cleanup:program": "node src/scripts/archiveProgramReset.js",
+    "preflight:production": "node src/scripts/productionPreflight.js",
     "seed:super-admin": "node src/scripts/seedSuperAdmin.js",
     "start": "node src/server.js"
   },

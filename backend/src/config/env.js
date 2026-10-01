@@ -12,6 +12,15 @@ const isProduction = nodeEnv === "production";
 const jwtSecret = process.env.JWT_SECRET || "";
 const configuredMongoUri = process.env.MONGODB_URI || process.env.MONGO_URI || "";
 
+function numberList(value, fallback) {
+  const parsed = String(value || "")
+    .split(",")
+    .map((item) => Number(item.trim()))
+    .filter((item) => Number.isFinite(item) && item > 0);
+
+  return parsed.length ? [...new Set(parsed)].sort((left, right) => right - left) : fallback;
+}
+
 if (isProduction && jwtSecret.length < 32) {
   throw new Error("JWT_SECRET must be set to at least 32 characters in production.");
 }
@@ -70,6 +79,11 @@ export const env = {
   sessionReminderIntervalMs: Number(process.env.SESSION_REMINDER_INTERVAL_MS || 60 * 60 * 1000),
   sessionReminderLeadHours: Number(process.env.SESSION_REMINDER_LEAD_HOURS || 48),
   sessionReminderWindowMinutes: Number(process.env.SESSION_REMINDER_WINDOW_MINUTES || 90),
+  assignmentReminderJobEnabled: process.env.ASSIGNMENT_REMINDER_JOB_ENABLED === "true",
+  assignmentReminderIntervalMs: Number(process.env.ASSIGNMENT_REMINDER_INTERVAL_MS || 60 * 60 * 1000),
+  assignmentReminderLeadHours: numberList(process.env.ASSIGNMENT_REMINDER_LEAD_HOURS, [48, 24]),
+  assignmentReminderDueDayHour: Number(process.env.ASSIGNMENT_REMINDER_DUE_DAY_HOUR || 8),
+  assignmentReminderBatchSize: Number(process.env.ASSIGNMENT_REMINDER_BATCH_SIZE || 200),
   resendApiKey: process.env.RESEND_API_KEY || "",
   emailFrom: process.env.EMAIL_FROM || "BYBS LMS <alerts@bybs.local>",
   smtpHost: process.env.SMTP_HOST || "",

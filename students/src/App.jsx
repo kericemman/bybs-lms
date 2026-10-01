@@ -15,6 +15,7 @@ import { MaterialsPage } from "./pages/MaterialsPage.jsx";
 import { NotificationsPage } from "./pages/NotificationsPage.jsx";
 import { ProfilePage } from "./pages/ProfilePage.jsx";
 import { ProgressPage } from "./pages/ProgressPage.jsx";
+import { QuestionsPage } from "./pages/QuestionsPage.jsx";
 import { PublicPage } from "./pages/PublicPage.jsx";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage.jsx";
 import { SupportPage } from "./pages/SupportPage.jsx";
@@ -42,6 +43,7 @@ export default function App() {
                     <Route element={<MaterialsPage />} path="materials" />
                     <Route element={<DiscussionsPage />} path="forum" />
                     <Route element={<AssignmentsPage />} path="assignments" />
+                    <Route element={<QuestionsPage />} path="questions" />
                     <Route element={<ProgressPage />} path="progress" />
                     <Route element={<CertificatesPage />} path="certificates" />
                     <Route element={<BookingsPage />} path="bookings" />

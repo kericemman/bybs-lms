@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { Button, Card, DataTable, EmptyState, PageHeader, SectionHeader, StatusBadge } from "@bybs/shared";
 import { FormField, inputClassName } from "../components/FormField.jsx";
 import { mentorApi } from "../services/api.js";
-import { formatCatDateTime } from "../utils/format.js";
+import { formatCatDateTime, formatDateTime } from "../utils/format.js";
 
 const attendanceOptions = [
   { value: "", label: "Choose status" },
@@ -93,7 +93,10 @@ export function AttendancePage() {
         setAttendance(response.data);
         setRecords(
           Object.fromEntries(
-            (response.data?.roster || []).map((row) => [idFor(row.student), row.status || ""])
+            (response.data?.roster || []).map((row) => [
+              idFor(row.student),
+              row.status === "notMarked" ? "" : row.status || ""
+            ])
           )
         );
       })
@@ -137,6 +140,12 @@ export function AttendancePage() {
     event.preventDefault();
     setError("");
     setFeedback("");
+    const changedRecords = roster
+      .filter((row) => records[idFor(row.student)] !== (row.status === "notMarked" ? "" : row.status))
+      .map((row) => ({
+        student: idFor(row.student),
+        status: records[idFor(row.student)]
+      }));
 
     if (!roster.length) {
       setError("No mentees are available for this session cohort.");
@@ -148,18 +157,27 @@ export function AttendancePage() {
       return;
     }
 
+    if (!changedRecords.length) {
+      setError("Change at least one attendance status before saving.");
+      return;
+    }
+
     setIsSaving(true);
 
     try {
       const response = await mentorApi.updateSessionAttendance(selectedSessionId, {
         markCompleted,
-        records: roster.map((row) => ({
-          student: idFor(row.student),
-          status: records[idFor(row.student)]
-        }))
+        expectedUpdatedAt: attendance.session.updatedAt,
+        records: changedRecords
       });
 
       setAttendance(response.data);
+      setRecords(Object.fromEntries(
+        (response.data?.roster || []).map((row) => [
+          idFor(row.student),
+          row.status === "notMarked" ? "" : row.status || ""
+        ])
+      ));
       setFeedback("Attendance saved.");
     } catch (requestError) {
       setError(requestError.message);
@@ -239,6 +257,7 @@ export function AttendancePage() {
                 header: "Attendance",
                 render: (row) => (
                   <select
+                    aria-label={`Attendance for ${row.student?.name || row.student?.email || "mentee"}`}
                     className={inputClassName}
                     onChange={(event) => updateAttendance(idFor(row.student), event.target.value)}
                     value={records[idFor(row.student)] || ""}
@@ -252,11 +271,21 @@ export function AttendancePage() {
               {
                 key: "savedStatus",
                 header: "Saved",
-                render: (row) => row.status ? <StatusBadge status={row.status} /> : <StatusBadge label="Not marked" status="pending" />
+                render: (row) => row.status && row.status !== "notMarked"
+                  ? <StatusBadge status={row.status} />
+                  : <StatusBadge label="Not marked" status="pending" />
+              },
+              {
+                key: "updated",
+                header: "Last updated",
+                render: (row) => row.markedAt
+                  ? `${row.markedBy?.name || "BYBS team"} · ${formatDateTime(row.markedAt)}`
+                  : "Not marked"
               }
             ]}
             emptyDescription="Mentees assigned to this session cohort will appear here."
             emptyTitle="No mentees for this session"
+            label={`${selectedSession?.title || "Session"} attendance roster`}
             rows={roster}
           />
 
@@ -309,6 +338,7 @@ export function AttendancePage() {
           ]}
           emptyDescription="Admin scheduled sessions will appear here."
           emptyTitle="No sessions available"
+          label="Session attendance links"
           rows={sessions}
         />
       </Card>

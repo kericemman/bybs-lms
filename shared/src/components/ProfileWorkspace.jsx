@@ -145,6 +145,7 @@ export function ProfileWorkspace({
               {isUploading ? "Uploading..." : "Upload picture"}
             </Button>
             <input
+              aria-label="Upload profile picture"
               accept="image/jpeg,image/png,image/webp"
               className="sr-only"
               onChange={handleImageChange}

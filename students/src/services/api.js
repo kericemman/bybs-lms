@@ -1,11 +1,19 @@
-import { createApiClient } from "@bybs/shared";
+import { createApiClient, createPortalSessionStore } from "@bybs/shared";
 import { toQueryString } from "../utils/query.js";
 
 export const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5050/api";
 
+export const sessionStore = createPortalSessionStore({
+  portal: "student",
+  tokenKey: "bybs_student_token",
+  userKey: "bybs_student_user",
+  defaultPath: "/app"
+});
+
 export const api = createApiClient({
   baseUrl: apiBaseUrl,
-  getToken: () => window.localStorage.getItem("bybs_student_token")
+  getToken: sessionStore.getToken,
+  onUnauthorized: ({ token }) => sessionStore.expire(token)
 });
 
 export const studentApi = {
@@ -24,6 +32,10 @@ export const studentApi = {
   deleteDiscussionComment: (id, commentId) => api.delete(`/student/discussions/${id}/comments/${commentId}`),
   toggleDiscussionCommentReaction: (id, commentId, reaction) => api.patch(`/student/discussions/${id}/comments/${commentId}/reactions`, { reaction }),
   listAssignments: (filters = {}) => api.get(`/student/assignments${toQueryString({ limit: 100, ...filters })}`),
+  listMentorQuestions: (filters = {}) => api.get(`/student/mentor-questions${toQueryString({ limit: 100, ...filters })}`),
+  createMentorQuestion: (payload) => api.post("/student/mentor-questions", payload),
+  replyMentorQuestion: (id, payload) => api.post(`/student/mentor-questions/${id}/replies`, payload),
+  updateMentorQuestionStatus: (id, payload) => api.patch(`/student/mentor-questions/${id}/status`, payload),
   uploadFile: (formData) => api.upload("/student/uploads", formData),
   submitAssignment: (id, payload) => api.post(`/student/assignments/${id}/submission`, payload),
   progress: () => api.get("/student/progress"),

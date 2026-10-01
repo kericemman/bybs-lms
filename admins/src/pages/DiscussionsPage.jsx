@@ -1,5 +1,6 @@
 import { Plus, Save, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button, Card, DataTable, DISCUSSION_AUDIENCE_OPTIONS, PageHeader, StatusBadge } from "@bybs/shared";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { FilterBar } from "../components/FilterBar.jsx";
@@ -30,6 +31,8 @@ function audienceLabel(value = "all") {
 
 export function DiscussionsPage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const requestedDiscussionId = searchParams.get("discussion") || "";
   const [discussions, setDiscussions] = useState([]);
   const [cohorts, setCohorts] = useState([]);
   const [modules, setModules] = useState([]);
@@ -43,7 +46,7 @@ export function DiscussionsPage() {
 
   async function loadData() {
     const [discussionResponse, cohortResponse, moduleResponse] = await Promise.all([
-      adminApi.listDiscussions(filters),
+      adminApi.listDiscussions({ ...filters, discussion: requestedDiscussionId || undefined }),
       adminApi.listCohorts(),
       adminApi.listModules()
     ]);
@@ -54,7 +57,7 @@ export function DiscussionsPage() {
 
   useEffect(() => {
     loadData().catch((requestError) => setError(requestError.message));
-  }, [filters]);
+  }, [filters, requestedDiscussionId]);
 
   function resetForm() {
     setForm(initialForm);

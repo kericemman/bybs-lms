@@ -1,11 +1,12 @@
 import { z } from "zod";
-import { emptyToUndefined, objectIdSchema, paginationQuerySchema } from "./commonSchemas.js";
+import { emptyToUndefined, httpUrlSchema, objectIdSchema, paginationQuerySchema } from "./commonSchemas.js";
 
 const discussionAudienceSchema = z.enum(["all", "mentorsAdmins", "mentorsOnly", "mentorsMentees"]);
 
 export const listByCohortSchema = z.object({
   query: paginationQuerySchema.extend({
     cohort: objectIdSchema.optional(),
+    discussion: objectIdSchema.optional(),
     module: objectIdSchema.optional(),
     status: z.string().trim().optional(),
     audience: discussionAudienceSchema.optional()
@@ -38,9 +39,9 @@ export const createSessionSchema = z.object({
     module: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
     startsAt: z.coerce.date(),
     endsAt: z.preprocess(emptyToUndefined, z.coerce.date().optional()),
-    zoomLink: z.preprocess(emptyToUndefined, z.string().trim().url().optional()),
-    recordingLink: z.preprocess(emptyToUndefined, z.string().trim().url().optional()),
-    slidesUrl: z.preprocess(emptyToUndefined, z.string().trim().url().optional()),
+    zoomLink: z.preprocess(emptyToUndefined, httpUrlSchema.optional()),
+    recordingLink: z.preprocess(emptyToUndefined, httpUrlSchema.optional()),
+    slidesUrl: z.preprocess(emptyToUndefined, httpUrlSchema.optional()),
     status: z.enum(["scheduled", "completed", "cancelled"]).default("scheduled")
   })
 });
@@ -50,12 +51,25 @@ export const updateSessionSchema = z.object({
   body: createSessionSchema.shape.body.partial()
 });
 
+export const updateAdminSessionAttendanceSchema = z.object({
+  params: z.object({ id: objectIdSchema }),
+  body: z.object({
+    records: z.array(z.object({
+      student: objectIdSchema,
+      status: z.enum(["notMarked", "present", "absent", "late", "excused"])
+    })).min(1).max(1000),
+    reason: z.string().trim().min(5).max(500),
+    markCompleted: z.boolean().default(false),
+    expectedUpdatedAt: z.coerce.date().optional()
+  })
+});
+
 export const createResourceSchema = z.object({
   body: z.object({
     title: z.string().trim().min(2),
     description: z.preprocess(emptyToUndefined, z.string().trim().optional()),
     type: z.enum(["slides", "pdf", "template", "zoom", "recording", "reading", "external", "video", "reflection"]),
-    url: z.string().trim().url(),
+    url: httpUrlSchema,
     fileType: z.preprocess(emptyToUndefined, z.string().trim().optional()),
     cohort: objectIdSchema,
     module: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
@@ -94,6 +108,7 @@ export const updateDiscussionSchema = z.object({
 
 export const listBookingsSchema = z.object({
   query: paginationQuerySchema.extend({
+    booking: objectIdSchema.optional(),
     mentor: objectIdSchema.optional(),
     student: objectIdSchema.optional(),
     status: z.enum(["pending", "approved", "declined", "completed", "cancelled"]).optional()
@@ -104,13 +119,14 @@ export const updateBookingSchema = z.object({
   params: z.object({ id: objectIdSchema }),
   body: z.object({
     status: z.enum(["pending", "approved", "declined", "completed", "cancelled"]).optional(),
-    meetingLink: z.preprocess(emptyToUndefined, z.string().trim().url().optional()),
+    meetingLink: z.preprocess(emptyToUndefined, httpUrlSchema.optional()),
     mentorNotes: z.preprocess(emptyToUndefined, z.string().trim().optional())
   })
 });
 
 export const listReportsSchema = z.object({
   query: paginationQuerySchema.extend({
+    report: objectIdSchema.optional(),
     cohort: objectIdSchema.optional(),
     mentor: objectIdSchema.optional(),
     period: z.enum(["weekly", "monthly"]).optional(),
@@ -130,6 +146,7 @@ export const updateReportReviewSchema = z.object({
 
 export const listSupportTicketsSchema = z.object({
   query: paginationQuerySchema.extend({
+    ticket: objectIdSchema.optional(),
     status: z.enum(["open", "inProgress", "resolved", "closed"]).optional(),
     category: z.enum(["login", "assignment", "mentor", "resourceAccess", "technical", "general"]).optional()
   })
@@ -146,7 +163,7 @@ export const updateSupportTicketSchema = z.object({
 
 export const listNotificationsSchema = z.object({
   query: paginationQuerySchema.extend({
-    type: z.enum(["announcement", "assignment", "booking", "support", "reminder", "system"]).optional(),
+    type: z.enum(["announcement", "assignment", "booking", "support", "reminder", "question", "system"]).optional(),
     recipient: objectIdSchema.optional()
   })
 });
@@ -172,7 +189,7 @@ export const createAnnouncementSchema = z.object({
     channel: z.enum(["platform", "email", "both"]).default("platform"),
     previewText: z.preprocess(emptyToUndefined, z.string().trim().max(180).optional()),
     ctaLabel: z.preprocess(emptyToUndefined, z.string().trim().max(80).optional()),
-    ctaUrl: z.preprocess(emptyToUndefined, z.string().trim().url().optional()),
+    ctaUrl: z.preprocess(emptyToUndefined, httpUrlSchema.optional()),
     targetType: z.enum(["all", "cohort", "role", "user"]).default("all"),
     cohort: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
     role: z.enum(["student", "mentor", "admin", "adminManager", "superAdmin"]).optional(),
@@ -182,6 +199,7 @@ export const createAnnouncementSchema = z.object({
 
 export const listSystemLogsSchema = z.object({
   query: paginationQuerySchema.extend({
+    log: objectIdSchema.optional(),
     action: z.string().trim().optional(),
     statusCode: z.coerce.number().int().optional()
   })

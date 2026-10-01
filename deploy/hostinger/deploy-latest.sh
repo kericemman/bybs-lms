@@ -27,7 +27,9 @@ git checkout "${DEPLOY_BRANCH}"
 git pull --ff-only origin "${DEPLOY_BRANCH}"
 
 npm ci
+npm run preflight:production
 npm run build
+npm run test:pwa
 
 sudo systemctl restart "${SERVICE_NAME}"
 sleep 3

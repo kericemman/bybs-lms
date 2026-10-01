@@ -1,17 +1,17 @@
 import { cn } from "../lib/cn.js";
 
 const variants = {
-  primary: "bg-bybs-blue text-white hover:bg-bybs-blueHover focus-visible:ring-bybs-pale",
-  secondary: "bg-white text-bybs-navy ring-1 ring-bybs-border hover:bg-bybs-pale focus-visible:ring-bybs-pale",
-  ghost: "bg-transparent text-bybs-body hover:bg-bybs-pale hover:text-bybs-blue focus-visible:ring-bybs-pale",
-  danger: "bg-bybs-rose text-white hover:bg-bybs-roseHover focus-visible:ring-bybs-blush"
+  primary: "bg-bybs-blue text-white hover:bg-bybs-blueHover focus-visible:ring-bybs-blue",
+  secondary: "bg-white text-bybs-navy ring-1 ring-bybs-border hover:bg-bybs-pale focus-visible:ring-bybs-blue",
+  ghost: "bg-transparent text-bybs-body hover:bg-bybs-pale hover:text-bybs-blue focus-visible:ring-bybs-blue",
+  danger: "bg-bybs-rose text-white hover:bg-bybs-roseHover focus-visible:ring-bybs-rose"
 };
 
 const sizes = {
-  sm: "h-9 px-3 text-sm",
-  md: "h-10 px-4 text-sm",
+  sm: "min-h-11 px-3 text-sm sm:min-h-9",
+  md: "min-h-11 px-4 text-sm sm:min-h-10",
   lg: "h-11 px-5 text-base",
-  icon: "h-10 w-10 p-0"
+  icon: "h-11 w-11 p-0 sm:h-10 sm:w-10"
 };
 
 export function Button({
@@ -26,7 +26,7 @@ export function Button({
   return (
     <Component
       className={cn(
-        "inline-flex max-w-full items-center justify-center gap-2 rounded-md font-medium transition focus-visible:outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex max-w-full items-center justify-center gap-2 rounded-md font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
         variants[variant],
         sizes[size],
         className

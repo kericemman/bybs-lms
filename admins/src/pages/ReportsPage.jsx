@@ -1,5 +1,6 @@
 import { Eye, MessageSquare, Send } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button, Card, DataTable, PageHeader, SafeHtml, StatusBadge } from "@bybs/shared";
 import { FormField, inputClassName, textAreaClassName } from "../components/FormField.jsx";
 import { adminApi } from "../services/api.js";
@@ -25,6 +26,8 @@ function peopleList(people = []) {
 }
 
 export function ReportsPage() {
+  const [searchParams] = useSearchParams();
+  const requestedReportId = searchParams.get("report") || "";
   const [reports, setReports] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
   const [reviewForm, setReviewForm] = useState(() => initialReviewForm());
@@ -33,8 +36,12 @@ export function ReportsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function loadReports() {
-    const response = await adminApi.listReports();
+    const response = await adminApi.listReports({ report: requestedReportId || undefined });
     setReports(response.data);
+    if (requestedReportId) {
+      setSelectedReport(response.data.find((report) => report._id === requestedReportId) || null);
+      return;
+    }
     setSelectedReport((current) =>
       current ? response.data.find((report) => report._id === current._id) || current : current
     );
@@ -42,7 +49,7 @@ export function ReportsPage() {
 
   useEffect(() => {
     loadReports().catch((requestError) => setError(requestError.message));
-  }, []);
+  }, [requestedReportId]);
 
   function chooseReport(report) {
     setSelectedReport(report);

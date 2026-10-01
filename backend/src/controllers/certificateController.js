@@ -11,6 +11,7 @@ import { calculateStudentProgress } from "../services/progressService.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getPagination, paginatedResponse } from "../utils/pagination.js";
+import { notificationLinks } from "../utils/notificationLinks.js";
 import { sanitizePlainText } from "../utils/sanitizeRichText.js";
 
 function certificatePopulate(query) {
@@ -109,6 +110,7 @@ export const listAdminCertificates = asyncHandler(async (req, res) => {
     ...certificateSearchFilter(req.query.search)
   };
 
+  if (req.query.certificate) filter._id = req.query.certificate;
   if (req.query.status) filter.status = req.query.status;
   if (req.query.cohort) filter.cohort = req.query.cohort;
   if (req.query.student) filter.student = req.query.student;
@@ -192,7 +194,7 @@ export const issueCertificate = asyncHandler(async (req, res) => {
       channel: "both",
       previewText: "Your BYBS certificate is ready to download.",
       ctaLabel: "Open certificate",
-      ctaUrl: "/app/certificates",
+      ctaUrl: notificationLinks.studentCertificate(certificate._id),
       targetType: "certificate",
       targetRole: "student",
       targetLabel: certificate.certificateNumber,

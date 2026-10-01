@@ -202,6 +202,7 @@ export function ResourcesPage() {
               <Upload className="h-4 w-4" aria-hidden="true" />
               {isUploading ? "Uploading..." : "Choose file"}
               <input
+                aria-label="Upload resource file"
                 accept=".csv,.doc,.docx,.jpeg,.jpg,.mp4,.pdf,.png,.ppt,.pptx,.txt,.webp,.xls,.xlsx"
                 className="sr-only"
                 disabled={isUploading}

@@ -1,5 +1,6 @@
 import path from "node:path";
 import crypto from "node:crypto";
+import { unlink } from "node:fs/promises";
 import { env } from "../config/env.js";
 import { User } from "../models/User.js";
 import { uploadToCloudinary } from "../services/cloudinaryUploadService.js";
@@ -57,14 +58,14 @@ export const login = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Email and password are required");
   }
 
-  const user = await User.findOne({ email: email.toLowerCase() }).select("+passwordHash");
+  const user = await User.findOne({ email: email.toLowerCase() }).select("+passwordHash +authVersion");
 
   if (!user || !(await user.comparePassword(password))) {
-    throw new ApiError(401, "Invalid login credentials");
+    throw new ApiError(401, "The email or password you entered is incorrect.");
   }
 
   if (!canAccessPortal(user)) {
-    throw new ApiError(403, "Your account is not active");
+    throw new ApiError(403, "This account is not currently active. Contact BYBS support if you think this is a mistake.");
   }
 
   user.lastLogin = new Date();
@@ -82,7 +83,7 @@ export const me = asyncHandler(async (req, res) => {
 
 export const changePassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
-  const user = await User.findById(req.user._id).select("+passwordHash");
+  const user = await User.findById(req.user._id).select("+passwordHash +authVersion");
 
   if (!user) {
     throw new ApiError(401, "Invalid or inactive account");
@@ -99,9 +100,10 @@ export const changePassword = asyncHandler(async (req, res) => {
   user.passwordHash = await User.hashPassword(newPassword);
   user.passwordResetRequired = false;
   user.passwordChangedAt = new Date();
+  user.authVersion = Number(user.authVersion || 0) + 1;
   await user.save();
 
-  res.json({ user: publicUser(user) });
+  res.json({ token: signAccessToken(user), user: publicUser(user) });
 });
 
 export const forgotPassword = asyncHandler(async (req, res) => {
@@ -151,7 +153,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
     passwordResetTokenHash: tokenHash,
     passwordResetExpiresAt: { $gt: new Date() },
     role: { $in: ["mentor", "student"] }
-  }).select("+passwordHash +passwordResetTokenHash +passwordResetExpiresAt");
+  }).select("+passwordHash +passwordResetTokenHash +passwordResetExpiresAt +authVersion");
 
   if (!user || !canAccessPortal(user)) {
     throw new ApiError(400, "Reset link is invalid or has expired");
@@ -164,6 +166,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
   user.passwordHash = await User.hashPassword(newPassword);
   user.passwordResetRequired = false;
   user.passwordChangedAt = new Date();
+  user.authVersion = Number(user.authVersion || 0) + 1;
   user.passwordResetTokenHash = undefined;
   user.passwordResetExpiresAt = undefined;
   user.passwordResetRequestedAt = undefined;
@@ -204,10 +207,18 @@ export const updateProfileImage = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
 
   if (!user) {
+    if (req.file.path) await unlink(req.file.path).catch(() => {});
     throw new ApiError(401, "Invalid or inactive account");
   }
 
-  const cloudinaryUpload = await uploadToCloudinary(req.file);
+  let cloudinaryUpload;
+
+  try {
+    cloudinaryUpload = await uploadToCloudinary(req.file);
+  } catch (error) {
+    if (req.file.path) await unlink(req.file.path).catch(() => {});
+    throw error;
+  }
   const publicPath = `/uploads/${req.file.filename}`;
   const publicBaseUrl = env.publicApiUrl || `${req.protocol}://${req.get("host")}`;
   const localUrl = `${publicBaseUrl.replace(/\/$/, "")}${publicPath}`;

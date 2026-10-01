@@ -9,7 +9,8 @@ import {
   SafeHtml,
   SectionHeader,
   StatCard,
-  StatusBadge
+  StatusBadge,
+  useDialogAccessibility
 } from "@bybs/shared";
 import { mentorApi } from "../services/api.js";
 import { formatDate } from "../utils/format.js";
@@ -91,6 +92,11 @@ export function ModulesPage() {
     setSearchParams({});
   }
 
+  const moduleDialogRef = useDialogAccessibility({
+    isOpen: Boolean(selectedModule),
+    onClose: closeModuleDetails
+  });
+
   const publishedModules = modules.filter((module) => module.status === "published").length;
   const upcomingModules = modules.filter((module) => module.startDate && new Date(module.startDate) > new Date()).length;
 
@@ -106,7 +112,7 @@ export function ModulesPage() {
         title="Assigned modules"
       />
 
-      {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
+      {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose" role="alert">{error}</p> : null}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
         <StatCard icon={BookOpen} label="Assigned modules" tone="blue" value={modules.length} />
@@ -152,17 +158,28 @@ export function ModulesPage() {
       </Card>
 
       {selectedModule ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-bybs-navy/50 px-4 py-6">
-          <section className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-lg border border-bybs-border bg-white shadow-xl">
-            <div className="flex flex-col gap-3 border-b border-bybs-border p-4 sm:flex-row sm:items-start sm:justify-between sm:p-5">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-bybs-navy/50 px-3 py-4 sm:px-4 sm:py-6"
+          onClick={closeModuleDetails}
+        >
+          <section
+            aria-labelledby={`module-details-${selectedModule._id}`}
+            aria-modal="true"
+            className="max-h-[calc(100dvh-2rem)] w-full max-w-4xl overflow-hidden rounded-lg border border-bybs-border bg-white shadow-xl sm:max-h-[calc(100dvh-3rem)]"
+            onClick={(event) => event.stopPropagation()}
+            ref={moduleDialogRef}
+            role="dialog"
+            tabIndex="-1"
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-bybs-border p-4 sm:p-5">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-bybs-blue">{selectedModule.cohort?.title || "Cohort"}</p>
-                <h2 className="mt-1 text-xl font-semibold text-bybs-navy">{selectedModule.title}</h2>
+                <h2 className="mt-1 text-xl font-semibold text-bybs-navy" id={`module-details-${selectedModule._id}`}>{selectedModule.title}</h2>
                 <p className="mt-1 text-sm text-bybs-muted">{moduleDates(selectedModule)}</p>
               </div>
               <Button aria-label="Close module details" icon={X} onClick={closeModuleDetails} size="icon" type="button" variant="ghost" />
             </div>
-            <div className="max-h-[calc(90vh-96px)] space-y-5 overflow-y-auto p-4 sm:p-5">
+            <div className="max-h-[calc(100dvh-7.5rem)] space-y-5 overflow-y-auto overscroll-contain p-4 sm:max-h-[calc(100dvh-9rem)] sm:p-5">
               <div className="flex flex-wrap gap-2 text-sm">
                 <span className="rounded-md bg-bybs-pale px-3 py-1 font-medium text-bybs-blue">
                   {selectedModule.cohort?.title || "Cohort"}

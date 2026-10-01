@@ -19,6 +19,9 @@
     "build:admins": "npm --workspace admins run build",
     "build:mentors": "npm --workspace mentors run build",
     "build:students": "npm --workspace students run build",
+    "pwa:icons": "node scripts/generate-pwa-icons.mjs",
+    "preflight:production": "npm --workspace backend run preflight:production",
+    "test:pwa": "node scripts/validate-pwa.mjs",
     "test:backend": "npm --workspace backend test"
   },
   "engines": {

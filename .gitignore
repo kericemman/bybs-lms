@@ -5,6 +5,7 @@ build
 .env.*
 !.env.example
 uploads
+backend/archives/
 coverage
 .DS_Store
 npm-debug.log*

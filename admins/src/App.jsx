@@ -13,6 +13,7 @@ import { CertificatesPage } from "./pages/CertificatesPage.jsx";
 import { CohortsPage } from "./pages/CohortsPage.jsx";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { DiscussionsPage } from "./pages/DiscussionsPage.jsx";
+import { LearnerOverviewPage } from "./pages/LearnerOverviewPage.jsx";
 import { ModulesPage } from "./pages/ModulesPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { MentorsPage } from "./pages/MentorsPage.jsx";
@@ -56,6 +57,7 @@ export default function App() {
                     <Route element={<ResourcesPage />} path="/resources" />
                     <Route element={<AssignmentsPage />} path="/assignments" />
                     <Route element={<StudentsPage />} path="/students" />
+                    <Route element={<LearnerOverviewPage />} path="/learner-overview" />
                     <Route element={<MentorsPage />} path="/mentors" />
                     <Route
                       element={

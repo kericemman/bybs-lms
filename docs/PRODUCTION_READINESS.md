@@ -30,6 +30,16 @@ This checklist separates what is already in place from what must be verified in 
 - Mentor session reminder job sends the 48-hour preparation reminder once per session
 - Admin alert emails for slow requests and server errors
 - Mobile navigation and form responsiveness across all three portals
+- Password changes invalidate the previous session and keep the requesting browser signed in with its replacement session
+- Executable or embedded-data URLs are rejected in assignments, resources, bookings, announcements, and submissions
+- Oversized compressed uploads are rejected without leaving temporary files
+- Nginx security headers do not block API, Cloudinary, font, attachment preview, or calendar workflows
+
+Before deployment, run the read-only environment gate on the VPS:
+
+```bash
+npm run preflight:production
+```
 
 ## Beta Record Cleanup
 
@@ -99,8 +109,15 @@ SESSION_REMINDER_JOB_ENABLED=true
 SESSION_REMINDER_INTERVAL_MS=3600000
 SESSION_REMINDER_LEAD_HOURS=48
 SESSION_REMINDER_WINDOW_MINUTES=90
+ASSIGNMENT_REMINDER_JOB_ENABLED=false
+ASSIGNMENT_REMINDER_INTERVAL_MS=3600000
+ASSIGNMENT_REMINDER_LEAD_HOURS=48,24
+ASSIGNMENT_REMINDER_DUE_DAY_HOUR=8
+ASSIGNMENT_DEADLINE_TIME_ZONE=Africa/Juba
 SEED_SUPER_ADMIN_ON_START=false
 ```
+
+Keep `ASSIGNMENT_REMINDER_JOB_ENABLED=false` for the first deployment. Enable it only after a controlled staging run confirms the Africa/Juba deadline, intended recipients, email sender, and deduplication behavior.
 
 ## Launch Blockers
 
@@ -109,6 +126,8 @@ SEED_SUPER_ADMIN_ON_START=false
 - Do not launch while using local `/uploads` as permanent storage.
 - Do not launch with the example super-admin password.
 - Do not launch unless `/health` and `/ready` are monitored.
+- Do not push to `main` until the MongoDB backup and VPS environment preflight are complete; the GitHub workflow deploys `main` automatically.
+- Do not run beta cleanup or program archive/reset commands as part of deployment.
 
 ## Recommended Next Hardening
 

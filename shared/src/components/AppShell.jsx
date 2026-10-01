@@ -1,7 +1,9 @@
-import { ArrowRight, Bell, Loader2, LogOut, Menu, Search, UserCircle, X } from "lucide-react";
+import { ArrowRight, Bell, Download, Loader2, LogOut, Menu, RefreshCw, Search, UserCircle, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ROLE_LABELS } from "../constants/roles.js";
 import { cn } from "../lib/cn.js";
+import { useDialogAccessibility } from "../hooks/useDialogAccessibility.js";
+import { usePwa } from "../hooks/usePwa.js";
 import { Button } from "./Button.jsx";
 
 function initials(name = "") {
@@ -33,20 +35,20 @@ export function AppShell({
   const [searchError, setSearchError] = useState("");
   const searchBoxRef = useRef(null);
   const profileMenuRef = useRef(null);
+  const mobileSearchInputRef = useRef(null);
+  const mobileSearchDialogRef = useDialogAccessibility({
+    isOpen: isMobileSearchOpen,
+    onClose: () => setIsMobileSearchOpen(false),
+    initialFocusRef: mobileSearchInputRef
+  });
+  const mobileMenuDialogRef = useDialogAccessibility({
+    isOpen: isMenuOpen,
+    onClose: () => setIsMenuOpen(false)
+  });
   const currentYear = new Date().getFullYear();
   const roleLabel = user?.role ? ROLE_LABELS[user.role] || user.role : "Signed in";
   const visibleNotificationCount = Number(notificationCount || 0);
-
-  useEffect(() => {
-    if ((!isMenuOpen && !isMobileSearchOpen) || typeof document === "undefined") return undefined;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isMenuOpen, isMobileSearchOpen]);
+  const { applyUpdate, canInstall, install, isInstalling, isUpdating, updateReady } = usePwa();
 
   useEffect(() => {
     if (!globalSearch) return undefined;
@@ -98,15 +100,25 @@ export function AppShell({
     }
 
     window.addEventListener("mousedown", handleClick);
-    return () => window.removeEventListener("mousedown", handleClick);
+    function handleKeyDown(event) {
+      if (event.key === "Escape") setIsProfileMenuOpen(false);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
   function renderNavLink(item, options = {}) {
     const Icon = item.icon;
-    const isActive = item.href === activePath;
+    const isDashboardPath = item.href === "/" || item.href === "/app";
+    const isActive = item.href === activePath || (!isDashboardPath && activePath.startsWith(`${item.href}/`));
 
     return (
       <a
+        aria-current={isActive ? "page" : undefined}
         className={cn(
           "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition",
           isActive ? "bg-bybs-blue text-white" : "text-bybs-body hover:bg-bybs-pale hover:text-bybs-blue"
@@ -120,6 +132,23 @@ export function AppShell({
         <span>{item.label}</span>
       </a>
     );
+  }
+
+  function renderNavItems(options = {}) {
+    return navItems.map((item, index) => {
+      const startsGroup = item.group && item.group !== navItems[index - 1]?.group;
+
+      return (
+        <div className={startsGroup ? "pt-3" : undefined} key={item.href}>
+          {startsGroup ? (
+            <p className="mb-2 border-t border-bybs-border px-3 pt-4 text-xs font-semibold uppercase text-bybs-muted">
+              {item.groupLabel || item.group}
+            </p>
+          ) : null}
+          {renderNavLink(item, options)}
+        </div>
+      );
+    });
   }
 
   function submitSearch(event) {
@@ -183,15 +212,21 @@ export function AppShell({
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-bybs-page text-bybs-text">
+      <a
+        className="fixed left-3 top-3 z-[110] -translate-y-20 rounded-md bg-white px-4 py-2 text-sm font-semibold text-bybs-blue shadow-lg ring-2 ring-bybs-blue transition focus:translate-y-0"
+        href="#bybs-main-content"
+      >
+        Skip to main content
+      </a>
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-bybs-border bg-white lg:block">
         <div className="flex h-full flex-col">
           <div className="border-b border-bybs-border px-5 py-5">
             <p className="text-xs font-semibold uppercase text-bybs-blue">BYBS LMS</p>
-            <h1 className="mt-1 text-lg font-semibold text-bybs-navy">{portalName}</h1>
+            <p className="mt-1 text-lg font-semibold text-bybs-navy">{portalName}</p>
           </div>
 
           <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-            {navItems.map((item) => renderNavLink(item))}
+            {renderNavItems()}
           </nav>
 
           {sidebarFooter ? <div className="border-t border-bybs-border p-4">{sidebarFooter}</div> : null}
@@ -223,7 +258,7 @@ export function AppShell({
                   <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-bybs-muted" aria-hidden="true" />
                   <input
                     aria-label={searchPlaceholder}
-                    className="h-10 w-full rounded-md border border-bybs-border bg-white px-9 text-sm text-bybs-body outline-none transition placeholder:text-bybs-muted focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale"
+                  className="h-11 w-full rounded-md border border-bybs-border bg-white px-9 text-sm text-bybs-body outline-none transition placeholder:text-bybs-muted focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale md:h-10"
                     onChange={(event) => {
                       setSearchQuery(event.target.value);
                       setIsSearchOpen(true);
@@ -301,8 +336,8 @@ export function AppShell({
               ) : null}
               <div className="relative" ref={profileMenuRef}>
                 <button
+                  aria-controls="bybs-account-menu"
                   aria-expanded={isProfileMenuOpen}
-                  aria-haspopup="menu"
                   aria-label="Open account menu"
                   className="flex min-w-0 items-center gap-3 rounded-md px-1 py-1 transition hover:bg-bybs-pale focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bybs-pale"
                   onClick={() => setIsProfileMenuOpen((current) => !current)}
@@ -327,8 +362,8 @@ export function AppShell({
 
                 {isProfileMenuOpen ? (
                   <div
+                    id="bybs-account-menu"
                     className="absolute right-0 top-12 z-50 w-64 overflow-hidden rounded-lg border border-bybs-border bg-white shadow-lg"
-                    role="menu"
                   >
                     <div className="border-b border-bybs-border px-4 py-3">
                       <p className="truncate text-sm font-semibold text-bybs-navy">{user?.name || "BYBS User"}</p>
@@ -338,11 +373,38 @@ export function AppShell({
                       className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-bybs-body transition hover:bg-bybs-pale hover:text-bybs-blue"
                       href={profileHref || "#"}
                       onClick={() => setIsProfileMenuOpen(false)}
-                      role="menuitem"
                     >
                       <UserCircle className="h-4 w-4" aria-hidden="true" />
                       Profile and settings
                     </a>
+                    {canInstall ? (
+                      <button
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-bybs-body transition hover:bg-bybs-pale hover:text-bybs-blue disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={isInstalling}
+                        onClick={async () => {
+                          await install();
+                          setIsProfileMenuOpen(false);
+                        }}
+                        type="button"
+                      >
+                        <Download className="h-4 w-4" aria-hidden="true" />
+                        {isInstalling ? "Opening install..." : "Install app"}
+                      </button>
+                    ) : null}
+                    {updateReady ? (
+                      <button
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-bybs-body transition hover:bg-bybs-pale hover:text-bybs-blue disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={isUpdating}
+                        onClick={() => {
+                          applyUpdate();
+                          setIsProfileMenuOpen(false);
+                        }}
+                        type="button"
+                      >
+                        <RefreshCw className={cn("h-4 w-4", isUpdating && "animate-spin")} aria-hidden="true" />
+                        {isUpdating ? "Updating app..." : "Update app"}
+                      </button>
+                    ) : null}
                     {onSignOut ? (
                       <button
                         className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-bybs-body transition hover:bg-bybs-blush hover:text-bybs-rose"
@@ -350,7 +412,6 @@ export function AppShell({
                           setIsProfileMenuOpen(false);
                           onSignOut();
                         }}
-                        role="menuitem"
                         type="button"
                       >
                         <LogOut className="h-4 w-4" aria-hidden="true" />
@@ -369,7 +430,9 @@ export function AppShell({
             <div
               aria-modal="true"
               className="mx-auto flex max-h-[calc(100dvh-2rem)] max-w-lg flex-col overflow-hidden rounded-lg border border-bybs-border bg-white shadow-xl"
+              ref={mobileSearchDialogRef}
               role="dialog"
+              tabIndex="-1"
             >
               <div className="flex shrink-0 items-center justify-between border-b border-bybs-border px-4 py-3">
                 <p className="text-sm font-semibold text-bybs-navy">Search</p>
@@ -388,13 +451,13 @@ export function AppShell({
                   <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-bybs-muted" aria-hidden="true" />
                   <input
                     aria-label={searchPlaceholder}
-                    autoFocus
-                    className="h-10 w-full rounded-md border border-bybs-border bg-white px-9 text-sm text-bybs-body outline-none transition placeholder:text-bybs-muted focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale"
+                    className="h-11 w-full rounded-md border border-bybs-border bg-white px-9 text-sm text-bybs-body outline-none transition placeholder:text-bybs-muted focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale sm:h-10"
                     onChange={(event) => {
                       setSearchQuery(event.target.value);
                       setIsSearchOpen(true);
                     }}
                     placeholder={searchPlaceholder}
+                    ref={mobileSearchInputRef}
                     value={searchQuery}
                   />
                   {searchQuery ? (
@@ -420,7 +483,7 @@ export function AppShell({
           </div>
         ) : null}
 
-        <main className="min-w-0 max-w-full flex-1 overflow-x-hidden px-4 pb-6 pt-[5.5rem] sm:px-6 lg:px-8">{children}</main>
+        <main className="min-w-0 max-w-full flex-1 overflow-x-hidden px-4 pb-6 pt-[5.5rem] sm:px-6 lg:px-8" id="bybs-main-content" tabIndex="-1">{children}</main>
         <footer className="border-t border-bybs-border bg-white px-4 py-5 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-2 text-sm text-bybs-muted sm:flex-row sm:items-center sm:justify-between">
             <p>&copy; {currentYear} Build Your Best Self. Designed and maintained by <a href="https://thedigitalagame.com" target="_blank" rel="noopener noreferrer" className="font-medium text-bybs-blue hover:underline">TDAG</a>.</p>
@@ -447,12 +510,15 @@ export function AppShell({
           type="button"
         />
         <aside
+          aria-modal="true"
           aria-label={`${portalName} navigation`}
           className={cn(
             "relative flex h-full w-80 max-w-[88vw] flex-col border-r border-bybs-border bg-white shadow-xl transition-transform duration-200",
             isMenuOpen ? "translate-x-0" : "-translate-x-full"
           )}
+          ref={mobileMenuDialogRef}
           role="dialog"
+          tabIndex="-1"
         >
           <div className="flex items-center justify-between border-b border-bybs-border px-5 py-5">
             <div>
@@ -472,7 +538,7 @@ export function AppShell({
             </Button>
           </div>
           <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-            {navItems.map((item) => renderNavLink(item, { tabIndex: isMenuOpen ? 0 : -1 }))}
+            {renderNavItems({ tabIndex: isMenuOpen ? 0 : -1 })}
           </nav>
           {sidebarFooter ? <div className="border-t border-bybs-border p-4">{sidebarFooter}</div> : null}
         </aside>

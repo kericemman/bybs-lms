@@ -3,7 +3,8 @@ import mongoose from "mongoose";
 const notificationSchema = new mongoose.Schema(
   {
     recipient: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    announcementId: { type: String, index: true },
+    announcementId: { type: String },
+    dedupeKey: { type: String },
     title: { type: String, required: true, trim: true },
     message: { type: String, required: true },
     templateTitle: { type: String },
@@ -32,7 +33,7 @@ const notificationSchema = new mongoose.Schema(
     emailSentAt: { type: Date },
     type: {
       type: String,
-      enum: ["announcement", "assignment", "booking", "support", "reminder", "system"],
+      enum: ["announcement", "assignment", "booking", "support", "reminder", "question", "system"],
       default: "system",
       index: true
     },
@@ -41,6 +42,15 @@ const notificationSchema = new mongoose.Schema(
     archivedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }
   },
   { timestamps: true }
+);
+
+notificationSchema.index({ announcementId: 1 });
+notificationSchema.index(
+  { recipient: 1, dedupeKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { dedupeKey: { $type: "string" } }
+  }
 );
 
 export const Notification = mongoose.model("Notification", notificationSchema);

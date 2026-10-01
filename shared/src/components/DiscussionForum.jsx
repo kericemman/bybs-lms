@@ -7,6 +7,7 @@ import { PageHeader } from "./PageHeader.jsx";
 import { SafeHtml } from "./SafeHtml.jsx";
 import { StatusBadge } from "./StatusBadge.jsx";
 import { ROLE_LABELS } from "../constants/roles.js";
+import { useDialogAccessibility } from "../hooks/useDialogAccessibility.js";
 import { RESOURCE_UPLOAD_ACCEPT, validateResourceFile } from "../lib/uploadValidation.js";
 
 const inputClassName =
@@ -228,7 +229,7 @@ function AuthorAvatar({ user, size = "md" }) {
 function AuthorButton({ children, user }) {
   return (
     <button
-      className="inline-flex max-w-full items-center gap-3 rounded-md text-left transition hover:bg-bybs-pale focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bybs-pale"
+      className="inline-flex max-w-full items-center gap-3 rounded-md text-left transition hover:bg-bybs-pale focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bybs-blue focus-visible:ring-offset-2"
       onClick={() => children(user)}
       type="button"
     >
@@ -242,31 +243,34 @@ function AuthorButton({ children, user }) {
 }
 
 function ProfileModal({ onClose, user }) {
-  useEffect(() => {
-    if (!user || typeof document === "undefined") return undefined;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [user]);
+  const dialogRef = useDialogAccessibility({ isOpen: Boolean(user), onClose });
 
   if (!user) return null;
 
   const aboutHtml = user.bio || user.about || user.profile?.bio || "";
   const expertise = Array.isArray(user.expertise) ? user.expertise.filter(Boolean) : [];
+  const titleId = `discussion-profile-${idFor(user) || "member"}`;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-black/40 px-3 py-4 sm:px-4 sm:py-6">
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-bybs-navy/50 px-3 py-4 sm:px-4 sm:py-6"
+      onClick={onClose}
+    >
       <div className="flex min-h-full items-center justify-center">
-        <div className="my-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-lg border border-bybs-border bg-white shadow-xl sm:max-h-[calc(100dvh-3rem)]">
+        <div
+          aria-labelledby={titleId}
+          aria-modal="true"
+          className="my-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-lg border border-bybs-border bg-white shadow-xl sm:max-h-[calc(100dvh-3rem)]"
+          onClick={(event) => event.stopPropagation()}
+          ref={dialogRef}
+          role="dialog"
+          tabIndex="-1"
+        >
           <div className="flex shrink-0 items-start justify-between gap-4 border-b border-bybs-border p-4 sm:p-5">
             <div className="flex min-w-0 items-center gap-3">
               <AuthorAvatar user={user} />
               <div className="min-w-0">
-                <h2 className="truncate text-lg font-semibold text-bybs-navy">{authorName(user)}</h2>
+                <h2 className="truncate text-lg font-semibold text-bybs-navy" id={titleId}>{authorName(user)}</h2>
                 <p className="text-sm text-bybs-muted">{authorRole(user)}</p>
               </div>
             </div>
@@ -316,7 +320,7 @@ function ReactionBar({ currentUser, onReact, reactions = [] }) {
         return (
           <button
             aria-label={`${option.label}${count ? ` (${count})` : ""}`}
-            className={`inline-flex h-8 items-center gap-1 rounded-full border px-2 text-xs transition ${
+            className={`inline-flex h-10 min-w-10 items-center justify-center gap-1 rounded-full border px-2 text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bybs-blue sm:h-8 sm:min-w-0 ${
               isSelected
                 ? "border-bybs-blue bg-bybs-pale text-bybs-blue"
                 : "border-bybs-border bg-white text-bybs-body hover:border-bybs-blue hover:bg-bybs-pale"
@@ -341,12 +345,14 @@ export function DiscussionForum({
   currentUser,
   description,
   emptyDescription = "Forum discussions will appear here once someone starts a thread.",
+  initialDiscussionId = "",
   showCohortField = false,
   showModuleField = false,
   title = "Forum"
 }) {
   const fileInputRef = useRef(null);
   const [discussions, setDiscussions] = useState([]);
+  const [focusedDiscussionId, setFocusedDiscussionId] = useState(initialDiscussionId);
   const [modules, setModules] = useState([]);
   const [filters, setFilters] = useState({ search: "", status: "", cohort: "", module: "" });
   const [form, setForm] = useState(() => emptyForm());
@@ -370,7 +376,7 @@ export function DiscussionForum({
     setIsLoading(true);
     const shouldLoadModules = api.listModules && (showCohortField || showModuleField);
     const [discussionResponse, moduleResponse] = await Promise.all([
-      api.listDiscussions(filters),
+      api.listDiscussions({ ...filters, discussion: focusedDiscussionId || undefined }),
       shouldLoadModules ? api.listModules() : Promise.resolve({ data: [] })
     ]);
     setDiscussions(discussionResponse.data);
@@ -383,7 +389,15 @@ export function DiscussionForum({
       setIsLoading(false);
       setError(requestError.message);
     });
-  }, [filters.search, filters.status, filters.cohort, filters.module]);
+  }, [filters.search, filters.status, filters.cohort, filters.module, focusedDiscussionId]);
+
+  useEffect(() => {
+    if (!focusedDiscussionId || !discussions.some((discussion) => idFor(discussion) === focusedDiscussionId)) return;
+
+    window.requestAnimationFrame(() => {
+      document.getElementById(`discussion-${focusedDiscussionId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [discussions, focusedDiscussionId]);
 
   const cohorts = useMemo(() => uniqueCohorts({ modules, discussions }), [modules, discussions]);
   const formModules = useMemo(
@@ -412,6 +426,7 @@ export function DiscussionForum({
   }
 
   function updateFilters(name, value) {
+    setFocusedDiscussionId("");
     setFilters((current) => {
       const next = { ...current, [name]: value };
       if (name === "cohort") {
@@ -687,10 +702,10 @@ export function DiscussionForum({
         title={title}
       />
 
-      {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
-      {feedback ? <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue">{feedback}</p> : null}
+      {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose" role="alert">{error}</p> : null}
+      {feedback ? <p aria-live="polite" className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue">{feedback}</p> : null}
 
-      <input accept={RESOURCE_UPLOAD_ACCEPT} className="sr-only" onChange={uploadFile} ref={fileInputRef} type="file" />
+      <input aria-label="Upload discussion attachment" accept={RESOURCE_UPLOAD_ACCEPT} className="sr-only" onChange={uploadFile} ref={fileInputRef} type="file" />
 
       {isComposerOpen ? (
         <Card>
@@ -850,6 +865,7 @@ export function DiscussionForum({
                     </p>
                   ) : null}
                   <textarea
+                    aria-label={parentComment ? `Reply to ${authorName(parentComment.createdBy)}` : "Write a reply"}
                     className={textAreaClassName}
                     onChange={(event) => setReplyBody(event.target.value)}
                     placeholder="Write your reply..."
@@ -890,6 +906,7 @@ export function DiscussionForum({
                     {isEditingComment ? (
                       <div className="mt-3 space-y-3">
                         <textarea
+                          aria-label={`Edit reply from ${authorName(comment.createdBy)}`}
                           className={textAreaClassName}
                           onChange={(event) => setCommentDraft(event.target.value)}
                           value={commentDraft}
@@ -912,7 +929,7 @@ export function DiscussionForum({
                     ) : (
                       <>
                         <div
-                          className="mt-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bybs-pale"
+                          className="mt-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bybs-blue focus-visible:ring-offset-2"
                           onClick={() => canEditComment ? setActionTarget(commentActionTarget) : undefined}
                           onKeyDown={(event) => {
                             if (canEditComment && (event.key === "Enter" || event.key === " ")) {
@@ -970,7 +987,11 @@ export function DiscussionForum({
             };
 
             return (
-            <article className="min-w-0 max-w-full overflow-hidden rounded-lg border border-bybs-border bg-white p-4 shadow-sm sm:p-5" key={discussionId}>
+            <article
+              className={`min-w-0 max-w-full overflow-hidden rounded-lg border bg-white p-4 shadow-sm sm:p-5 ${focusedDiscussionId === discussionId ? "border-bybs-blue ring-2 ring-bybs-pale" : "border-bybs-border"}`}
+              id={`discussion-${discussionId}`}
+              key={discussionId}
+            >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -995,7 +1016,7 @@ export function DiscussionForum({
 
               {discussion.body ? (
                 <div
-                  className="mt-4 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bybs-pale"
+                  className="mt-4 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bybs-blue focus-visible:ring-offset-2"
                   onClick={() => canEditDiscussion ? setActionTarget(discussionActionTarget) : undefined}
                   onKeyDown={(event) => {
                     if (canEditDiscussion && (event.key === "Enter" || event.key === " ")) {

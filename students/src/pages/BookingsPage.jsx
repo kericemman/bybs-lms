@@ -1,5 +1,6 @@
 import { CalendarCheck, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AddToCalendarButton, Button, EmptyState, PageHeader, StatusBadge } from "@bybs/shared";
 import { studentApi } from "../services/api.js";
 import { formatDateTime } from "../utils/format.js";
@@ -55,6 +56,8 @@ function bookingCalendarEvent(booking) {
 }
 
 export function BookingsPage() {
+  const [searchParams] = useSearchParams();
+  const requestedBookingId = searchParams.get("booking") || "";
   const [bookings, setBookings] = useState([]);
   const [availability, setAvailability] = useState([]);
   const [upcomingAvailability, setUpcomingAvailability] = useState([]);
@@ -66,7 +69,7 @@ export function BookingsPage() {
 
   async function loadBookings() {
     const [bookingResponse, availabilityResponse] = await Promise.all([
-      studentApi.listBookings(),
+      studentApi.listBookings({ booking: requestedBookingId || undefined }),
       studentApi.listAvailability()
     ]);
     setBookings(bookingResponse.data);
@@ -76,7 +79,7 @@ export function BookingsPage() {
 
   useEffect(() => {
     loadBookings().catch((loadError) => setError(loadError.message));
-  }, []);
+  }, [requestedBookingId]);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -194,7 +197,7 @@ export function BookingsPage() {
       ) : (
         <div className="space-y-3">
           {bookings.map((booking) => (
-            <article className="min-w-0 max-w-full overflow-hidden rounded-lg border border-bybs-border bg-white p-4 shadow-sm" key={booking._id}>
+            <article className={`min-w-0 max-w-full overflow-hidden rounded-lg border bg-white p-4 shadow-sm ${requestedBookingId === booking._id ? "border-bybs-blue ring-2 ring-bybs-pale" : "border-bybs-border"}`} key={booking._id}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <h2 className="break-words font-semibold text-bybs-navy">{formatDateTime(booking.startsAt)}</h2>

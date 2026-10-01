@@ -10,7 +10,7 @@ import {
   updateProfileImage
 } from "../controllers/authController.js";
 import { requireAuth } from "../middleware/auth.js";
-import { decompressCompressedUpload, finalizeProfileImageUpload, profileImageUpload } from "../middleware/upload.js";
+import { decompressProfileImageUpload, finalizeProfileImageUpload, profileImageUpload } from "../middleware/upload.js";
 import { rateLimit } from "../middleware/rateLimit.js";
 import { validate } from "../middleware/validate.js";
 import {
@@ -57,7 +57,7 @@ authRoutes.post(
   "/profile-image",
   requireAuth,
   profileImageUpload.single("file"),
-  decompressCompressedUpload,
+  decompressProfileImageUpload,
   finalizeProfileImageUpload,
   updateProfileImage
 );

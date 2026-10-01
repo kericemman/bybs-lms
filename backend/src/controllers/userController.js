@@ -4,6 +4,7 @@ import { Booking } from "../models/Booking.js";
 import { Cohort } from "../models/Cohort.js";
 import { Discussion } from "../models/Discussion.js";
 import { MentorAvailability } from "../models/MentorAvailability.js";
+import { MentorQuestion } from "../models/MentorQuestion.js";
 import { Notification } from "../models/Notification.js";
 import { Report } from "../models/Report.js";
 import { Resource } from "../models/Resource.js";
@@ -188,7 +189,8 @@ async function getMentorHistoryCounts(mentorId) {
     discussions,
     submissions,
     sessions,
-    supportTickets
+    supportTickets,
+    mentorQuestions
   ] = await Promise.all([
     Booking.countDocuments({ mentor: mentorId }),
     Report.countDocuments({ mentor: mentorId }),
@@ -199,7 +201,8 @@ async function getMentorHistoryCounts(mentorId) {
     }),
     Submission.countDocuments({ reviewedBy: mentorId }),
     Session.countDocuments({ "attendance.markedBy": mentorId }),
-    SupportTicket.countDocuments({ $or: [{ assignedTo: mentorId }, { "replies.createdBy": mentorId }] })
+    SupportTicket.countDocuments({ $or: [{ assignedTo: mentorId }, { "replies.createdBy": mentorId }] }),
+    MentorQuestion.countDocuments({ mentor: mentorId })
   ]);
 
   return {
@@ -210,7 +213,8 @@ async function getMentorHistoryCounts(mentorId) {
     discussions,
     submissions,
     sessions,
-    supportTickets
+    supportTickets,
+    mentorQuestions
   };
 }
 
@@ -425,7 +429,7 @@ export const updateUser = asyncHandler(async (req, res) => {
 });
 
 export const resendWelcomeEmail = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id).select("+passwordHash");
+  const user = await User.findById(req.params.id).select("+passwordHash +authVersion");
 
   if (!user) {
     throw new ApiError(404, "User not found");
@@ -461,11 +465,13 @@ export const resendWelcomeEmail = asyncHandler(async (req, res) => {
   const previousPasswordHash = user.passwordHash;
   const previousPasswordResetRequired = user.passwordResetRequired;
   const previousPasswordChangedAt = user.passwordChangedAt;
+  const previousAuthVersion = Number(user.authVersion || 0);
   const password = temporaryPassword();
 
   user.passwordHash = await User.hashPassword(password);
   user.passwordResetRequired = true;
-  user.passwordChangedAt = undefined;
+  user.passwordChangedAt = new Date();
+  user.authVersion = previousAuthVersion + 1;
   await user.save();
 
   const delivery = await sendUserWelcomeEmail({ user: populatedUser, password });
@@ -474,6 +480,7 @@ export const resendWelcomeEmail = asyncHandler(async (req, res) => {
     user.passwordHash = previousPasswordHash;
     user.passwordResetRequired = previousPasswordResetRequired;
     user.passwordChangedAt = previousPasswordChangedAt;
+    user.authVersion = previousAuthVersion;
     await user.save();
   }
 

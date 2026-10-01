@@ -1,14 +1,18 @@
 import { z } from "zod";
-import { emptyToUndefined, objectIdSchema, paginationQuerySchema } from "./commonSchemas.js";
+import { emptyToUndefined, httpUrlSchema, objectIdSchema, paginationQuerySchema } from "./commonSchemas.js";
 
 export const studentListSchema = z.object({
-  query: paginationQuerySchema
+  query: paginationQuerySchema.extend({
+    booking: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
+    notification: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
+    ticket: z.preprocess(emptyToUndefined, objectIdSchema.optional())
+  })
 });
 
 export const studentAssignmentListSchema = z.object({
   query: paginationQuerySchema.extend({
     status: z.enum(["published", "closed"]).optional(),
-    submissionStatus: z.enum(["notStarted", "submitted", "lateSubmission", "reviewed", "needsRevision", "approved"]).optional()
+    submissionStatus: z.enum(["notStarted", "submitted", "resubmitted", "lateSubmission", "reviewed", "needsRevision", "approved"]).optional()
   })
 });
 
@@ -17,8 +21,8 @@ export const submitAssignmentSchema = z.object({
     id: objectIdSchema
   }),
   body: z.object({
-    fileUrl: z.preprocess(emptyToUndefined, z.string().trim().url().optional()),
-    linkUrl: z.preprocess(emptyToUndefined, z.string().trim().url().optional()),
+    fileUrl: z.preprocess(emptyToUndefined, httpUrlSchema.optional()),
+    linkUrl: z.preprocess(emptyToUndefined, httpUrlSchema.optional()),
     writtenResponse: z.preprocess(emptyToUndefined, z.string().trim().min(5).max(8000).optional())
   })
 });

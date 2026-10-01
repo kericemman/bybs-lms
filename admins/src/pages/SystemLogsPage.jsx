@@ -1,21 +1,24 @@
 import { Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button, DataTable, PageHeader } from "@bybs/shared";
 import { inputClassName } from "../components/FormField.jsx";
 import { adminApi } from "../services/api.js";
 import { formatDateTime, relatedTitle } from "../utils/format.js";
 
 export function SystemLogsPage() {
+  const [searchParams] = useSearchParams();
+  const requestedLogId = searchParams.get("log") || "";
   const [logs, setLogs] = useState([]);
   const [filters, setFilters] = useState({ action: "", statusCode: "" });
   const [error, setError] = useState("");
 
   useEffect(() => {
     adminApi
-      .listSystemLogs(filters)
+      .listSystemLogs({ ...filters, log: requestedLogId || undefined })
       .then((response) => setLogs(response.data))
       .catch((requestError) => setError(requestError.message));
-  }, [filters]);
+  }, [filters, requestedLogId]);
 
   return (
     <div className="space-y-6">

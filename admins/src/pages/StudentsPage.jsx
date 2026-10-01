@@ -1,6 +1,7 @@
-import { Download, Mail, Plus, Save, Upload, X } from "lucide-react";
+import { Download, Eye, Mail, Plus, Save, Upload, X } from "lucide-react";
 import Papa from "papaparse";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button, Card, DataTable, PageHeader, PhoneInput, StatusBadge, formatInternationalPhone } from "@bybs/shared";
 import { useAuth } from "../auth/AuthContext.jsx";
@@ -76,6 +77,7 @@ function resendWelcomeEmailMessage(student, meta = {}) {
 
 export function StudentsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [students, setStudents] = useState([]);
   const [cohorts, setCohorts] = useState([]);
   const [mentors, setMentors] = useState([]);
@@ -243,7 +245,7 @@ export function StudentsPage() {
             <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-md border border-bybs-border bg-white px-4 text-sm font-medium text-bybs-text shadow-sm hover:bg-bybs-pale">
               <Upload className="h-4 w-4" aria-hidden="true" />
               {isImporting ? "Importing..." : "Import CSV"}
-              <input accept=".csv,text/csv" className="sr-only" disabled={isImporting} onChange={handleImport} type="file" />
+              <input aria-label="Import mentees from CSV" accept=".csv,text/csv" className="sr-only" disabled={isImporting} onChange={handleImport} type="file" />
             </label>
           </>
         }
@@ -325,6 +327,17 @@ export function StudentsPage() {
                   onDelete={canDelete ? () => handleDelete(row) : undefined}
                   onEdit={() => startEdit(row)}
                 />
+                <Button
+                  disabled={!row.cohort?._id}
+                  icon={Eye}
+                  onClick={() => navigate(`/learner-overview?cohort=${row.cohort._id}&student=${row.id}`)}
+                  size="sm"
+                  title={row.cohort?._id ? `Open ${row.name}'s learner overview` : "Assign this mentee to a cohort first"}
+                  type="button"
+                  variant="secondary"
+                >
+                  Overview
+                </Button>
                 <Button
                   disabled={resendingId === row.id || row.status === "removed"}
                   icon={Mail}

@@ -3,6 +3,7 @@ import { emptyToUndefined, objectIdSchema, paginationQuerySchema } from "./commo
 
 export const listCertificatesSchema = z.object({
   query: paginationQuerySchema.extend({
+    certificate: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
     status: z.enum(["mentorApproved", "issued", "revoked"]).optional(),
     cohort: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
     student: z.preprocess(emptyToUndefined, objectIdSchema.optional())

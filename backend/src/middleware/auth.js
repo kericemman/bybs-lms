@@ -23,10 +23,14 @@ export const requireAuth = asyncHandler(async (req, _res, next) => {
     throw new ApiError(401, "Invalid or expired session");
   }
 
-  const user = await User.findById(payload.sub).select("-passwordHash");
+  const user = await User.findById(payload.sub).select("-passwordHash +authVersion");
 
   if (!user || !canAccessPortal(user)) {
     throw new ApiError(401, "Invalid or inactive account");
+  }
+
+  if (Number(payload.ver || 0) !== Number(user.authVersion || 0)) {
+    throw new ApiError(401, "Invalid or expired session");
   }
 
   req.user = user;

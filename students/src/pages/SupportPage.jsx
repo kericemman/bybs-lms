@@ -1,5 +1,6 @@
 import { LifeBuoy, MessageCircle, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button, EmptyState, PageHeader, SafeHtml, StatusBadge } from "@bybs/shared";
 import { studentApi } from "../services/api.js";
 import { formatDateTime } from "../utils/format.js";
@@ -16,6 +17,8 @@ const categories = [
 ];
 
 export function SupportPage() {
+  const [searchParams] = useSearchParams();
+  const requestedTicketId = searchParams.get("ticket") || "";
   const [tickets, setTickets] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [replyTicketId, setReplyTicketId] = useState("");
@@ -26,13 +29,13 @@ export function SupportPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function loadTickets() {
-    const response = await studentApi.listSupportTickets();
+    const response = await studentApi.listSupportTickets({ ticket: requestedTicketId || undefined });
     setTickets(response.data);
   }
 
   useEffect(() => {
     loadTickets().catch((loadError) => setError(loadError.message));
-  }, []);
+  }, [requestedTicketId]);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -131,7 +134,7 @@ export function SupportPage() {
       ) : (
         <div className="space-y-3">
           {tickets.map((ticket) => (
-            <article className="min-w-0 max-w-full overflow-hidden rounded-lg border border-bybs-border bg-white p-4 shadow-sm" key={ticket._id}>
+            <article className={`min-w-0 max-w-full overflow-hidden rounded-lg border bg-white p-4 shadow-sm ${requestedTicketId === ticket._id ? "border-bybs-blue ring-2 ring-bybs-pale" : "border-bybs-border"}`} key={ticket._id}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-bybs-blue">{ticket.category}</p>

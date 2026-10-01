@@ -1,6 +1,12 @@
 import { Router } from "express";
 import { listStudentCertificates } from "../controllers/certificateController.js";
 import {
+  createStudentMentorQuestion,
+  listStudentMentorQuestions,
+  replyMentorQuestion,
+  updateMentorQuestionStatus
+} from "../controllers/mentorQuestionController.js";
+import {
   archiveStudentDiscussion,
   createStudentBooking,
   createStudentDiscussion,
@@ -53,6 +59,12 @@ import {
   updateDiscussionCommentSchema,
   updatePortalDiscussionSchema
 } from "../validators/discussionSchemas.js";
+import {
+  createMentorQuestionSchema,
+  mentorQuestionListSchema,
+  mentorQuestionReplySchema,
+  updateMentorQuestionStatusSchema
+} from "../validators/mentorQuestionSchemas.js";
 
 export const studentRoutes = Router();
 
@@ -74,6 +86,10 @@ studentRoutes.delete("/discussions/:id/comments/:commentId", validate(discussion
 studentRoutes.patch("/discussions/:id/comments/:commentId/reactions", validate(discussionCommentReactionSchemaValidator), toggleStudentDiscussionCommentReaction);
 studentRoutes.get("/assignments", validate(studentAssignmentListSchema), listStudentAssignments);
 studentRoutes.post("/assignments/:id/submission", validate(submitAssignmentSchema), submitStudentAssignment);
+studentRoutes.get("/mentor-questions", validate(mentorQuestionListSchema), listStudentMentorQuestions);
+studentRoutes.post("/mentor-questions", validate(createMentorQuestionSchema), createStudentMentorQuestion);
+studentRoutes.post("/mentor-questions/:id/replies", validate(mentorQuestionReplySchema), replyMentorQuestion);
+studentRoutes.patch("/mentor-questions/:id/status", validate(updateMentorQuestionStatusSchema), updateMentorQuestionStatus);
 studentRoutes.get("/progress", studentProgress);
 studentRoutes.get("/certificates", listStudentCertificates);
 studentRoutes.get("/availability", listStudentMentorAvailability);

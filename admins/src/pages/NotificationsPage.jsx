@@ -1,7 +1,16 @@
+import { ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
-import { DataTable, PageHeader, StatusBadge } from "@bybs/shared";
+import { Button, DataTable, PageHeader, StatusBadge } from "@bybs/shared";
 import { adminApi } from "../services/api.js";
 import { formatDateTime, relatedTitle } from "../utils/format.js";
+
+function isAdminRecipient(notification) {
+  return ["admin", "adminManager", "superAdmin"].includes(notification.recipient?.role);
+}
+
+function isExternalUrl(value = "") {
+  return /^https?:\/\//i.test(value);
+}
 
 export function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
@@ -32,7 +41,24 @@ export function NotificationsPage() {
             header: "Read",
             render: (row) => <StatusBadge label={row.readStatus ? "Read" : "Unread"} tone={row.readStatus ? "success" : "neutral"} />
           },
-          { key: "createdAt", header: "Created", render: (row) => formatDateTime(row.createdAt) }
+          { key: "createdAt", header: "Created", render: (row) => formatDateTime(row.createdAt) },
+          {
+            key: "action",
+            header: "Action",
+            render: (row) => row.ctaUrl && isAdminRecipient(row) ? (
+              <Button
+                as="a"
+                href={row.ctaUrl}
+                icon={ExternalLink}
+                rel={isExternalUrl(row.ctaUrl) ? "noreferrer" : undefined}
+                size="sm"
+                target={isExternalUrl(row.ctaUrl) ? "_blank" : undefined}
+                variant="secondary"
+              >
+                {row.ctaLabel || "Open"}
+              </Button>
+            ) : "Recipient portal"
+          }
         ]}
         emptyDescription="Sent notifications will appear here."
         rows={notifications}

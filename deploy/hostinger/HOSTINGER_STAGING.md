@@ -102,6 +102,19 @@ Use either Resend or SMTP for production/staging email delivery. If both are con
 RESEND_API_KEY=...
 EMAIL_FROM=BYBS LMS <verified@buildyourbestself.org>
 
+SESSION_REMINDER_JOB_ENABLED=true
+SESSION_REMINDER_INTERVAL_MS=3600000
+SESSION_REMINDER_LEAD_HOURS=48
+SESSION_REMINDER_WINDOW_MINUTES=90
+
+ASSIGNMENT_REMINDER_JOB_ENABLED=true
+ASSIGNMENT_REMINDER_INTERVAL_MS=3600000
+ASSIGNMENT_REMINDER_LEAD_HOURS=48,24
+ASSIGNMENT_REMINDER_DUE_DAY_HOUR=8
+ASSIGNMENT_REMINDER_BATCH_SIZE=200
+ASSIGNMENT_DEADLINE_TIME_ZONE=Africa/Juba
+ASSIGNMENT_DEFAULT_DEADLINE_TIME=23:59
+
 # Optional SMTP alternative
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
@@ -109,6 +122,8 @@ SMTP_SECURE=false
 SMTP_USER=mailer@example.com
 SMTP_PASS=...
 ```
+
+For the first deployment of this release, use `ASSIGNMENT_REMINDER_JOB_ENABLED=false`. Change it to `true` only after a controlled staging check confirms the intended recipients, Africa/Juba deadline, sender domain, and duplicate prevention.
 
 Confirm these public URL values are correct because emails, uploaded images, and certificate QR codes depend on them:
 
@@ -138,7 +153,9 @@ SEED_SUPER_ADMIN_ON_START=false
 ```bash
 cd /var/www/bybs-lms
 npm ci
+npm run preflight:production
 npm run build
+npm run test:pwa
 npm run test:backend
 ```
 
@@ -153,6 +170,8 @@ sudo ln -s /etc/nginx/sites-available/bybs-lms-staging /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 ```
+
+The supplied Nginx file gives `service-worker.js`, `manifest.webmanifest`, and `index.html` short-lived/no-store headers. Keep those exact locations when Certbot updates the server blocks; only fingerprinted files under `/assets/` should receive the seven-day cache.
 
 ## 8. API Service
 
@@ -227,6 +246,8 @@ cd /var/www/bybs-lms
 bash deploy/hostinger/check-staging.sh
 ```
 
+The check includes every portal manifest and service worker. After the first production visit, confirm the browser offers installation and that refreshing while offline shows the generic BYBS offline page rather than previously loaded account data.
+
 Then test manually:
 
 - Visit public page
@@ -262,4 +283,3 @@ bash deploy/hostinger/check-staging.sh
 ## 12. Important
 
 Do not use local `/uploads` as permanent staging storage. If Cloudinary is not configured, uploads will fall back locally only for development-style testing.
-

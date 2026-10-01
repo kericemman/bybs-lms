@@ -9,6 +9,7 @@ import { Certificate } from "../models/Certificate.js";
 import { Cohort } from "../models/Cohort.js";
 import { Discussion } from "../models/Discussion.js";
 import { MentorAvailability } from "../models/MentorAvailability.js";
+import { MentorQuestion } from "../models/MentorQuestion.js";
 import { Module } from "../models/Module.js";
 import { Notification } from "../models/Notification.js";
 import { Reminder } from "../models/Reminder.js";
@@ -44,7 +45,7 @@ Default behavior:
   - Dry run only. No records are deleted.
   - Archives records into backend/archives/program-reset-<timestamp>/ before deletion.
   - Deletes mentors, mentees, cohorts, modules, sessions, resources, assignments, submissions, bookings,
-    reports, reminders, certificates, discussions, support tickets, beta applications, beta feedback,
+    reports, reminders, certificates, discussions, mentor questions, support tickets, beta applications, beta feedback,
     mentor availability, and mentor/mentee notifications.
   - Keeps admin, admin manager, and super admin users.
   - Keeps system logs unless --include-system-logs is used.
@@ -106,7 +107,7 @@ async function archiveProgramReset() {
   const programNotificationFilter = {
     $or: [
       { recipient: { $in: programUserIds } },
-      { type: { $in: ["assignment", "booking", "support", "reminder"] } }
+      { type: { $in: ["assignment", "booking", "support", "reminder", "question"] } }
     ]
   };
 
@@ -119,6 +120,7 @@ async function archiveProgramReset() {
     { key: "assignments", model: Assignment, filter: {} },
     { key: "submissions", model: Submission, filter: {} },
     { key: "mentor-availability", model: MentorAvailability, filter: {} },
+    { key: "mentor-questions", model: MentorQuestion, filter: {} },
     { key: "bookings", model: Booking, filter: {} },
     { key: "reports", model: Report, filter: {} },
     { key: "certificates", model: Certificate, filter: {} },

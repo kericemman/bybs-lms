@@ -14,6 +14,10 @@ const gunzipAsync = promisify(gunzip);
 const COMPRESSION_FIELD = "__bybsUploadCompression";
 const MANIFEST_FIELD = "__bybsUploadManifest";
 const COMPRESSION_VERSION = "gzip-v1";
+const megabyte = 1024 * 1024;
+const maxResourceBytes = 50 * megabyte;
+const maxCsvBytes = 2 * megabyte;
+const maxProfileImageBytes = 5 * megabyte;
 
 const allowedResourceTypes = new Set([
   "application/pdf",
@@ -242,7 +246,7 @@ const resourceStorage = multer.diskStorage({
 export const resourceUpload = multer({
   storage: resourceStorage,
   limits: {
-    fileSize: 50 * 1024 * 1024
+    fileSize: maxResourceBytes
   },
   fileFilter(req, file, callback) {
     try {
@@ -267,7 +271,7 @@ export const resourceUpload = multer({
 export const csvUpload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 2 * 1024 * 1024
+    fileSize: maxCsvBytes
   },
   fileFilter(req, file, callback) {
     try {
@@ -292,7 +296,7 @@ export const csvUpload = multer({
 export const profileImageUpload = multer({
   storage: resourceStorage,
   limits: {
-    fileSize: 5 * 1024 * 1024
+    fileSize: maxProfileImageBytes
   },
   fileFilter(req, file, callback) {
     try {
@@ -314,39 +318,68 @@ export const profileImageUpload = multer({
   }
 });
 
-export async function decompressCompressedUpload(req, _res, next) {
-  try {
-    if (!req.file || !isCompressedUpload(req, req.file)) {
+function decompressedUploadMiddleware(maxBytes, label) {
+  return async function decompressUpload(req, _res, next) {
+    try {
+      if (!req.file || !isCompressedUpload(req, req.file)) {
+        next();
+        return;
+      }
+
+      const metadata = compressedFileMetadata(req, req.file.fieldname);
+      const expectedSize = Number(metadata.originalSize);
+
+      if (!Number.isSafeInteger(expectedSize) || expectedSize <= 0) {
+        throw new ApiError(400, "Compressed upload metadata must include the original file size");
+      }
+
+      if (expectedSize > maxBytes) {
+        throw new ApiError(400, `${label} must be ${Math.floor(maxBytes / megabyte)} MB or smaller`);
+      }
+
+      const compressedSize = req.file.size;
+      const compressedBuffer = req.file.buffer || await readFile(req.file.path);
+      const decompressedBuffer = await gunzipAsync(compressedBuffer, { maxOutputLength: maxBytes });
+
+      if (decompressedBuffer.length !== expectedSize) {
+        throw new ApiError(400, "Compressed upload size did not match the original file");
+      }
+
+      if (req.file.path) {
+        await writeFile(req.file.path, decompressedBuffer);
+      } else {
+        req.file.buffer = decompressedBuffer;
+      }
+
+      req.file.compressed = true;
+      req.file.compressedSize = compressedSize;
+      req.file.originalname = safeOriginalName(metadata.originalName);
+      req.file.mimetype = metadata.originalType || req.file.mimetype;
+      req.file.size = decompressedBuffer.length;
       next();
-      return;
+    } catch (error) {
+      if (req.file?.path) {
+        await unlink(req.file.path).catch(() => {});
+      }
+
+      if (error instanceof ApiError) {
+        next(error);
+        return;
+      }
+
+      next(new ApiError(
+        400,
+        error?.code === "ERR_BUFFER_TOO_LARGE"
+          ? `${label} expands beyond the allowed size`
+          : "Compressed upload could not be processed"
+      ));
     }
-
-    const metadata = compressedFileMetadata(req, req.file.fieldname);
-    const compressedSize = req.file.size;
-    const compressedBuffer = req.file.buffer || await readFile(req.file.path);
-    const decompressedBuffer = await gunzipAsync(compressedBuffer);
-    const expectedSize = Number(metadata.originalSize || 0);
-
-    if (expectedSize && decompressedBuffer.length !== expectedSize) {
-      throw new ApiError(400, "Compressed upload size did not match the original file");
-    }
-
-    if (req.file.path) {
-      await writeFile(req.file.path, decompressedBuffer);
-    } else {
-      req.file.buffer = decompressedBuffer;
-    }
-
-    req.file.compressed = true;
-    req.file.compressedSize = compressedSize;
-    req.file.originalname = safeOriginalName(metadata.originalName);
-    req.file.mimetype = metadata.originalType || req.file.mimetype;
-    req.file.size = decompressedBuffer.length;
-    next();
-  } catch (error) {
-    next(error instanceof ApiError ? error : new ApiError(400, "Compressed upload could not be processed"));
-  }
+  };
 }
+
+export const decompressCompressedUpload = decompressedUploadMiddleware(maxResourceBytes, "Resource file");
+export const decompressCsvUpload = decompressedUploadMiddleware(maxCsvBytes, "CSV file");
+export const decompressProfileImageUpload = decompressedUploadMiddleware(maxProfileImageBytes, "Profile image");
 
 export async function finalizeResourceUpload(req, _res, next) {
   try {

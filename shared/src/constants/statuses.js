@@ -1,6 +1,7 @@
 export const ASSIGNMENT_STATUSES = {
   NOT_STARTED: "notStarted",
   SUBMITTED: "submitted",
+  RESUBMITTED: "resubmitted",
   LATE_SUBMISSION: "lateSubmission",
   REVIEWED: "reviewed",
   NEEDS_REVISION: "needsRevision",
@@ -17,14 +18,17 @@ export const BOOKING_STATUSES = {
 
 export const STATUS_TONES = {
   active: "success",
+  answered: "info",
   approved: "success",
   completed: "success",
   published: "success",
   submitted: "info",
+  resubmitted: "info",
   reviewed: "info",
   resolved: "success",
   scheduled: "info",
   pending: "warning",
+  open: "warning",
   draft: "neutral",
   inactive: "neutral",
   clarificationRequested: "warning",

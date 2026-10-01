@@ -1,13 +1,16 @@
 import { z } from "zod";
 import { normalizeAssignmentDueDateInput } from "../utils/assignmentDeadlines.js";
-import { emptyToUndefined, objectIdSchema, paginationQuerySchema } from "./commonSchemas.js";
+import { emptyToUndefined, httpUrlSchema, objectIdSchema, paginationQuerySchema } from "./commonSchemas.js";
 
 const resourceLinkSchema = z.object({
   title: z.preprocess(emptyToUndefined, z.string().trim().max(120).optional()),
-  url: z.string().trim().url()
+  url: httpUrlSchema
 });
 
-const assignmentDueDateSchema = z.preprocess(normalizeAssignmentDueDateInput, z.date());
+const assignmentDueDateSchema = z.preprocess(
+  (value) => normalizeAssignmentDueDateInput(value),
+  z.date()
+);
 
 export const listAssignmentsSchema = z.object({
   query: paginationQuerySchema.extend({
@@ -23,7 +26,7 @@ export const createAssignmentSchema = z.object({
     cohort: objectIdSchema,
     module: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
     dueDate: assignmentDueDateSchema,
-    templateFileUrl: z.preprocess(emptyToUndefined, z.string().trim().url().optional()),
+    templateFileUrl: z.preprocess(emptyToUndefined, httpUrlSchema.optional()),
     resourceLinks: z.array(resourceLinkSchema).max(10).default([]),
     maxScore: z.coerce.number().min(1).max(1000).default(100),
     allowResubmission: z.boolean().default(true),
@@ -41,7 +44,7 @@ export const updateAssignmentSchema = z.object({
     cohort: objectIdSchema.optional(),
     module: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
     dueDate: assignmentDueDateSchema.optional(),
-    templateFileUrl: z.preprocess(emptyToUndefined, z.string().trim().url().optional()),
+    templateFileUrl: z.preprocess(emptyToUndefined, httpUrlSchema.optional()),
     resourceLinks: z.array(resourceLinkSchema).max(10).optional(),
     maxScore: z.coerce.number().min(1).max(1000).optional(),
     allowResubmission: z.boolean().optional(),

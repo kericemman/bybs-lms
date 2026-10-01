@@ -8,6 +8,7 @@ export function FilterBar({ filters, onChange, onReset, cohorts = [], statuses =
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-bybs-muted" aria-hidden="true" />
         <input
+          aria-label={placeholder}
           className={`${inputClassName} pl-9`}
           onChange={(event) => onChange({ ...filters, search: event.target.value })}
           placeholder={placeholder}
@@ -15,6 +16,7 @@ export function FilterBar({ filters, onChange, onReset, cohorts = [], statuses =
         />
       </div>
       <select
+        aria-label="Filter by cohort"
         className={inputClassName}
         onChange={(event) => onChange({ ...filters, cohort: event.target.value })}
         value={filters.cohort || ""}
@@ -27,6 +29,7 @@ export function FilterBar({ filters, onChange, onReset, cohorts = [], statuses =
         ))}
       </select>
       <select
+        aria-label="Filter by status"
         className={inputClassName}
         onChange={(event) => onChange({ ...filters, status: event.target.value })}
         value={filters.status || ""}

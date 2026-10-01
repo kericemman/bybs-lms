@@ -554,6 +554,7 @@ export function AnnouncementComposer({ title = "Compose email announcement", onC
                 {isUploadingImage ? "Adding..." : "Image"}
               </Button>
               <input
+                aria-label="Upload announcement image"
                 accept="image/jpeg,image/png,image/webp"
                 className="sr-only"
                 onChange={handleImageChange}

@@ -81,12 +81,13 @@ export function ForgotPasswordPage({
           </Button>
         </div>
       ) : (
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <form aria-busy={isSubmitting} className="space-y-4" onSubmit={handleSubmit}>
           <label className="block">
             <span className="text-sm font-medium text-bybs-body">Email</span>
             <input
               autoComplete="email"
               className={inputClassName}
+              disabled={isSubmitting}
               onChange={(event) => setEmail(event.target.value)}
               required
               type="email"
@@ -94,7 +95,7 @@ export function ForgotPasswordPage({
             />
           </label>
 
-          {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
+          {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose" role="alert">{error}</p> : null}
 
           <Button className="w-full" disabled={isSubmitting} icon={isSubmitting ? Loader2 : ArrowRight} type="submit">
             {isSubmitting ? "Sending..." : "Send reset link"}
@@ -176,9 +177,9 @@ export function ResetPasswordPage({
           </Button>
         </div>
       ) : (
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <form aria-busy={isSubmitting} className="space-y-4" onSubmit={handleSubmit}>
           {!token ? (
-            <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">
+            <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose" role="alert">
               Reset link is missing or invalid. Please request a new password reset link.
             </p>
           ) : null}
@@ -188,6 +189,7 @@ export function ResetPasswordPage({
             <input
               autoComplete="new-password"
               className={inputClassName}
+              disabled={isSubmitting}
               onChange={(event) => updateField("newPassword", event.target.value)}
               required
               type="password"
@@ -200,6 +202,7 @@ export function ResetPasswordPage({
             <input
               autoComplete="new-password"
               className={inputClassName}
+              disabled={isSubmitting}
               onChange={(event) => updateField("confirmPassword", event.target.value)}
               required
               type="password"
@@ -207,7 +210,7 @@ export function ResetPasswordPage({
             />
           </label>
 
-          {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
+          {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose" role="alert">{error}</p> : null}
 
           <Button className="w-full" disabled={isSubmitting || !token} icon={isSubmitting ? Loader2 : KeyRound} type="submit">
             {isSubmitting ? "Resetting..." : "Reset password"}

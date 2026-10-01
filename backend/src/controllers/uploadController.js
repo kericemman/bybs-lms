@@ -1,4 +1,5 @@
 import path from "node:path";
+import { unlink } from "node:fs/promises";
 import { env } from "../config/env.js";
 import { uploadToCloudinary } from "../services/cloudinaryUploadService.js";
 import { ApiError } from "../utils/apiError.js";
@@ -9,7 +10,14 @@ export const uploadResourceFile = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Resource file is required");
   }
 
-  const cloudinaryUpload = await uploadToCloudinary(req.file);
+  let cloudinaryUpload;
+
+  try {
+    cloudinaryUpload = await uploadToCloudinary(req.file);
+  } catch (error) {
+    if (req.file.path) await unlink(req.file.path).catch(() => {});
+    throw error;
+  }
   const publicPath = `/uploads/${req.file.filename}`;
   const publicBaseUrl = env.publicApiUrl || `${req.protocol}://${req.get("host")}`;
   const localUrl = `${publicBaseUrl.replace(/\/$/, "")}${publicPath}`;

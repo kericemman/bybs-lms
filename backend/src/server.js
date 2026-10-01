@@ -2,6 +2,7 @@ import { app } from "./app.js";
 import { connectDatabase, stopDatabase } from "./config/database.js";
 import { env } from "./config/env.js";
 import { ensureSuperAdmin } from "./services/adminSeedService.js";
+import { startAssignmentReminderScheduler } from "./services/assignmentReminderService.js";
 import { startSessionReminderScheduler } from "./services/sessionReminderService.js";
 
 let server = null;
@@ -26,7 +27,12 @@ async function shutdown(signal) {
 async function bootstrap() {
   await connectDatabase();
   await ensureSuperAdmin();
-  stopBackgroundJobs = startSessionReminderScheduler();
+  const stopSessionReminders = startSessionReminderScheduler();
+  const stopAssignmentReminders = startAssignmentReminderScheduler();
+  stopBackgroundJobs = () => {
+    stopSessionReminders();
+    stopAssignmentReminders();
+  };
 
   server = app.listen(env.port, () => {
     console.log(`BYBS LMS API running on port ${env.port}`);

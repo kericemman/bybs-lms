@@ -1,5 +1,6 @@
 import { ClipboardCheck, Download, ExternalLink, Eye, Link, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   AddToCalendarButton,
   Button,
@@ -254,6 +255,8 @@ function AssignmentDetailsCard({ assignment, canEdit, onClose, onEdit }) {
 
 export function SessionWorkPage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const requestedSessionId = searchParams.get("session") || "";
   const fileInputRef = useRef(null);
   const [sessions, setSessions] = useState([]);
   const [modules, setModules] = useState([]);
@@ -276,7 +279,11 @@ export function SessionWorkPage() {
   }
 
   useEffect(() => {
-    Promise.all([mentorApi.listSessions(), mentorApi.listModules(), mentorApi.listAssignments()])
+    Promise.all([
+      mentorApi.listSessions({ session: requestedSessionId || undefined }),
+      mentorApi.listModules(),
+      mentorApi.listAssignments()
+    ])
       .then(([sessionResponse, moduleResponse, assignmentResponse]) => {
         const firstSession = sessionResponse.data[0];
         setSessions(sessionResponse.data);
@@ -289,7 +296,7 @@ export function SessionWorkPage() {
         }));
       })
       .catch((requestError) => setError(requestError.message));
-  }, []);
+  }, [requestedSessionId]);
 
   function canManageAssignment(assignment) {
     return entityId(assignment.createdBy) === currentUserId;
@@ -581,6 +588,24 @@ export function SessionWorkPage() {
       {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
       {feedback ? <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue">{feedback}</p> : null}
 
+      {requestedSessionId && selectedSession ? (
+        <Card className="border-bybs-blue ring-2 ring-bybs-pale">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold uppercase text-bybs-blue">Upcoming session</p>
+              <h2 className="mt-1 text-lg font-semibold text-bybs-navy">{selectedSession.title}</h2>
+              <p className="mt-1 text-sm text-bybs-body">
+                {formatCatDateTime(selectedSession.startsAt)} · {selectedSession.module?.title || "Unassigned module"}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <AddToCalendarButton event={sessionCalendarEvent(selectedSession)} fileName={`bybs-session-${selectedSession._id}`} />
+              <Button icon={Plus} onClick={openCreateForm} type="button">Add Session Assignment</Button>
+            </div>
+          </div>
+        </Card>
+      ) : null}
+
       {workMode !== "list" ? (
       <Card className="w-full max-w-full">
         <form className="grid w-full min-w-0 grid-cols-1 gap-4 overflow-hidden lg:grid-cols-3" onSubmit={handleSubmit}>
@@ -681,6 +706,7 @@ export function SessionWorkPage() {
                   {isUploading ? "Uploading..." : "Upload file"}
                 </Button>
                 <input
+                  aria-label="Upload session resource"
                   accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain"
                   className="sr-only"
                   onChange={handleFileChange}

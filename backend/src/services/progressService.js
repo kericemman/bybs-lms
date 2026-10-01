@@ -7,7 +7,7 @@ import { isOnOrBeforeAssignmentDeadline } from "../utils/assignmentDeadlines.js"
 import { ApiError } from "../utils/apiError.js";
 
 const assignmentStatuses = ["published", "closed"];
-const submittedStatuses = ["submitted", "lateSubmission", "reviewed", "needsRevision", "approved"];
+const submittedStatuses = ["submitted", "resubmitted", "lateSubmission", "reviewed", "needsRevision", "approved"];
 const reviewedStatuses = ["reviewed", "approved"];
 const attendanceWeights = {
   present: 1,
@@ -54,28 +54,65 @@ function groupSubmissionsByStudent(submissions = []) {
   return grouped;
 }
 
-function sessionAttendanceForStudent(sessions = [], studentId) {
-  const marked = [];
+function sessionAttendanceForStudent(sessions = [], studentId, { includeHistory = false } = {}) {
+  let weightedAttendance = 0;
+  let presentCount = 0;
+  let lateCount = 0;
+  let excusedCount = 0;
+  let absentCount = 0;
+  let markedCount = 0;
 
-  sessions.forEach((session) => {
+  const attendanceHistory = sessions.map((session) => {
     const record = session.attendance?.find((item) => idFor(item.student) === studentId);
-    if (record) marked.push(record);
+    const attendanceStatus = record?.status || "notMarked";
+
+    if (record) {
+      markedCount += 1;
+      weightedAttendance += attendanceWeights[record.status] ?? 0;
+      if (record.status === "present") presentCount += 1;
+      if (record.status === "late") lateCount += 1;
+      if (record.status === "excused") excusedCount += 1;
+      if (record.status === "absent") absentCount += 1;
+    }
+
+    return {
+      sessionId: session._id,
+      title: session.title,
+      module: session.module
+        ? {
+            _id: session.module._id || session.module,
+            title: session.module.title
+          }
+        : null,
+      startsAt: session.startsAt,
+      endsAt: session.endsAt,
+      sessionStatus: session.status,
+      attendanceStatus,
+      markedAt: record?.markedAt,
+      markedBy: record?.markedBy
+        ? {
+            _id: record.markedBy._id || record.markedBy,
+            name: record.markedBy.name,
+            role: record.markedBy.role
+          }
+        : null
+    };
   });
 
-  const weightedAttendance = marked.reduce((total, record) => total + (attendanceWeights[record.status] ?? 0), 0);
-  const presentCount = marked.filter((record) => record.status === "present").length;
-  const lateCount = marked.filter((record) => record.status === "late").length;
-  const excusedCount = marked.filter((record) => record.status === "excused").length;
-  const absentCount = marked.filter((record) => record.status === "absent").length;
+  const sessionsHeld = sessions.length;
 
   return {
-    attendanceMarked: marked.length,
+    sessionsHeld,
+    attendanceMarked: markedCount,
+    attendanceNotMarked: Math.max(sessionsHeld - markedCount, 0),
+    attendanceCoveragePercentage: percentage(markedCount, sessionsHeld),
     attended: presentCount + lateCount + excusedCount,
     presentCount,
     lateAttendanceCount: lateCount,
     excusedCount,
     absentCount,
-    attendancePercentage: percentage(weightedAttendance, marked.length)
+    attendancePercentage: percentage(weightedAttendance, sessionsHeld),
+    ...(includeHistory ? { attendanceHistory } : {})
   };
 }
 
@@ -99,7 +136,14 @@ function scoreSummary({ assignments, submissions }) {
   };
 }
 
-function buildProgressRow({ student, assignments, submissions, sessions, rank = null }) {
+function buildProgressRow({
+  student,
+  assignments,
+  submissions,
+  sessions,
+  rank = null,
+  includeAttendanceHistory = false
+}) {
   const studentId = idFor(student);
   const totalAssignments = assignments.length;
   const assignmentsById = assignmentMap(assignments);
@@ -113,7 +157,7 @@ function buildProgressRow({ student, assignments, submissions, sessions, rank = 
     return !submission.isLate && isOnOrBeforeAssignmentDeadline(submission.submittedAt || submission.createdAt, assignment.dueDate);
   });
   const score = scoreSummary({ assignments, submissions });
-  const attendance = sessionAttendanceForStudent(sessions, studentId);
+  const attendance = sessionAttendanceForStudent(sessions, studentId, { includeHistory: includeAttendanceHistory });
   const assignmentCompletionPercentage = percentage(submittedAssignmentIds.size, totalAssignments);
   const punctualityPercentage = percentage(onTimeSubmissions.length, totalAssignments);
   const overallProgress = round(
@@ -139,6 +183,7 @@ function buildProgressRow({ student, assignments, submissions, sessions, rank = 
       phone: student.phone,
       status: student.status,
       cohort: student.cohort,
+      mentor: student.mentor,
       profileImage: student.profileImage
     },
     rank,
@@ -198,10 +243,20 @@ export async function calculateStudentProgress(student, { now = new Date() } = {
       cohort: cohortId,
       status: { $ne: "cancelled" },
       startsAt: { $lte: now }
-    }).select("attendance status startsAt")
+    })
+      .select("title module attendance status startsAt endsAt")
+      .populate("module", "title")
+      .populate("attendance.markedBy", "name role")
+      .sort({ startsAt: -1 })
   ]);
 
-  return buildProgressRow({ student, assignments, submissions, sessions });
+  return buildProgressRow({
+    student,
+    assignments,
+    submissions,
+    sessions,
+    includeAttendanceHistory: true
+  });
 }
 
 export async function calculateCohortRanking(cohortId, { now = new Date() } = {}) {
@@ -217,7 +272,8 @@ export async function calculateCohortRanking(cohortId, { now = new Date() } = {}
       cohort: cohortId,
       status: { $ne: "removed" }
     })
-      .select("name email phone status cohort profileImage")
+      .select("name email phone status cohort mentor profileImage")
+      .populate("mentor", "name email profileImage status")
       .sort({ name: 1 }),
     Assignment.find({
       cohort: cohortId,

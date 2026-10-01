@@ -1,5 +1,6 @@
 import { Award, Download, ExternalLink, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button, Card, EmptyState, PageHeader, StatusBadge } from "@bybs/shared";
 import { studentApi } from "../services/api.js";
 import { formatDate } from "../utils/format.js";
@@ -32,16 +33,22 @@ function svgImage(svg = "") {
 }
 
 export function CertificatesPage() {
+  const [searchParams] = useSearchParams();
+  const requestedCertificateId = searchParams.get("certificate") || "";
   const [certificates, setCertificates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     studentApi.listCertificates()
-      .then((response) => setCertificates(response.data))
+      .then((response) => setCertificates(
+        requestedCertificateId
+          ? [...response.data].sort((left, right) => Number(right._id === requestedCertificateId) - Number(left._id === requestedCertificateId))
+          : response.data
+      ))
       .catch((requestError) => setError(requestError.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [requestedCertificateId]);
 
   return (
     <div className="min-w-0 max-w-full overflow-x-hidden space-y-6">
@@ -67,7 +74,7 @@ export function CertificatesPage() {
 
       <div className="grid gap-4 xl:grid-cols-2">
         {certificates.map((certificate) => (
-          <Card key={certificate._id}>
+          <Card className={requestedCertificateId === certificate._id ? "border-bybs-blue ring-2 ring-bybs-pale" : ""} key={certificate._id}>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <div className="flex min-w-0 items-center gap-2">

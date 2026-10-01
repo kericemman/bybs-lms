@@ -1,5 +1,6 @@
 import { Eye, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button, Card, DataTable, PageHeader, SafeHtml, StatusBadge } from "@bybs/shared";
 import { FormField, inputClassName, textAreaClassName } from "../components/FormField.jsx";
 import { mentorApi } from "../services/api.js";
@@ -54,6 +55,8 @@ function reportPayload(form) {
 }
 
 export function ReportsPage() {
+  const [searchParams] = useSearchParams();
+  const requestedReportId = searchParams.get("report") || "";
   const [reports, setReports] = useState([]);
   const [students, setStudents] = useState([]);
   const [form, setForm] = useState(() => initialForm());
@@ -65,11 +68,15 @@ export function ReportsPage() {
 
   async function loadData() {
     const [reportResponse, studentResponse] = await Promise.all([
-      mentorApi.listReports(),
+      mentorApi.listReports({ report: requestedReportId || undefined }),
       mentorApi.listStudents()
     ]);
     setReports(reportResponse.data);
     setStudents(studentResponse.data);
+    if (requestedReportId) {
+      setViewingReport(reportResponse.data.find((report) => report._id === requestedReportId) || null);
+      return;
+    }
     setViewingReport((current) =>
       current ? reportResponse.data.find((report) => report._id === current._id) || current : current
     );
@@ -77,7 +84,7 @@ export function ReportsPage() {
 
   useEffect(() => {
     loadData().catch((requestError) => setError(requestError.message));
-  }, []);
+  }, [requestedReportId]);
 
   function updateField(name, value) {
     setForm((current) => ({ ...current, [name]: value }));

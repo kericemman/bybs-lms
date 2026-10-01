@@ -1,11 +1,19 @@
-import { createApiClient } from "@bybs/shared";
+import { createApiClient, createPortalSessionStore } from "@bybs/shared";
 import { toQueryString } from "../utils/query.js";
 
 export const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5050/api";
 
+export const sessionStore = createPortalSessionStore({
+  portal: "admin",
+  tokenKey: "bybs_admin_token",
+  userKey: "bybs_admin_user",
+  defaultPath: "/"
+});
+
 export const api = createApiClient({
   baseUrl: apiBaseUrl,
-  getToken: () => window.localStorage.getItem("bybs_admin_token")
+  getToken: sessionStore.getToken,
+  onUnauthorized: ({ token }) => sessionStore.expire(token)
 });
 
 function groupAnnouncementNotifications(notifications = [], channel = "") {
@@ -111,6 +119,8 @@ export const adminApi = {
   deleteModule: (id) => api.delete(`/admin/modules/${id}`),
   generateModuleWeekendSessions: (id) => api.post(`/admin/modules/${id}/weekend-sessions`, {}),
   listSessions: (filters = {}) => api.get(`/admin/sessions${toQueryString({ limit: 100, ...filters })}`),
+  getSessionAttendance: (sessionId) => api.get(`/admin/sessions/${sessionId}/attendance`),
+  updateSessionAttendance: (sessionId, payload) => api.patch(`/admin/sessions/${sessionId}/attendance`, payload),
   createSession: (payload) => api.post("/admin/sessions", payload),
   updateSession: (id, payload) => api.patch(`/admin/sessions/${id}`, payload),
   deleteSession: (id) => api.delete(`/admin/sessions/${id}`),
@@ -126,6 +136,9 @@ export const adminApi = {
   listBookings: (filters = {}) => api.get(`/admin/bookings${toQueryString({ limit: 100, ...filters })}`),
   updateBooking: (id, payload) => api.patch(`/admin/bookings/${id}`, payload),
   listReports: (filters = {}) => api.get(`/admin/reports${toQueryString({ limit: 100, ...filters })}`),
+  listMentorQuestions: (filters = {}) => api.get(`/admin/mentor-questions${toQueryString({ limit: 100, ...filters })}`),
+  listLearnerOverview: (filters = {}) => api.get(`/admin/learner-overview${toQueryString({ limit: 25, ...filters })}`),
+  getLearnerOverview: (id) => api.get(`/admin/learner-overview/${id}`),
   updateReportReview: (id, payload) => api.patch(`/admin/reports/${id}/review`, payload),
   listCertificates: (filters = {}) => api.get(`/admin/certificates${toQueryString({ limit: 100, ...filters })}`),
   issueCertificate: (id) => api.post(`/admin/certificates/${id}/issue`, {}),

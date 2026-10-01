@@ -10,6 +10,27 @@ const attendanceSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const attendanceAuditSchema = new mongoose.Schema(
+  {
+    student: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    previousStatus: {
+      type: String,
+      enum: ["notMarked", "present", "absent", "late", "excused"],
+      default: "notMarked"
+    },
+    newStatus: {
+      type: String,
+      enum: ["notMarked", "present", "absent", "late", "excused"],
+      required: true
+    },
+    changedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    changedAt: { type: Date, default: Date.now },
+    sourceRole: { type: String, enum: ["mentor", "admin", "adminManager", "superAdmin", "system"] },
+    reason: { type: String, trim: true }
+  },
+  { _id: true }
+);
+
 const sessionSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true },
@@ -22,6 +43,7 @@ const sessionSchema = new mongoose.Schema(
     recordingLink: { type: String },
     slidesUrl: { type: String },
     attendance: [attendanceSchema],
+    attendanceAudit: { type: [attendanceAuditSchema], default: [] },
     status: {
       type: String,
       enum: ["scheduled", "completed", "cancelled"],
@@ -31,5 +53,8 @@ const sessionSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+sessionSchema.index({ "attendance.student": 1, startsAt: -1 });
+sessionSchema.index({ "attendanceAudit.changedAt": -1 });
 
 export const Session = mongoose.model("Session", sessionSchema);

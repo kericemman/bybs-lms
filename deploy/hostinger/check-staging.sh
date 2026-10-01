@@ -11,8 +11,14 @@ curl -fsSI https://lms.buildyourbestself.org | head -n 1
 curl -fsSI https://lms.buildyourbestself.org/login | head -n 1
 curl -fsSI https://lms.buildyourbestself.org/forgot-password | head -n 1
 curl -fsSI https://lms.buildyourbestself.org/verify-certificate/staging-check | head -n 1
+curl -fsSI https://lms.buildyourbestself.org/manifest.webmanifest | head -n 1
+curl -fsSI https://lms.buildyourbestself.org/service-worker.js | head -n 1
 curl -fsSI https://admin.lms.buildyourbestself.org | head -n 1
+curl -fsSI https://admin.lms.buildyourbestself.org/manifest.webmanifest | head -n 1
+curl -fsSI https://admin.lms.buildyourbestself.org/service-worker.js | head -n 1
 curl -fsSI https://mentor.lms.buildyourbestself.org | head -n 1
 curl -fsSI https://mentor.lms.buildyourbestself.org/forgot-password | head -n 1
+curl -fsSI https://mentor.lms.buildyourbestself.org/manifest.webmanifest | head -n 1
+curl -fsSI https://mentor.lms.buildyourbestself.org/service-worker.js | head -n 1
 
 echo "Staging checks completed."

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { normalizeAssignmentDueDateInput } from "../utils/assignmentDeadlines.js";
-import { emptyToUndefined, objectIdSchema, paginationQuerySchema } from "./commonSchemas.js";
+import { emptyToUndefined, httpUrlSchema, objectIdSchema, paginationQuerySchema } from "./commonSchemas.js";
 
 const timeSchema = z
   .string()
@@ -10,7 +10,10 @@ const timeSchema = z
 const dayOfWeekSchema = z.enum(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]);
 
 export const mentorListSchema = z.object({
-  query: paginationQuerySchema
+  query: paginationQuerySchema.extend({
+    notification: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
+    report: z.preprocess(emptyToUndefined, objectIdSchema.optional())
+  })
 });
 
 export const mentorStudentDetailSchema = z.object({
@@ -31,6 +34,7 @@ export const sendMentorStudentMessageSchema = z.object({
 
 export const mentorSessionListSchema = z.object({
   query: paginationQuerySchema.extend({
+    session: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
     status: z.enum(["scheduled", "completed", "cancelled"]).optional()
   })
 });
@@ -54,16 +58,31 @@ export const updateMentorSessionAttendanceSchema = z.object({
         })
       )
       .min(1)
-      .max(500),
-    markCompleted: z.boolean().default(true)
+      .max(1000),
+    markCompleted: z.boolean().default(true),
+    expectedUpdatedAt: z.coerce.date().optional()
   })
 });
 
 export const mentorSubmissionListSchema = z.object({
   query: paginationQuerySchema.extend({
+    submission: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
     module: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
-    status: z.enum(["notStarted", "submitted", "lateSubmission", "reviewed", "needsRevision", "approved"]).optional()
+    student: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
+    assignment: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
+    status: z.enum(["pendingReview", "draftSaved", "notStarted", "submitted", "resubmitted", "lateSubmission", "reviewed", "needsRevision", "approved"]).optional(),
+    submittedFrom: z.preprocess(emptyToUndefined, z.coerce.date().optional()),
+    submittedTo: z.preprocess(emptyToUndefined, z.coerce.date().optional()),
+    sort: z.enum(["oldest", "newest"]).default("oldest")
   })
+}).superRefine((value, context) => {
+  if (value.query.submittedFrom && value.query.submittedTo && value.query.submittedFrom > value.query.submittedTo) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Submitted from date must be before the submitted to date",
+      path: ["query", "submittedTo"]
+    });
+  }
 });
 
 export const mentorAssignmentListSchema = z.object({
@@ -96,7 +115,7 @@ export const updateAssignmentReminderSchema = z.object({
 const sessionMaterialSchema = z
   .object({
     title: z.preprocess(emptyToUndefined, z.string().trim().min(2).max(160).optional()),
-    url: z.string().trim().url(),
+    url: httpUrlSchema,
     fileType: z.preprocess(emptyToUndefined, z.string().trim().max(30).optional())
   })
   .optional();
@@ -113,10 +132,13 @@ const assignmentSectionSchema = z
 
 const assignmentResourceLinkSchema = z.object({
   title: z.preprocess(emptyToUndefined, z.string().trim().max(120).optional()),
-  url: z.string().trim().url()
+  url: httpUrlSchema
 });
 
-const assignmentDueDateSchema = z.preprocess(normalizeAssignmentDueDateInput, z.date());
+const assignmentDueDateSchema = z.preprocess(
+  (value) => normalizeAssignmentDueDateInput(value),
+  z.date()
+);
 
 export const createSessionWorkSchema = z.object({
   body: z.object({
@@ -124,7 +146,7 @@ export const createSessionWorkSchema = z.object({
     module: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
     materialFile: sessionMaterialSchema,
     recordingTitle: z.preprocess(emptyToUndefined, z.string().trim().min(2).max(160).optional()),
-    recordingUrl: z.preprocess(emptyToUndefined, z.string().trim().url().optional()),
+    recordingUrl: z.preprocess(emptyToUndefined, httpUrlSchema.optional()),
     assignmentTitle: z.string().trim().min(2),
     assignmentBreakdown: z.string().trim().min(10),
     assignmentSections: assignmentSectionSchema,
@@ -143,7 +165,8 @@ export const reviewSubmissionSchema = z.object({
   body: z
     .object({
       score: z.preprocess(emptyToUndefined, z.coerce.number().min(0).max(1000).optional()),
-      feedback: z.preprocess(emptyToUndefined, z.string().trim().max(4000).optional()),
+      feedback: z.string().trim().min(3, "Add feedback before publishing this review").max(4000),
+      feedbackFileUrl: z.preprocess(emptyToUndefined, httpUrlSchema.optional()),
       status: z.enum(["reviewed", "needsRevision", "approved"]).default("reviewed")
     })
     .superRefine((value, context) => {
@@ -165,8 +188,31 @@ export const reviewSubmissionSchema = z.object({
     })
 });
 
+export const saveSubmissionReviewDraftSchema = z.object({
+  params: z.object({
+    id: objectIdSchema
+  }),
+  body: z
+    .object({
+      score: z.preprocess(emptyToUndefined, z.coerce.number().min(0).max(1000).optional()),
+      feedback: z.preprocess(emptyToUndefined, z.string().trim().max(4000).optional()),
+      feedbackFileUrl: z.preprocess(emptyToUndefined, httpUrlSchema.optional()),
+      status: z.enum(["reviewed", "needsRevision", "approved"]).default("reviewed")
+    })
+    .superRefine((value, context) => {
+      if (value.status !== "approved" && value.score !== undefined) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Only an approval draft can contain a score",
+          path: ["score"]
+        });
+      }
+    })
+});
+
 export const mentorBookingListSchema = z.object({
   query: paginationQuerySchema.extend({
+    booking: z.preprocess(emptyToUndefined, objectIdSchema.optional()),
     status: z.enum(["pending", "approved", "declined", "completed", "cancelled"]).optional()
   })
 });
@@ -177,7 +223,7 @@ export const updateMentorBookingSchema = z.object({
   }),
   body: z.object({
     status: z.enum(["approved", "declined", "completed", "cancelled"]).optional(),
-    meetingLink: z.preprocess(emptyToUndefined, z.string().trim().url().optional()),
+    meetingLink: z.preprocess(emptyToUndefined, httpUrlSchema.optional()),
     mentorNotes: z.preprocess(emptyToUndefined, z.string().trim().max(3000).optional())
   })
 });

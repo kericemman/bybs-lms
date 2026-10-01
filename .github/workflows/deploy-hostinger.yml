@@ -40,6 +40,9 @@ jobs:
       - name: Build Portals
         run: npm run build
 
+      - name: Validate Portal Output
+        run: npm run test:pwa
+
       - name: Run Backend Tests
         env:
           MONGO_MEMORY_PORT: 27029

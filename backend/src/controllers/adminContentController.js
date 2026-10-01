@@ -4,6 +4,7 @@ import { Booking } from "../models/Booking.js";
 import { Cohort } from "../models/Cohort.js";
 import { Discussion } from "../models/Discussion.js";
 import { Module } from "../models/Module.js";
+import { MentorQuestion } from "../models/MentorQuestion.js";
 import { Notification } from "../models/Notification.js";
 import { Report } from "../models/Report.js";
 import { Resource } from "../models/Resource.js";
@@ -15,11 +16,18 @@ import { User } from "../models/User.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getPagination, paginatedResponse } from "../utils/pagination.js";
+import { notificationLinks } from "../utils/notificationLinks.js";
 import { sanitizePlainText, sanitizeRichText } from "../utils/sanitizeRichText.js";
 import {
   personalizeAnnouncementForRecipient,
   sendAnnouncementEmails
 } from "../services/announcementEmailService.js";
+import {
+  applyAttendanceRecords,
+  assertAttendanceVersion,
+  buildAttendanceRoster,
+  summarizeAttendance
+} from "../services/attendanceService.js";
 import { notifyUser } from "../services/portalNotificationService.js";
 
 function searchRegex(search) {
@@ -193,6 +201,48 @@ function sessionPopulate() {
   ];
 }
 
+async function findAdminAttendanceSession(sessionId) {
+  const session = await Session.findById(sessionId)
+    .populate(sessionPopulate())
+    .populate("attendance.markedBy", "name email role")
+    .populate("attendanceAudit.student", "name email")
+    .populate("attendanceAudit.changedBy", "name email role");
+
+  if (!session) {
+    throw new ApiError(404, "Session not found");
+  }
+
+  return session;
+}
+
+async function adminAttendanceRoster(session) {
+  const cohortId = session.cohort?._id || session.cohort;
+  const students = await User.find({
+    role: "student",
+    cohort: cohortId,
+    status: { $ne: "removed" }
+  })
+    .select("name email phone status profileImage")
+    .sort({ name: 1 });
+
+  return buildAttendanceRoster(students, session);
+}
+
+function serializeAdminAttendance(session, roster) {
+  const audit = [...(session.attendanceAudit || [])]
+    .sort((left, right) => new Date(right.changedAt || 0) - new Date(left.changedAt || 0))
+    .slice(0, 100);
+
+  return {
+    session: {
+      ...session.toObject(),
+      attendanceSummary: summarizeAttendance(session, roster.length)
+    },
+    roster,
+    audit
+  };
+}
+
 function sanitizeResourcePayload(payload) {
   const nextPayload = { ...payload };
 
@@ -324,13 +374,14 @@ export const deleteModule = asyncHandler(async (req, res) => {
 
   if (!module) throw new ApiError(404, "Module not found");
 
-  const [sessionCount, resourceCount, discussionCount] = await Promise.all([
+  const [sessionCount, resourceCount, discussionCount, mentorQuestionCount] = await Promise.all([
     Session.countDocuments({ module: module._id }),
     Resource.countDocuments({ module: module._id }),
-    Discussion.countDocuments({ module: module._id })
+    Discussion.countDocuments({ module: module._id }),
+    MentorQuestion.countDocuments({ module: module._id })
   ]);
 
-  if (sessionCount + resourceCount + discussionCount > 0) {
+  if (sessionCount + resourceCount + discussionCount + mentorQuestionCount > 0) {
     throw new ApiError(409, "This module has linked records. Archive it instead of deleting it.");
   }
 
@@ -351,6 +402,55 @@ export const listSessions = asyncHandler(async (req, res) => {
       sort: { startsAt: 1 }
     })
   );
+});
+
+export const getAdminSessionAttendance = asyncHandler(async (req, res) => {
+  const session = await findAdminAttendanceSession(req.params.id);
+  const roster = await adminAttendanceRoster(session);
+
+  res.json({ data: serializeAdminAttendance(session, roster) });
+});
+
+export const updateAdminSessionAttendance = asyncHandler(async (req, res) => {
+  const session = await findAdminAttendanceSession(req.params.id);
+
+  if (session.status === "cancelled") {
+    throw new ApiError(409, "Attendance cannot be changed for a cancelled session");
+  }
+
+  try {
+    assertAttendanceVersion(session, req.body.expectedUpdatedAt);
+  } catch (error) {
+    throw new ApiError(error.statusCode || 409, error.message);
+  }
+
+  const roster = await adminAttendanceRoster(session);
+  const allowedStudentIds = new Set(roster.map((row) => String(row.student._id)));
+  const deniedRecord = req.body.records.find((record) => !allowedStudentIds.has(String(record.student)));
+
+  if (deniedRecord) {
+    throw new ApiError(400, "Attendance includes a mentee outside this session cohort");
+  }
+
+  const { changedCount } = applyAttendanceRecords({
+    session,
+    records: req.body.records,
+    actor: req.user,
+    reason: sanitizePlainText(req.body.reason)
+  });
+
+  if (req.body.markCompleted) {
+    session.status = "completed";
+  }
+
+  await session.save();
+  const updatedSession = await findAdminAttendanceSession(session._id);
+  const updatedRoster = await adminAttendanceRoster(updatedSession);
+
+  res.json({
+    data: serializeAdminAttendance(updatedSession, updatedRoster),
+    meta: { changedCount }
+  });
 });
 
 export const createSession = asyncHandler(async (req, res) => {
@@ -511,6 +611,7 @@ export const deleteResource = asyncHandler(async (req, res) => {
 
 export const listDiscussions = asyncHandler(async (req, res) => {
   const filter = {};
+  if (req.query.discussion) filter._id = req.query.discussion;
   applySharedFilters(req, filter);
   if (req.query.audience) filter.audience = req.query.audience;
   res.json(
@@ -570,6 +671,7 @@ export const deleteDiscussion = asyncHandler(async (req, res) => {
 
 export const listBookings = asyncHandler(async (req, res) => {
   const filter = {};
+  if (req.query.booking) filter._id = req.query.booking;
   if (req.query.mentor) filter.mentor = req.query.mentor;
   if (req.query.student) filter.student = req.query.student;
   if (req.query.status) filter.status = req.query.status;
@@ -601,6 +703,7 @@ export const updateBooking = asyncHandler(async (req, res) => {
 
 export const listReports = asyncHandler(async (req, res) => {
   const filter = { archivedAt: { $exists: false } };
+  if (req.query.report) filter._id = req.query.report;
   if (req.query.cohort) filter.cohort = req.query.cohort;
   if (req.query.mentor) filter.mentor = req.query.mentor;
   if (req.query.period) filter.period = req.query.period;
@@ -673,7 +776,7 @@ export const updateReportReview = asyncHandler(async (req, res) => {
         previewText: sanitizePlainText(cleanComment || `Report status: ${nextStatus}`).slice(0, 160),
         type: "system",
         ctaLabel: "Open reports",
-        ctaUrl: "/reports",
+        ctaUrl: notificationLinks.mentorReport(report._id),
         targetType: "report",
         targetRole: "mentor",
         targetLabel: "Mentor report",
@@ -687,6 +790,7 @@ export const updateReportReview = asyncHandler(async (req, res) => {
 
 export const listSupportTickets = asyncHandler(async (req, res) => {
   const filter = {};
+  if (req.query.ticket) filter._id = req.query.ticket;
   if (req.query.status) filter.status = req.query.status;
   if (req.query.category) filter.category = req.query.category;
   if (req.query.search) {
@@ -794,7 +898,7 @@ export const getSupportTicket = asyncHandler(async (req, res) => {
     systemLogs
   ] = await Promise.all([
     student.cohort ? Assignment.countDocuments({ cohort: student.cohort._id || student.cohort, status: { $in: ["published", "closed"] } }) : 0,
-    Submission.countDocuments({ student: student._id, status: { $in: ["submitted", "lateSubmission", "reviewed", "needsRevision", "approved"] } }),
+    Submission.countDocuments({ student: student._id, status: { $in: ["submitted", "resubmitted", "lateSubmission", "reviewed", "needsRevision", "approved"] } }),
     Submission.find({ student: student._id })
       .populate("assignment", "title dueDate status maxScore")
       .sort({ submittedAt: -1 })
@@ -892,7 +996,7 @@ export const updateSupportTicket = asyncHandler(async (req, res) => {
         previewText: sanitizePlainText(notificationMessage).slice(0, 160),
         type: "support",
         ctaLabel: "Open support",
-        ctaUrl: "/app/support",
+        ctaUrl: notificationLinks.studentSupportTicket(ticket._id),
         targetType: "support",
         targetRole: "student",
         targetLabel: ticket.subject,
@@ -1151,6 +1255,7 @@ export const createAnnouncement = asyncHandler(async (req, res) => {
 
 export const listSystemLogs = asyncHandler(async (req, res) => {
   const filter = {};
+  if (req.query.log) filter._id = req.query.log;
   if (req.query.action) filter.action = searchRegex(req.query.action);
   if (req.query.statusCode) filter.statusCode = req.query.statusCode;
   res.json(

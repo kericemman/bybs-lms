@@ -14,6 +14,8 @@ import {
   listAdminCertificates,
   revokeCertificate
 } from "../controllers/certificateController.js";
+import { listAdminMentorQuestions } from "../controllers/mentorQuestionController.js";
+import { getLearnerOverview, listLearnerOverview } from "../controllers/learnerOverviewController.js";
 import {
   createAnnouncement,
   createDiscussion,
@@ -29,6 +31,7 @@ import {
   listBookings,
   listDiscussions,
   generateModuleSessions,
+  getAdminSessionAttendance,
   listModules,
   listNotifications,
   listReports,
@@ -42,6 +45,7 @@ import {
   updateModule,
   updateReportReview,
   updateResource,
+  updateAdminSessionAttendance,
   updateSession,
   updateSupportTicket
 } from "../controllers/adminContentController.js";
@@ -71,6 +75,7 @@ import {
   updateModuleSchema,
   updateReportReviewSchema,
   updateResourceSchema,
+  updateAdminSessionAttendanceSchema,
   updateSessionSchema,
   updateSupportTicketSchema
 } from "../validators/adminContentSchemas.js";
@@ -85,6 +90,8 @@ import {
   updateBetaFeedbackSchema
 } from "../validators/betaFeedbackSchemas.js";
 import { idParamsSchema } from "../validators/commonSchemas.js";
+import { adminMentorQuestionListSchema } from "../validators/mentorQuestionSchemas.js";
+import { learnerOverviewParamsSchema, listLearnerOverviewSchema } from "../validators/learnerOverviewSchemas.js";
 import { decompressCompressedUpload, finalizeResourceUpload, resourceUpload } from "../middleware/upload.js";
 import { uploadResourceFile } from "../controllers/uploadController.js";
 
@@ -100,6 +107,8 @@ adminContentRoutes.post("/modules/:id/weekend-sessions", validate(idParamsSchema
 
 adminContentRoutes.get("/sessions", validate(listByCohortSchema), listSessions);
 adminContentRoutes.post("/sessions", validate(createSessionSchema), createSession);
+adminContentRoutes.get("/sessions/:id/attendance", validate(idParamsSchema), getAdminSessionAttendance);
+adminContentRoutes.patch("/sessions/:id/attendance", validate(updateAdminSessionAttendanceSchema), updateAdminSessionAttendance);
 adminContentRoutes.patch("/sessions/:id", validate(updateSessionSchema), updateSession);
 adminContentRoutes.delete("/sessions/:id", validate(idParamsSchema), requireRole("admin", "superAdmin"), deleteSession);
 
@@ -126,6 +135,9 @@ adminContentRoutes.patch("/bookings/:id", validate(updateBookingSchema), updateB
 adminContentRoutes.get("/reports", validate(listReportsSchema), listReports);
 adminContentRoutes.patch("/reports/:id/review", validate(updateReportReviewSchema), updateReportReview);
 
+adminContentRoutes.get("/learner-overview", validate(listLearnerOverviewSchema), listLearnerOverview);
+adminContentRoutes.get("/learner-overview/:id", validate(learnerOverviewParamsSchema), getLearnerOverview);
+
 adminContentRoutes.get("/certificates", validate(listCertificatesSchema), listAdminCertificates);
 adminContentRoutes.post("/certificates/:id/issue", validate(certificateParamsSchema), requireRole("admin", "superAdmin"), issueCertificate);
 adminContentRoutes.post("/certificates/:id/revoke", validate(revokeCertificateSchema), requireRole("admin", "superAdmin"), revokeCertificate);
@@ -133,6 +145,8 @@ adminContentRoutes.post("/certificates/:id/revoke", validate(revokeCertificateSc
 adminContentRoutes.get("/support-tickets", validate(listSupportTicketsSchema), listSupportTickets);
 adminContentRoutes.get("/support-tickets/:id", validate(idParamsSchema), getSupportTicket);
 adminContentRoutes.patch("/support-tickets/:id", validate(updateSupportTicketSchema), updateSupportTicket);
+
+adminContentRoutes.get("/mentor-questions", validate(adminMentorQuestionListSchema), requireRole("admin", "superAdmin"), listAdminMentorQuestions);
 
 adminContentRoutes.get("/notifications", validate(listNotificationsSchema), requireRole("admin", "superAdmin"), listNotifications);
 adminContentRoutes.get("/announcements", validate(listAnnouncementsSchema), listAnnouncements);

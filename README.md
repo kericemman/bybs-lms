@@ -95,6 +95,22 @@ VITE_MENTOR_LOGIN_URL=https://mentors.example.com/login
 VITE_ADMIN_LOGIN_URL=https://admin.example.com/login
 ```
 
+## Installable Portals
+
+Production builds of the admin, mentor, and mentee portals are installable PWAs. Each portal has its own manifest and service worker because each is deployed on a separate origin.
+
+The service worker caches only bundled static assets, PWA icons, and the generic offline page. It does not cache API responses, uploads, cross-origin media, authenticated navigation HTML, or account data. Offline navigation therefore opens a neutral BYBS status page rather than stale learner information.
+
+Regenerate and validate the branded assets with:
+
+```bash
+npm run pwa:icons
+npm run build
+npm run test:pwa
+```
+
+Use the supplied Nginx configuration in production so `service-worker.js`, `manifest.webmanifest`, and `index.html` are revalidated after every release.
+
 ## First Admin Account
 
 If using a real MongoDB service, seed the first admin after `backend/.env` is configured:
@@ -129,6 +145,29 @@ EMAIL_FROM=BYBS LMS <alerts@example.com>
 ```
 
 If neither SMTP nor `RESEND_API_KEY` is configured, announcements are saved as portal notifications and marked as `Email not configured` in Admin.
+
+## Automated Reminders
+
+The API runs idempotent background schedulers for mentor session preparation and mentee assignment deadlines. Assignment reminders are sent only to active cohort mentees who have not submitted or who still have a revision request. Submitted, reviewed, approved, inactive, and completed accounts are excluded.
+
+```txt
+SESSION_REMINDER_JOB_ENABLED=true
+SESSION_REMINDER_INTERVAL_MS=3600000
+SESSION_REMINDER_LEAD_HOURS=48
+SESSION_REMINDER_WINDOW_MINUTES=90
+
+ASSIGNMENT_REMINDER_JOB_ENABLED=true
+ASSIGNMENT_REMINDER_INTERVAL_MS=3600000
+ASSIGNMENT_REMINDER_LEAD_HOURS=48,24
+ASSIGNMENT_REMINDER_DUE_DAY_HOUR=8
+ASSIGNMENT_REMINDER_BATCH_SIZE=200
+ASSIGNMENT_DEADLINE_TIME_ZONE=Africa/Juba
+ASSIGNMENT_DEFAULT_DEADLINE_TIME=23:59
+```
+
+`ASSIGNMENT_REMINDER_DUE_DAY_HOUR` uses the assignment deadline timezone, which defaults to `Africa/Juba`. Each assignment, mentee, deadline, and reminder stage has a database-enforced deduplication key, so hourly runs and multiple API processes do not resend the same reminder.
+
+The assignment reminder scheduler is disabled unless `ASSIGNMENT_REMINDER_JOB_ENABLED=true` is explicitly configured. Keep it disabled for the first production deployment, then enable it after a controlled recipient and timezone check.
 
 For logos and uploaded announcement images to appear inside real email inboxes, the image URLs must be reachable publicly by the recipient's email client. Configure these when deploying:
 

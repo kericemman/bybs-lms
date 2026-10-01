@@ -1,11 +1,19 @@
-import { createApiClient } from "@bybs/shared";
+import { createApiClient, createPortalSessionStore } from "@bybs/shared";
 import { toQueryString } from "../utils/query.js";
 
 export const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5050/api";
 
+export const sessionStore = createPortalSessionStore({
+  portal: "mentor",
+  tokenKey: "bybs_mentor_token",
+  userKey: "bybs_mentor_user",
+  defaultPath: "/"
+});
+
 export const api = createApiClient({
   baseUrl: apiBaseUrl,
-  getToken: () => window.localStorage.getItem("bybs_mentor_token")
+  getToken: sessionStore.getToken,
+  onUnauthorized: ({ token }) => sessionStore.expire(token)
 });
 
 export const mentorApi = {
@@ -15,6 +23,9 @@ export const mentorApi = {
   getSessionAttendance: (id) => api.get(`/mentor/sessions/${id}/attendance`),
   updateSessionAttendance: (id, payload) => api.patch(`/mentor/sessions/${id}/attendance`, payload),
   listAssignments: (filters = {}) => api.get(`/mentor/assignments${toQueryString({ limit: 100, ...filters })}`),
+  listMentorQuestions: (filters = {}) => api.get(`/mentor/mentor-questions${toQueryString({ limit: 100, ...filters })}`),
+  replyMentorQuestion: (id, payload) => api.post(`/mentor/mentor-questions/${id}/replies`, payload),
+  updateMentorQuestionStatus: (id, payload) => api.patch(`/mentor/mentor-questions/${id}/status`, payload),
   updateAssignment: (id, payload) => api.patch(`/assignments/${id}`, payload),
   deleteAssignment: (id) => api.delete(`/assignments/${id}`),
   listAssignmentReminders: (filters = {}) => api.get(`/mentor/assignment-reminders${toQueryString({ limit: 100, ...filters })}`),
@@ -37,7 +48,10 @@ export const mentorApi = {
   sendStudentMessage: (id, payload) => api.post(`/mentor/students/${id}/messages`, payload),
   approveGraduation: (id, payload) => api.post(`/mentor/students/${id}/graduation-approval`, payload),
   listSubmissions: (filters = {}) => api.get(`/mentor/submissions${toQueryString({ limit: 100, ...filters })}`),
+  saveReviewDraft: (id, payload) => api.patch(`/mentor/submissions/${id}/review-draft`, payload),
+  deleteReviewDraft: (id) => api.delete(`/mentor/submissions/${id}/review-draft`),
   reviewSubmission: (id, payload) => api.patch(`/mentor/submissions/${id}/review`, payload),
+  uploadReviewFile: (formData) => api.upload("/mentor/uploads", formData),
   listAvailability: () => api.get("/mentor/availability"),
   createAvailability: (payload) => api.post("/mentor/availability", payload),
   updateAvailability: (id, payload) => api.patch(`/mentor/availability/${id}`, payload),

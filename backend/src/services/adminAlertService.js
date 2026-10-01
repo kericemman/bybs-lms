@@ -3,6 +3,7 @@ import { Notification } from "../models/Notification.js";
 import { SystemLog } from "../models/SystemLog.js";
 import { User } from "../models/User.js";
 import { emailConfigured, sendEmail } from "./emailService.js";
+import { notificationLinks } from "../utils/notificationLinks.js";
 
 const alertCooldowns = new Map();
 
@@ -134,7 +135,7 @@ export async function notifyAdminIncident(alert) {
     emailRecipients: emailRecipients.length
   };
 
-  await SystemLog.create({
+  const systemLog = await SystemLog.create({
     action: alert.kind === "slowRequest" ? "ADMIN_SLOW_REQUEST_ALERT" : "ADMIN_ERROR_ALERT",
     errorMessage: alert.errorMessage,
     statusCode: alert.statusCode,
@@ -150,6 +151,11 @@ export async function notifyAdminIncident(alert) {
         message: alert.message,
         channel: "both",
         previewText: alert.message.slice(0, 160),
+        ctaLabel: "Open system logs",
+        ctaUrl: notificationLinks.adminSystemLog(systemLog._id),
+        targetType: "systemLog",
+        targetRole: "admin",
+        targetLabel: route,
         type: "system",
         readStatus: false
       }))

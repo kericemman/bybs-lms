@@ -6,7 +6,8 @@ export function DataTable({
   emptyTitle = "No records yet",
   emptyDescription,
   emptyActionLabel,
-  onEmptyAction
+  onEmptyAction,
+  label = "Scrollable data table"
 }) {
   if (!rows?.length) {
     return (
@@ -21,8 +22,14 @@ export function DataTable({
 
   return (
     <div className="min-w-0 max-w-full overflow-hidden rounded-lg border border-bybs-border bg-white shadow-sm">
-      <div className="max-w-full overflow-x-auto">
+      <div
+        aria-label={label}
+        className="max-w-full overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-bybs-blue"
+        role="region"
+        tabIndex="0"
+      >
         <table className="min-w-full divide-y divide-bybs-border">
+          <caption className="sr-only">{label}</caption>
           <thead className="bg-bybs-pale">
             <tr>
               {columns.map((column) => (

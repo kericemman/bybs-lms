@@ -10,6 +10,7 @@ import {
   UserCircle
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Button,
   EmptyState,
@@ -59,6 +60,8 @@ function DetailRow({ label, value, canCopy = false }) {
 }
 
 export function SupportPage() {
+  const [searchParams] = useSearchParams();
+  const requestedTicketId = searchParams.get("ticket") || "";
   const [tickets, setTickets] = useState([]);
   const [selectedTicketId, setSelectedTicketId] = useState("");
   const [detail, setDetail] = useState(null);
@@ -70,7 +73,10 @@ export function SupportPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   async function loadTickets(nextFilters = filters) {
-    const response = await adminApi.listSupportTickets(nextFilters);
+    const response = await adminApi.listSupportTickets({
+      ...nextFilters,
+      ticket: requestedTicketId || undefined
+    });
     setTickets(response.data);
     return response.data;
   }
@@ -87,8 +93,14 @@ export function SupportPage() {
   }
 
   useEffect(() => {
-    loadTickets().catch((requestError) => setError(requestError.message));
-  }, []);
+    loadTickets()
+      .then((rows) => {
+        if (requestedTicketId && rows.some((ticket) => ticket._id === requestedTicketId)) {
+          setSelectedTicketId(requestedTicketId);
+        }
+      })
+      .catch((requestError) => setError(requestError.message));
+  }, [requestedTicketId]);
 
   useEffect(() => {
     if (selectedTicketId) {

@@ -1,5 +1,6 @@
 import { Award, CheckCircle2, RotateCcw, Search, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button, Card, DataTable, PageHeader, ProgressBar, SafeHtml, StatCard, StatusBadge } from "@bybs/shared";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { adminApi } from "../services/api.js";
@@ -90,6 +91,8 @@ function ProgressEvidence({ progress }) {
 
 export function CertificatesPage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const requestedCertificateId = searchParams.get("certificate") || "";
   const canIssue = hasRole(user, ["admin", "superAdmin"]);
   const [certificates, setCertificates] = useState([]);
   const [filters, setFilters] = useState({ search: "", status: "" });
@@ -100,8 +103,15 @@ export function CertificatesPage() {
   const [feedback, setFeedback] = useState("");
 
   async function loadCertificates(nextFilters = filters) {
-    const response = await adminApi.listCertificates(nextFilters);
+    const response = await adminApi.listCertificates({
+      ...nextFilters,
+      certificate: requestedCertificateId || undefined
+    });
     setCertificates(response.data);
+    if (requestedCertificateId) {
+      setSelectedCertificate(response.data.find((certificate) => certificate._id === requestedCertificateId) || null);
+      return;
+    }
     setSelectedCertificate((current) =>
       current ? response.data.find((certificate) => certificate._id === current._id) || current : current
     );
@@ -112,7 +122,7 @@ export function CertificatesPage() {
     loadCertificates()
       .catch((requestError) => setError(requestError.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [requestedCertificateId]);
 
   const counts = useMemo(() => ({
     total: certificates.length,

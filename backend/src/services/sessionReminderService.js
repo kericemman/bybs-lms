@@ -1,6 +1,7 @@
 import { env } from "../config/env.js";
 import { Session } from "../models/Session.js";
 import { logger } from "../utils/logger.js";
+import { notificationLinks } from "../utils/notificationLinks.js";
 import { sanitizePlainText } from "../utils/sanitizeRichText.js";
 import { notifyUserOnce } from "./portalNotificationService.js";
 
@@ -55,7 +56,7 @@ function sessionReminderNotification(session) {
     previewText: `${session.title} is coming up on ${sessionTime}.`,
     type: "reminder",
     ctaLabel: "Prepare session",
-    ctaUrl: "/session-work",
+    ctaUrl: notificationLinks.mentorSession(session._id),
     targetType: "session",
     targetRole: "mentor",
     targetLabel: session.title,

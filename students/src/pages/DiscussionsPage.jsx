@@ -1,9 +1,11 @@
 import { DiscussionForum } from "@bybs/shared";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { studentApi } from "../services/api.js";
 
 export function DiscussionsPage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
 
   return (
     <DiscussionForum
@@ -24,6 +26,7 @@ export function DiscussionsPage() {
       currentUser={user}
       description="Open shared forum for mentees and mentors to write messages, reply, and stay connected."
       emptyDescription="Open forum threads from mentees and mentors will appear here."
+      initialDiscussionId={searchParams.get("discussion") || ""}
       title="Forum"
     />
   );

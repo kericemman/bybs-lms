@@ -12,6 +12,7 @@ import { LoginPage } from "./pages/LoginPage.jsx";
 import { ModulesPage } from "./pages/ModulesPage.jsx";
 import { NotificationsPage } from "./pages/NotificationsPage.jsx";
 import { ProfilePage } from "./pages/ProfilePage.jsx";
+import { QuestionsPage } from "./pages/QuestionsPage.jsx";
 import { RemindersPage } from "./pages/RemindersPage.jsx";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage.jsx";
 import { ReportsPage } from "./pages/ReportsPage.jsx";
@@ -39,6 +40,7 @@ export default function App() {
                   <Route element={<StudentsPage />} path="students" />
                   <Route element={<StudentDetailPage />} path="students/:id" />
                   <Route element={<DiscussionsPage />} path="forum" />
+                  <Route element={<QuestionsPage />} path="questions" />
                   <Route element={<SessionWorkPage />} path="session-work" />
                   <Route element={<AttendancePage />} path="attendance" />
                   <Route element={<RemindersPage />} path="reminders" />

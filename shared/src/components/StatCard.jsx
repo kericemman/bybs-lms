@@ -14,7 +14,7 @@ export function StatCard({ label, value, hint, icon: Icon, onClick, tone = "prim
     <Component
       className={cn(
         "w-full rounded-lg border border-bybs-border bg-white p-3 text-left shadow-sm sm:p-4",
-        onClick ? "cursor-pointer transition hover:border-bybs-blue hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bybs-pale" : ""
+        onClick ? "cursor-pointer transition hover:border-bybs-blue hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bybs-blue focus-visible:ring-offset-2" : ""
       )}
       onClick={onClick}
       type={onClick ? "button" : undefined}

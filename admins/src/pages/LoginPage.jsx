@@ -1,20 +1,25 @@
-import { ArrowRight, LockKeyhole } from "lucide-react";
+import { ArrowRight, CircleAlert, Loader2, LockKeyhole } from "lucide-react";
 import { useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { Button } from "@bybs/shared";
+import { authReturnPath, Button, loginErrorMessage, SessionCheckScreen } from "@bybs/shared";
 import { useAuth } from "../auth/AuthContext.jsx";
 
 export function LoginPage() {
-  const { isAuthenticated, login } = useAuth();
+  const { dismissSessionNotice, isAuthenticated, isCheckingSession, login, sessionNotice } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (isAuthenticated) {
-    return <Navigate replace to="/" />;
-  }
+  const destination = authReturnPath({
+    from: location.state?.from,
+    stored: sessionNotice?.returnTo,
+    fallback: "/"
+  });
+
+  if (isCheckingSession) return <SessionCheckScreen />;
+  if (isAuthenticated) return <Navigate replace to={destination} />;
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -23,9 +28,9 @@ export function LoginPage() {
 
     try {
       await login(form);
-      navigate(location.state?.from?.pathname || "/", { replace: true });
+      navigate(destination, { replace: true });
     } catch (loginError) {
-      setError(loginError.message || "Login failed");
+      setError(loginErrorMessage(loginError));
     } finally {
       setIsSubmitting(false);
     }
@@ -45,11 +50,23 @@ export function LoginPage() {
           </p>
         </div>
 
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        {sessionNotice ? (
+          <div className="mb-4 flex gap-3 rounded-md border border-bybs-border bg-bybs-pale p-3" role="status">
+            <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-bybs-blue" aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-bybs-navy">{sessionNotice.message}</p>
+              <button className="mt-1 text-xs font-semibold text-bybs-blue hover:text-bybs-blueHover" onClick={dismissSessionNotice} type="button">Dismiss</button>
+            </div>
+          </div>
+        ) : null}
+
+        <form aria-busy={isSubmitting} className="space-y-4" onSubmit={handleSubmit}>
           <label className="block">
             <span className="text-sm font-medium text-bybs-body">Email</span>
             <input
               className="mt-1 h-11 w-full rounded-md border border-bybs-border px-3 text-sm outline-none focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale"
+              autoComplete="email"
+              disabled={isSubmitting}
               onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
               required
               type="email"
@@ -61,6 +78,8 @@ export function LoginPage() {
             <span className="text-sm font-medium text-bybs-body">Password</span>
             <input
               className="mt-1 h-11 w-full rounded-md border border-bybs-border px-3 text-sm outline-none focus:border-bybs-blue focus:ring-2 focus:ring-bybs-pale"
+              autoComplete="current-password"
+              disabled={isSubmitting}
               onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
               required
               type="password"
@@ -68,9 +87,9 @@ export function LoginPage() {
             />
           </label>
 
-          {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
+          {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose" role="alert">{error}</p> : null}
 
-          <Button className="w-full" disabled={isSubmitting} icon={ArrowRight} type="submit">
+          <Button className="w-full" disabled={isSubmitting} icon={isSubmitting ? Loader2 : ArrowRight} type="submit">
             {isSubmitting ? "Signing in..." : "Sign in"}
           </Button>
         </form>

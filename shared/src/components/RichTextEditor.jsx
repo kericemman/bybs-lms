@@ -17,13 +17,14 @@ import { useEffect } from "react";
 import { cn } from "../lib/cn.js";
 
 const toolbarButtonClassName =
-  "inline-flex h-9 max-w-44 shrink-0 items-center justify-center gap-2 overflow-hidden whitespace-nowrap rounded-md border border-bybs-border bg-white px-3 text-sm font-medium text-bybs-body transition hover:bg-bybs-pale hover:text-bybs-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bybs-pale disabled:pointer-events-none disabled:opacity-50";
+  "inline-flex h-11 max-w-44 shrink-0 items-center justify-center gap-2 overflow-hidden whitespace-nowrap rounded-md border border-bybs-border bg-white px-3 text-sm font-medium text-bybs-body transition hover:bg-bybs-pale hover:text-bybs-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bybs-blue disabled:pointer-events-none disabled:opacity-50 sm:h-9";
 
 const activeToolbarButtonClassName = "border-bybs-blue bg-bybs-pale text-bybs-blue";
 
 function ToolbarButton({ active, children, icon: Icon, ...props }) {
   return (
     <button
+      aria-pressed={typeof active === "boolean" ? active : undefined}
       className={cn(toolbarButtonClassName, active ? activeToolbarButtonClassName : "")}
       type="button"
       {...props}
@@ -134,7 +135,11 @@ export function RichTextEditor({
 
   return (
     <div className="w-full min-w-0 max-w-full overflow-hidden rounded-md border border-bybs-border bg-white focus-within:border-bybs-blue focus-within:ring-2 focus-within:ring-bybs-pale">
-      <div className="w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain scroll-smooth border-b border-bybs-border bg-bybs-pale p-2 [-webkit-overflow-scrolling:touch]">
+      <div
+        aria-label="Text formatting"
+        className="w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain scroll-smooth border-b border-bybs-border bg-bybs-pale p-2 [-webkit-overflow-scrolling:touch]"
+        role="toolbar"
+      >
         <div className="flex min-w-max gap-2 pr-2 sm:min-w-0 sm:flex-wrap sm:pr-0">
           <ToolbarButton
             active={editor.isActive("heading", { level: 2 })}

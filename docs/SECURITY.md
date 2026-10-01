@@ -22,6 +22,7 @@ Security is part of the product foundation because the LMS handles student ident
 - Temporary student and mentor passwords are generated per account in the admin UI
 - Mentor/admin welcome emails send the temporary password only during account creation and report delivery status back to Admin
 - Accounts created with temporary passwords are marked as requiring a password change
+- Password changes, password resets, and resent temporary credentials revoke previously issued sessions through an account authentication version
 - Admin, mentor, and student portals show a change-password panel until temporary credentials are replaced
 - In-memory MongoDB is blocked in production and only available through explicit local configuration
 - User deletion is soft-removal to preserve linked academic records
@@ -31,8 +32,12 @@ Security is part of the product foundation because the LMS handles student ident
 - The frontend now blocks file uploads if a browser cannot prepare the compressed upload envelope
 - The backend rejects resource and CSV uploads that bypass the compressed upload metadata by default
 - The API validates compressed upload metadata and decompresses files before storage or CSV parsing
+- Decompression has server-side output limits for resources, CSV imports, and profile images, and failed uploads remove temporary files
+- User-controlled resource, meeting, submission, and attachment URLs are limited to HTTP and HTTPS
 - Cloudinary-backed uploads are signed server-side, with local `/uploads` storage only used when Cloudinary is not configured
 - CSV student import reports row-level errors and skips duplicate emails
+- Production frontend responses use CSP, clickjacking, MIME-sniffing, referrer, and browser-permission headers
+- The deployment preflight validates production database, URL, Cloudinary, compression, email, alert, and seed configuration before restart
 
 ## Rules for Future Work
 

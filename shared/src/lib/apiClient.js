@@ -1,12 +1,13 @@
 import { compressUploadFormData } from "./uploadCompression.js";
 import { emitGlobalLoading } from "../components/GlobalLoader.jsx";
 
-export function createApiClient({ baseUrl, getToken }) {
+export function createApiClient({ baseUrl, getToken, onUnauthorized }) {
   async function request(path, options = {}) {
     const token = getToken?.();
-    const headers = new Headers(options.headers || {});
+    const { skipUnauthorizedHandling = false, ...fetchOptions } = options;
+    const headers = new Headers(fetchOptions.headers || {});
 
-    if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
+    if (!headers.has("Content-Type") && !(fetchOptions.body instanceof FormData)) {
       headers.set("Content-Type", "application/json");
     }
 
@@ -18,7 +19,7 @@ export function createApiClient({ baseUrl, getToken }) {
 
     try {
       const response = await fetch(`${baseUrl}${path}`, {
-        ...options,
+        ...fetchOptions,
         headers
       });
 
@@ -26,6 +27,10 @@ export function createApiClient({ baseUrl, getToken }) {
       const data = isJson ? await response.json() : null;
 
       if (!response.ok) {
+        if (response.status === 401 && token && !skipUnauthorizedHandling) {
+          onUnauthorized?.({ path, token });
+        }
+
         const message = data?.message || "Request failed";
         const error = new Error(message);
         error.status = response.status;

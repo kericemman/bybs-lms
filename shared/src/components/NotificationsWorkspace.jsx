@@ -1,5 +1,6 @@
 import { ArrowRight, Bell, ExternalLink, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useDialogAccessibility } from "../hooks/useDialogAccessibility.js";
 import { Button } from "./Button.jsx";
 import { EmptyState } from "./EmptyState.jsx";
 import { PageHeader } from "./PageHeader.jsx";
@@ -59,12 +60,22 @@ export function NotificationsWorkspace({
   markNotificationRead,
   title = "Notifications"
 }) {
+  const requestedNotificationId = useMemo(
+    () => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("notification") || "",
+    []
+  );
+  const deepLinkOpenedRef = useRef(false);
   const [notifications, setNotifications] = useState([]);
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const notificationDialogRef = useDialogAccessibility({
+    isOpen: Boolean(selectedNotification),
+    onClose: () => setSelectedNotification(null)
+  });
 
   async function loadNotifications() {
-    const response = await listNotifications();
+    const response = await listNotifications(requestedNotificationId ? { notification: requestedNotificationId } : undefined);
     const nextNotifications = response.data || [];
     setNotifications(nextNotifications);
 
@@ -75,30 +86,25 @@ export function NotificationsWorkspace({
   }
 
   useEffect(() => {
-    loadNotifications().catch((loadError) => setError(loadError.message));
+    loadNotifications()
+      .catch((loadError) => setError(loadError.message))
+      .finally(() => setIsLoading(false));
     // listNotifications is a stable API method from each portal service.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (!selectedNotification || typeof window === "undefined") return undefined;
+    if (isLoading || !requestedNotificationId || deepLinkOpenedRef.current) return;
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const requestedNotification = notifications.find(
+      (notification) => notification._id === requestedNotificationId
+    );
 
-    function handleKeyDown(event) {
-      if (event.key === "Escape") {
-        setSelectedNotification(null);
-      }
+    if (requestedNotification) {
+      deepLinkOpenedRef.current = true;
+      openNotification(requestedNotification);
     }
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [selectedNotification]);
+  }, [isLoading, notifications, requestedNotificationId]);
 
   const selectedPreview = useMemo(
     () => truncatePreview(selectedNotification?.previewText || selectedNotification?.message || ""),
@@ -137,7 +143,7 @@ export function NotificationsWorkspace({
     <div className="min-w-0 max-w-full overflow-x-hidden space-y-6">
       <PageHeader description={description} title={title} />
 
-      {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
+      {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose" role="alert">{error}</p> : null}
 
       {selectedNotification ? (
         <div
@@ -150,10 +156,12 @@ export function NotificationsWorkspace({
               aria-modal="true"
               className="my-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl sm:max-h-[calc(100dvh-3rem)]"
               onClick={(event) => event.stopPropagation()}
+              ref={notificationDialogRef}
               role="dialog"
+              tabIndex="-1"
             >
               <div className="shrink-0 border-b border-bybs-border p-4 sm:p-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="text-lg font-semibold text-bybs-navy" id={`notification-title-${selectedNotification._id}`}>
@@ -171,9 +179,7 @@ export function NotificationsWorkspace({
                       </p>
                     ) : null}
                   </div>
-                  <Button icon={X} onClick={() => setSelectedNotification(null)} size="sm" type="button" variant="ghost">
-                    Close
-                  </Button>
+                  <Button aria-label="Close notification" icon={X} onClick={() => setSelectedNotification(null)} size="icon" title="Close notification" type="button" variant="ghost" />
                 </div>
               </div>
 
@@ -202,7 +208,11 @@ export function NotificationsWorkspace({
         </div>
       ) : null}
 
-      {!notifications.length ? (
+      {isLoading ? (
+        <div className="rounded-lg border border-bybs-border bg-white p-8 text-center text-sm text-bybs-muted" role="status">
+          Loading notifications...
+        </div>
+      ) : !notifications.length ? (
         <EmptyState description={emptyDescription} icon={Bell} title={emptyTitle} />
       ) : (
         <div className="space-y-3">

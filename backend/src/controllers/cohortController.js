@@ -1,6 +1,7 @@
 import { Assignment } from "../models/Assignment.js";
 import { Cohort } from "../models/Cohort.js";
 import { Discussion } from "../models/Discussion.js";
+import { MentorQuestion } from "../models/MentorQuestion.js";
 import { Module } from "../models/Module.js";
 import { Resource } from "../models/Resource.js";
 import { Session } from "../models/Session.js";
@@ -62,17 +63,18 @@ export const deleteCohort = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Cohort not found");
   }
 
-  const [userCount, moduleCount, sessionCount, resourceCount, discussionCount, assignmentCount] = await Promise.all([
+  const [userCount, moduleCount, sessionCount, resourceCount, discussionCount, assignmentCount, mentorQuestionCount] = await Promise.all([
     User.countDocuments({ cohort: cohort._id, status: { $ne: "removed" } }),
     Module.countDocuments({ cohort: cohort._id }),
     Session.countDocuments({ cohort: cohort._id }),
     Resource.countDocuments({ cohort: cohort._id }),
     Discussion.countDocuments({ cohort: cohort._id }),
-    Assignment.countDocuments({ cohort: cohort._id })
+    Assignment.countDocuments({ cohort: cohort._id }),
+    MentorQuestion.countDocuments({ cohort: cohort._id })
   ]);
 
   const linkedRecords =
-    userCount + moduleCount + sessionCount + resourceCount + discussionCount + assignmentCount;
+    userCount + moduleCount + sessionCount + resourceCount + discussionCount + assignmentCount + mentorQuestionCount;
 
   if (linkedRecords > 0) {
     throw new ApiError(409, "This cohort has linked records. Archive it instead of deleting it.");

@@ -29,6 +29,7 @@ const userSchema = new mongoose.Schema(
     passwordResetExpiresAt: { type: Date, select: false },
     passwordResetRequestedAt: { type: Date, select: false },
     passwordChangedAt: { type: Date },
+    authVersion: { type: Number, default: 0, min: 0, select: false },
     lastLogin: { type: Date }
   },
   { timestamps: true }

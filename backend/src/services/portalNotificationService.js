@@ -123,28 +123,60 @@ export async function notifyUserOnce({ recipient, notification, portalRole, uniq
     return { notification: await notifyUser({ recipient, notification, portalRole }), created: true };
   }
 
-  const channel = notification.channel || "both";
-  const result = await Notification.findOneAndUpdate(
-    {
-      recipient: recipient._id || recipient,
-      announcementId: uniqueKey
-    },
-    {
-      $setOnInsert: {
-        ...notification,
-        announcementId: uniqueKey,
-        recipient: recipient._id || recipient,
-        channel,
-        emailDeliveryStatus: initialEmailStatus(channel)
-      }
-    },
-    {
-      new: true,
-      upsert: true,
-      includeResultMetadata: true,
-      setDefaultsOnInsert: true
+  const recipientId = recipient._id || recipient;
+  const legacyNotification = await Notification.findOne({
+    recipient: recipientId,
+    announcementId: uniqueKey,
+    dedupeKey: { $exists: false }
+  });
+
+  if (legacyNotification) {
+    try {
+      await Notification.updateOne(
+        { _id: legacyNotification._id, dedupeKey: { $exists: false } },
+        { $set: { dedupeKey: uniqueKey }, $unset: { announcementId: 1 } }
+      );
+    } catch (error) {
+      if (error?.code !== 11000) throw error;
     }
-  );
+
+    return {
+      notification: await Notification.findById(legacyNotification._id),
+      created: false
+    };
+  }
+
+  const channel = notification.channel || "both";
+  let result;
+
+  try {
+    result = await Notification.findOneAndUpdate(
+      { recipient: recipientId, dedupeKey: uniqueKey },
+      {
+        $setOnInsert: {
+          ...notification,
+          dedupeKey: uniqueKey,
+          recipient: recipientId,
+          channel,
+          emailDeliveryStatus: initialEmailStatus(channel)
+        }
+      },
+      {
+        new: true,
+        upsert: true,
+        includeResultMetadata: true,
+        setDefaultsOnInsert: true
+      }
+    );
+  } catch (error) {
+    if (error?.code !== 11000) throw error;
+
+    return {
+      notification: await Notification.findOne({ recipient: recipientId, dedupeKey: uniqueKey }),
+      created: false
+    };
+  }
+
   const createdNotification = result.value;
   const created = !result.lastErrorObject?.updatedExisting;
 

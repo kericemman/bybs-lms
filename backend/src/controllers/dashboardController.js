@@ -61,7 +61,7 @@ export const adminSummary = asyncHandler(async (_req, res) => {
     User.countDocuments({ role: "student", status: "active" }),
     User.countDocuments({ role: "mentor", status: "active" }),
     Cohort.countDocuments({ status: "active" }),
-    Submission.countDocuments({ status: { $in: ["submitted", "lateSubmission", "needsRevision"] } }),
+    Submission.countDocuments({ status: { $in: ["submitted", "resubmitted", "lateSubmission", "needsRevision"] } }),
     SupportTicket.countDocuments({ status: { $in: ["open", "inProgress"] } }),
     Submission.find()
       .populate("student", "name email")

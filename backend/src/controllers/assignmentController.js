@@ -1,4 +1,5 @@
 import { Assignment } from "../models/Assignment.js";
+import { MentorQuestion } from "../models/MentorQuestion.js";
 import { Submission } from "../models/Submission.js";
 import { User } from "../models/User.js";
 import {
@@ -11,6 +12,7 @@ import { ApiError } from "../utils/apiError.js";
 import { formatAssignmentDeadlineForNotification, normalizeAssignmentDueDateInput } from "../utils/assignmentDeadlines.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getPagination, paginatedResponse } from "../utils/pagination.js";
+import { notificationLinks } from "../utils/notificationLinks.js";
 import { sanitizePlainText, sanitizeRichText } from "../utils/sanitizeRichText.js";
 
 async function assertMentorAssignmentScope(mentor, { cohort, module }) {
@@ -48,7 +50,7 @@ async function notifyStudentsAboutPublishedAssignment(assignment) {
       channel: "both",
       previewText: sanitizePlainText(assignment.instructions || "").slice(0, 160),
       ctaLabel: "Open assignment",
-      ctaUrl: "/app/assignments",
+      ctaUrl: notificationLinks.studentAssignment(assignment._id),
       targetType: "cohort",
       targetRole: "student",
       targetLabel: "Assigned cohort",
@@ -197,10 +199,13 @@ export const deleteAssignment = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Assignment not found");
   }
 
-  const submissionCount = await Submission.countDocuments({ assignment: assignment._id });
+  const [submissionCount, mentorQuestionCount] = await Promise.all([
+    Submission.countDocuments({ assignment: assignment._id }),
+    MentorQuestion.countDocuments({ assignment: assignment._id })
+  ]);
 
-  if (submissionCount > 0) {
-    throw new ApiError(409, "This assignment has submissions. Archive it instead of deleting it.");
+  if (submissionCount + mentorQuestionCount > 0) {
+    throw new ApiError(409, "This assignment has submissions or mentor questions. Archive it instead of deleting it.");
   }
 
   await assignment.deleteOne();

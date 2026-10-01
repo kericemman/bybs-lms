@@ -1,5 +1,6 @@
 import { CalendarCheck, Save, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AddToCalendarButton, Button, Card, DataTable, PageHeader, StatusBadge } from "@bybs/shared";
 import { FormField, inputClassName, textAreaClassName } from "../components/FormField.jsx";
 import { mentorApi } from "../services/api.js";
@@ -44,6 +45,9 @@ function bookingCalendarEvent(booking) {
 }
 
 export function BookingsPage() {
+  const [searchParams] = useSearchParams();
+  const requestedBookingId = searchParams.get("booking") || "";
+  const deepLinkOpenedRef = useRef(false);
   const [bookings, setBookings] = useState([]);
   const [status, setStatus] = useState("");
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -53,13 +57,20 @@ export function BookingsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function loadBookings() {
-    const response = await mentorApi.listBookings({ status });
+    const response = await mentorApi.listBookings({ booking: requestedBookingId || undefined, status });
     setBookings(response.data);
+    if (requestedBookingId && !deepLinkOpenedRef.current) {
+      const requestedBooking = response.data.find((booking) => booking._id === requestedBookingId);
+      if (requestedBooking) {
+        deepLinkOpenedRef.current = true;
+        startUpdate(requestedBooking);
+      }
+    }
   }
 
   useEffect(() => {
     loadBookings().catch((requestError) => setError(requestError.message));
-  }, [status]);
+  }, [requestedBookingId, status]);
 
   function startUpdate(booking) {
     setSelectedBooking(booking);

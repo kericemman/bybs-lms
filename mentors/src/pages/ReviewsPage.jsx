@@ -1,5 +1,22 @@
-import { BookOpen, ClipboardCheck, Download, ExternalLink, Eye, MessageSquare, Save, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import {
+  BookOpen,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardCheck,
+  Clock3,
+  Download,
+  ExternalLink,
+  Eye,
+  MessageSquare,
+  RotateCcw,
+  Save,
+  Send,
+  Trash2,
+  Upload,
+  X
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Button,
@@ -7,13 +24,15 @@ import {
   DataTable,
   EmptyState,
   PageHeader,
+  RESOURCE_UPLOAD_ACCEPT,
   RichTextEditor,
   SafeHtml,
   SectionHeader,
   StatusBadge,
   downloadFileUrl,
   isUploadedFileUrl,
-  normalizeFileUrl
+  normalizeFileUrl,
+  validateResourceFile
 } from "@bybs/shared";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { FormField, inputClassName } from "../components/FormField.jsx";
@@ -22,7 +41,10 @@ import { formatDate, formatDateTime } from "../utils/format.js";
 
 const statusOptions = [
   { value: "", label: "All submissions" },
+  { value: "pendingReview", label: "Pending review" },
+  { value: "draftSaved", label: "Draft saved" },
   { value: "submitted", label: "Submitted" },
+  { value: "resubmitted", label: "Resubmitted" },
   { value: "lateSubmission", label: "Late submissions" },
   { value: "needsRevision", label: "Needs revision" },
   { value: "reviewed", label: "Reviewed" },
@@ -30,9 +52,9 @@ const statusOptions = [
 ];
 
 const reviewStatuses = [
-  { value: "reviewed", label: "Reviewed" },
-  { value: "needsRevision", label: "Needs revision" },
-  { value: "approved", label: "Approved" }
+  { value: "reviewed", label: "Publish feedback only" },
+  { value: "needsRevision", label: "Request revision" },
+  { value: "approved", label: "Approve and grade" }
 ];
 
 const emptyModuleStats = { assignments: 0, submitted: 0, pending: 0, late: 0 };
@@ -54,11 +76,46 @@ function moduleStats(module) {
 }
 
 function initialReviewForm(submission) {
+  const draft = submission?.reviewDraft;
+
   return {
-    score: submission?.score ?? "",
-    feedback: submission?.feedback || "",
-    status: submission?.status === "approved" ? "approved" : submission?.status === "needsRevision" ? "needsRevision" : "reviewed"
+    score: draft?.score ?? submission?.score ?? "",
+    feedback: draft?.feedback ?? submission?.feedback ?? "",
+    feedbackFileUrl: draft?.feedbackFileUrl ?? submission?.feedbackFileUrl ?? "",
+    status: draft?.status || (submission?.status === "approved" ? "approved" : submission?.status === "needsRevision" ? "needsRevision" : "reviewed")
   };
+}
+
+function meaningfulRichText(value = "") {
+  return String(value)
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .trim();
+}
+
+function elapsedTimeLabel(value, prefix = "Waiting", endValue = Date.now()) {
+  const timestamp = new Date(value).getTime();
+  const endTimestamp = new Date(endValue).getTime();
+  if (!Number.isFinite(timestamp) || !Number.isFinite(endTimestamp)) return "Time unavailable";
+
+  const elapsedMinutes = Math.max(0, Math.floor((endTimestamp - timestamp) / 60000));
+  if (elapsedMinutes < 60) return `${prefix} ${Math.max(elapsedMinutes, 1)} min`;
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 24) return `${prefix} ${elapsedHours} hr${elapsedHours === 1 ? "" : "s"}`;
+
+  const elapsedDays = Math.floor(elapsedHours / 24);
+  return `${prefix} ${elapsedDays} day${elapsedDays === 1 ? "" : "s"}`;
+}
+
+function publishActionLabel(status) {
+  if (status === "approved") return "Publish grade";
+  if (status === "needsRevision") return "Request revision";
+  return "Publish feedback";
+}
+
+function publishedReview(status) {
+  return ["reviewed", "needsRevision", "approved"].includes(status);
 }
 
 function initialMessageForm(submission) {
@@ -177,10 +234,24 @@ function AttachmentPreview({ url }) {
 
 export function ReviewsPage() {
   const { user } = useAuth();
+  const feedbackFileInputRef = useRef(null);
+  const submissionRequestRef = useRef(0);
   const [searchParams, setSearchParams] = useSearchParams();
+  const requestedSubmissionId = searchParams.get("submission") || "";
+  const deepLinkSubmissionOpenedRef = useRef(false);
   const [modules, setModules] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [status, setStatus] = useState(searchParams.get("status") || "");
+  const [studentFilter, setStudentFilter] = useState("");
+  const [assignmentFilter, setAssignmentFilter] = useState("");
+  const [submittedFrom, setSubmittedFrom] = useState("");
+  const [submittedTo, setSubmittedTo] = useState("");
+  const [sort, setSort] = useState("oldest");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1 });
+  const [filterOptions, setFilterOptions] = useState({ students: [], assignments: [] });
+  const [moduleSearch, setModuleSearch] = useState("");
+  const [cohortFilter, setCohortFilter] = useState("");
   const [selectedModuleId, setSelectedModuleId] = useState(searchParams.get("module") || "");
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [form, setForm] = useState(() => initialReviewForm());
@@ -190,17 +261,38 @@ export function ReviewsPage() {
   const [isLoadingModules, setIsLoadingModules] = useState(true);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isDeletingDraft, setIsDeletingDraft] = useState(false);
+  const [isUploadingFeedback, setIsUploadingFeedback] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const currentUserId = idFor(user);
 
-  const reviewModules = useMemo(() => {
+  const assignedReviewModules = useMemo(() => {
     const assignedModules = modules.filter((module) => idFor(module.assignedMentor) === currentUserId);
     return currentUserId ? assignedModules : modules;
   }, [currentUserId, modules]);
 
+  const cohortOptions = useMemo(() => {
+    const cohorts = new Map();
+    assignedReviewModules.forEach((module) => {
+      const cohortId = idFor(module.cohort);
+      if (cohortId) cohorts.set(cohortId, module.cohort?.title || "Cohort");
+    });
+    return [...cohorts.entries()].sort((left, right) => left[1].localeCompare(right[1]));
+  }, [assignedReviewModules]);
+
+  const reviewModules = useMemo(() => {
+    const search = moduleSearch.trim().toLowerCase();
+    return assignedReviewModules.filter((module) => {
+      const matchesCohort = !cohortFilter || idFor(module.cohort) === cohortFilter;
+      const matchesSearch = !search || `${module.title} ${module.cohort?.title || ""}`.toLowerCase().includes(search);
+      return matchesCohort && matchesSearch;
+    });
+  }, [assignedReviewModules, cohortFilter, moduleSearch]);
+
   const selectedModule = useMemo(
-    () => reviewModules.find((module) => module._id === selectedModuleId),
-    [reviewModules, selectedModuleId]
+    () => assignedReviewModules.find((module) => module._id === selectedModuleId),
+    [assignedReviewModules, selectedModuleId]
   );
 
   useEffect(() => {
@@ -229,18 +321,51 @@ export function ReviewsPage() {
     };
   }, []);
 
-  async function loadSubmissions(moduleId = selectedModuleId) {
+  async function loadSubmissions(moduleId = selectedModuleId, requestedPage = page) {
     if (!moduleId) {
       setSubmissions([]);
       return;
     }
 
+    const requestId = submissionRequestRef.current + 1;
+    submissionRequestRef.current = requestId;
     setIsLoadingSubmissions(true);
     try {
-      const response = await mentorApi.listSubmissions({ module: moduleId, status });
+      const response = await mentorApi.listSubmissions({
+        module: moduleId,
+        submission: requestedSubmissionId || undefined,
+        status,
+        student: studentFilter,
+        assignment: assignmentFilter,
+        submittedFrom,
+        submittedTo,
+        sort,
+        page: requestedPage,
+        limit: 25
+      });
+
+      if (requestId !== submissionRequestRef.current) return;
+      if (response.meta?.pages && requestedPage > response.meta.pages) {
+        setPage(response.meta.pages);
+        return;
+      }
+
       setSubmissions(response.data);
+      setPagination(response.meta || { total: response.data.length, page: requestedPage, pages: 1 });
+      setFilterOptions(response.meta?.filters || { students: [], assignments: [] });
+
+      if (requestedSubmissionId && !deepLinkSubmissionOpenedRef.current) {
+        const requestedSubmission = response.data.find((submission) => submission._id === requestedSubmissionId);
+        if (requestedSubmission) {
+          deepLinkSubmissionOpenedRef.current = true;
+          setSelectedSubmission(requestedSubmission);
+          setForm(initialReviewForm(requestedSubmission));
+          setMessageForm(initialMessageForm(requestedSubmission));
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      }
     } finally {
-      setIsLoadingSubmissions(false);
+      if (requestId === submissionRequestRef.current) setIsLoadingSubmissions(false);
     }
   }
 
@@ -250,14 +375,19 @@ export function ReviewsPage() {
       return;
     }
 
-    loadSubmissions(selectedModuleId).catch((requestError) => setError(requestError.message));
-  }, [selectedModuleId, status]);
+    loadSubmissions(selectedModuleId, page).catch((requestError) => setError(requestError.message));
+  }, [assignmentFilter, page, requestedSubmissionId, selectedModuleId, sort, status, studentFilter, submittedFrom, submittedTo]);
 
   function selectModule(module) {
     const nextSearchParams = { module: module._id };
     if (status) nextSearchParams.status = status;
     setSelectedModuleId(module._id);
     setSelectedSubmission(null);
+    setPage(1);
+    setStudentFilter("");
+    setAssignmentFilter("");
+    setSubmittedFrom("");
+    setSubmittedTo("");
     setFeedback("");
     setError("");
     setSearchParams(nextSearchParams);
@@ -265,9 +395,21 @@ export function ReviewsPage() {
 
   function updateStatusFilter(value) {
     setStatus(value);
+    setPage(1);
     const nextSearchParams = selectedModuleId ? { module: selectedModuleId } : {};
     if (value) nextSearchParams.status = value;
     setSearchParams(nextSearchParams);
+  }
+
+  function clearQueueFilters() {
+    setStatus("");
+    setStudentFilter("");
+    setAssignmentFilter("");
+    setSubmittedFrom("");
+    setSubmittedTo("");
+    setSort("oldest");
+    setPage(1);
+    setSearchParams(selectedModuleId ? { module: selectedModuleId } : {});
   }
 
   function startReview(submission) {
@@ -293,26 +435,118 @@ export function ReviewsPage() {
     }));
   }
 
+  function reviewPayload() {
+    const payload = {
+      feedback: form.feedback,
+      feedbackFileUrl: form.feedbackFileUrl || undefined,
+      status: form.status
+    };
+
+    if (form.status === "approved" && form.score !== "") {
+      payload.score = Number(form.score);
+    }
+
+    return payload;
+  }
+
+  function updateSubmissionInQueue(updatedSubmission) {
+    setSubmissions((current) => current.map((submission) => (
+      submission._id === updatedSubmission._id ? updatedSubmission : submission
+    )));
+  }
+
+  async function uploadFeedbackFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const validationError = validateResourceFile(file);
+    if (validationError) {
+      setError(validationError);
+      event.target.value = "";
+      return;
+    }
+
+    setError("");
+    setFeedback("Compressing and uploading the feedback attachment...");
+    setIsUploadingFeedback(true);
+
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const response = await mentorApi.uploadReviewFile(body);
+      setForm((current) => ({ ...current, feedbackFileUrl: response.data.url }));
+      setFeedback(`${response.data.originalName || "Feedback attachment"} is ready. Save the draft or publish the review to keep it.`);
+    } catch (requestError) {
+      setError(requestError.message);
+      setFeedback("");
+    } finally {
+      setIsUploadingFeedback(false);
+      event.target.value = "";
+    }
+  }
+
+  async function saveReviewDraft() {
+    if (!selectedSubmission) return;
+
+    setError("");
+    setFeedback("");
+    setIsSavingDraft(true);
+
+    try {
+      const response = await mentorApi.saveReviewDraft(selectedSubmission._id, reviewPayload());
+      setSelectedSubmission(response.data);
+      updateSubmissionInQueue(response.data);
+      setFeedback("Private draft saved. The mentee has not been notified and their score has not changed.");
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setIsSavingDraft(false);
+    }
+  }
+
+  async function deleteReviewDraft() {
+    if (!selectedSubmission?.reviewDraft) return;
+    if (!window.confirm("Discard this private review draft? Published feedback will not be changed.")) return;
+
+    setError("");
+    setFeedback("");
+    setIsDeletingDraft(true);
+
+    try {
+      const response = await mentorApi.deleteReviewDraft(selectedSubmission._id);
+      setSelectedSubmission(response.data);
+      setForm(initialReviewForm(response.data));
+      updateSubmissionInQueue(response.data);
+      setFeedback("Private review draft discarded.");
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setIsDeletingDraft(false);
+    }
+  }
+
   async function submitReview(event) {
     event.preventDefault();
+
+    if (!meaningfulRichText(form.feedback)) {
+      setError("Add clear feedback before publishing this review.");
+      return;
+    }
+
+    if (form.status === "approved" && form.score === "") {
+      setError("Enter a score before publishing this grade.");
+      return;
+    }
+
     setError("");
     setFeedback("");
     setIsSubmitting(true);
 
     try {
-      const payload = {
-        feedback: form.feedback,
-        status: form.status
-      };
-
-      if (form.status === "approved") {
-        payload.score = form.score === "" ? undefined : Number(form.score);
-      }
-
-      await mentorApi.reviewSubmission(selectedSubmission._id, payload);
-      setFeedback("Review saved.");
+      await mentorApi.reviewSubmission(selectedSubmission._id, reviewPayload());
+      setFeedback(`${publishActionLabel(form.status)} completed. The mentee has been notified.`);
       cancelReview();
-      await loadSubmissions();
+      await loadSubmissions(selectedModuleId, page);
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -360,7 +594,27 @@ export function ReviewsPage() {
                 <p className="mt-1 text-sm text-bybs-body">
                   {selectedSubmission.student?.name || "Mentee"} · {selectedSubmission.assignment?.module?.title || "General module"}
                 </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-bybs-muted">
+                  <span>Submitted {formatDateTime(selectedSubmission.submittedAt)}</span>
+                  <span aria-hidden="true">·</span>
+                  <span className="inline-flex items-center gap-1 font-medium text-bybs-navy">
+                    <Clock3 className="h-4 w-4" aria-hidden="true" />
+                    {publishedReview(selectedSubmission.status) && selectedSubmission.reviewedAt
+                      ? elapsedTimeLabel(selectedSubmission.submittedAt, "Reviewed after", selectedSubmission.reviewedAt)
+                      : elapsedTimeLabel(selectedSubmission.submittedAt)}
+                  </span>
+                </div>
               </div>
+
+              {selectedSubmission.reviewDraft ? (
+                <div className="rounded-md border border-bybs-border bg-bybs-pale p-3 text-sm text-bybs-body lg:col-span-3" role="status">
+                  <p className="font-semibold text-bybs-navy">Private draft restored</p>
+                  <p className="mt-1">
+                    Saved {formatDateTime(selectedSubmission.reviewDraft.savedAt)}
+                    {selectedSubmission.reviewDraft.savedBy?.name ? ` by ${selectedSubmission.reviewDraft.savedBy.name}` : ""}. The mentee cannot see this draft.
+                  </p>
+                </div>
+              ) : null}
 
               <div className="min-w-0 space-y-3 lg:col-span-3">
                 <h3 className="text-sm font-semibold text-bybs-navy">Assignment brief</h3>
@@ -399,7 +653,14 @@ export function ReviewsPage() {
                 <AttachmentPreview url={selectedSubmission.fileUrl} />
               </div>
 
-              <FormField label="Review status">
+              <FormField
+                hint={form.status === "approved"
+                  ? "A score is required and will count toward progress."
+                  : form.status === "needsRevision"
+                    ? "The score stays disabled until the revised work is approved."
+                    : "Publish written feedback without assigning a score."}
+                label="Review outcome"
+              >
                 <select className={inputClassName} onChange={(event) => updateReviewStatus(event.target.value)} value={form.status}>
                   {reviewStatuses.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
@@ -427,8 +688,53 @@ export function ReviewsPage() {
                   />
                 </FormField>
               </div>
+              <div className="min-w-0 space-y-3 lg:col-span-3">
+                <input
+                  aria-label="Upload feedback attachment"
+                  accept={RESOURCE_UPLOAD_ACCEPT}
+                  className="sr-only"
+                  onChange={uploadFeedbackFile}
+                  ref={feedbackFileInputRef}
+                  type="file"
+                />
+                <div className="flex min-w-0 flex-wrap gap-2">
+                  <Button
+                    disabled={isUploadingFeedback || isSubmitting || isSavingDraft}
+                    icon={Upload}
+                    onClick={() => feedbackFileInputRef.current?.click()}
+                    type="button"
+                    variant="secondary"
+                  >
+                    {isUploadingFeedback ? "Uploading..." : form.feedbackFileUrl ? "Replace feedback attachment" : "Add feedback attachment"}
+                  </Button>
+                  {form.feedbackFileUrl ? (
+                    <Button
+                      icon={Trash2}
+                      onClick={() => setForm((current) => ({ ...current, feedbackFileUrl: "" }))}
+                      type="button"
+                      variant="ghost"
+                    >
+                      Remove attachment
+                    </Button>
+                  ) : null}
+                </div>
+                {form.feedbackFileUrl ? <AttachmentPreview url={form.feedbackFileUrl} /> : null}
+              </div>
+              <p className="text-sm text-bybs-muted lg:col-span-3">
+                Saving a draft is private. Publishing sends the feedback to the mentee and triggers their platform and email notification.
+              </p>
               <div className="flex min-w-0 flex-wrap gap-2 lg:col-span-3">
-                <Button disabled={isSubmitting} icon={Save} type="submit">{isSubmitting ? "Saving..." : "Save review"}</Button>
+                <Button disabled={isSubmitting || isSavingDraft || isUploadingFeedback} icon={form.status === "approved" ? CheckCircle2 : form.status === "needsRevision" ? RotateCcw : Send} type="submit">
+                  {isSubmitting ? "Publishing..." : publishActionLabel(form.status)}
+                </Button>
+                <Button disabled={isSubmitting || isSavingDraft || isUploadingFeedback} icon={Save} onClick={saveReviewDraft} type="button" variant="secondary">
+                  {isSavingDraft ? "Saving draft..." : "Save draft"}
+                </Button>
+                {selectedSubmission.reviewDraft ? (
+                  <Button disabled={isDeletingDraft || isSubmitting || isSavingDraft} icon={Trash2} onClick={deleteReviewDraft} type="button" variant="ghost">
+                    {isDeletingDraft ? "Discarding..." : "Discard draft"}
+                  </Button>
+                ) : null}
                 <Button icon={X} onClick={cancelReview} type="button" variant="secondary">Cancel</Button>
               </div>
             </form>
@@ -474,6 +780,23 @@ export function ReviewsPage() {
           description="Open a module to review submitted, pending, and late work under that module."
           title="Assigned modules"
         />
+        <div className="mb-4 grid gap-3 sm:grid-cols-2">
+          <FormField label="Find module">
+            <input
+              className={inputClassName}
+              onChange={(event) => setModuleSearch(event.target.value)}
+              placeholder="Search module or cohort"
+              type="search"
+              value={moduleSearch}
+            />
+          </FormField>
+          <FormField label="Cohort">
+            <select className={inputClassName} onChange={(event) => setCohortFilter(event.target.value)} value={cohortFilter}>
+              <option value="">All cohorts</option>
+              {cohortOptions.map(([id, title]) => <option key={id} value={id}>{title}</option>)}
+            </select>
+          </FormField>
+        </div>
         {isLoadingModules ? (
           <div className="rounded-lg border border-bybs-border bg-white p-8 text-center text-sm text-bybs-muted">
             Loading modules...
@@ -509,11 +832,6 @@ export function ReviewsPage() {
       {selectedModule ? (
         <Card>
           <SectionHeader
-            action={
-              <select className={`${inputClassName} max-w-56`} onChange={(event) => updateStatusFilter(event.target.value)} value={status}>
-                {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-            }
             description={`${selectedModule.cohort?.title || "Cohort"} · ${moduleDates(selectedModule)}`}
             title={`${selectedModule.title} submissions`}
           />
@@ -530,6 +848,81 @@ export function ReviewsPage() {
               </div>
             ))}
           </div>
+          <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <FormField label="Grading status">
+              <select className={inputClassName} onChange={(event) => updateStatusFilter(event.target.value)} value={status}>
+                {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </FormField>
+            <FormField label="Mentee">
+              <select
+                className={inputClassName}
+                onChange={(event) => {
+                  setStudentFilter(event.target.value);
+                  setPage(1);
+                }}
+                value={studentFilter}
+              >
+                <option value="">All mentees</option>
+                {filterOptions.students.map((student) => <option key={student._id} value={student._id}>{student.name}</option>)}
+              </select>
+            </FormField>
+            <FormField label="Assignment">
+              <select
+                className={inputClassName}
+                onChange={(event) => {
+                  setAssignmentFilter(event.target.value);
+                  setPage(1);
+                }}
+                value={assignmentFilter}
+              >
+                <option value="">All assignments</option>
+                {filterOptions.assignments.map((assignment) => <option key={assignment._id} value={assignment._id}>{assignment.title}</option>)}
+              </select>
+            </FormField>
+            <FormField label="Submitted from">
+              <input
+                className={inputClassName}
+                onChange={(event) => {
+                  setSubmittedFrom(event.target.value);
+                  setPage(1);
+                }}
+                type="date"
+                value={submittedFrom}
+              />
+            </FormField>
+            <FormField label="Submitted to">
+              <input
+                className={inputClassName}
+                min={submittedFrom || undefined}
+                onChange={(event) => {
+                  setSubmittedTo(event.target.value);
+                  setPage(1);
+                }}
+                type="date"
+                value={submittedTo}
+              />
+            </FormField>
+            <FormField label="Queue order">
+              <select
+                className={inputClassName}
+                onChange={(event) => {
+                  setSort(event.target.value);
+                  setPage(1);
+                }}
+                value={sort}
+              >
+                <option value="oldest">Longest waiting first</option>
+                <option value="newest">Newest first</option>
+              </select>
+            </FormField>
+          </div>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-bybs-muted">
+              {pagination.total || 0} submission{pagination.total === 1 ? "" : "s"} match these filters.
+            </p>
+            <Button icon={RotateCcw} onClick={clearQueueFilters} size="sm" type="button" variant="ghost">Clear filters</Button>
+          </div>
           {isLoadingSubmissions ? (
             <div className="rounded-lg border border-bybs-border bg-white p-8 text-center text-sm text-bybs-muted">
               Loading submissions...
@@ -540,14 +933,33 @@ export function ReviewsPage() {
                 { key: "student", header: "Mentee", render: (row) => row.student?.name || "Mentee" },
                 { key: "assignment", header: "Assignment", render: (row) => row.assignment?.title || "Assignment" },
                 { key: "submittedAt", header: "Submitted", render: (row) => formatDateTime(row.submittedAt) },
+                {
+                  key: "waiting",
+                  header: "Turnaround",
+                  render: (row) => (
+                    <span className="inline-flex items-center gap-1 text-sm text-bybs-body">
+                      <Clock3 className="h-4 w-4 text-bybs-muted" aria-hidden="true" />
+                      {publishedReview(row.status) && row.reviewedAt
+                        ? elapsedTimeLabel(row.submittedAt, "Reviewed after", row.reviewedAt)
+                        : elapsedTimeLabel(row.submittedAt)}
+                    </span>
+                  )
+                },
                 { key: "score", header: "Score", render: (row) => row.score ?? "Not scored" },
                 { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
+                {
+                  key: "draft",
+                  header: "Draft",
+                  render: (row) => row.reviewDraft
+                    ? <StatusBadge label="Draft saved" status="draft" />
+                    : <span className="text-bybs-muted">None</span>
+                },
                 {
                   key: "actions",
                   header: "Actions",
                   render: (row) => (
                     <Button icon={ClipboardCheck} onClick={() => startReview(row)} size="sm" type="button" variant="secondary">
-                      Review
+                      {row.reviewDraft ? "Continue draft" : publishedReview(row.status) ? "View or update" : "Review"}
                     </Button>
                   )
                 }
@@ -557,6 +969,33 @@ export function ReviewsPage() {
               rows={submissions}
             />
           )}
+          {pagination.pages > 1 ? (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-bybs-muted">Page {pagination.page} of {pagination.pages}</p>
+              <div className="flex gap-2">
+                <Button
+                  disabled={page <= 1 || isLoadingSubmissions}
+                  icon={ChevronLeft}
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  Previous
+                </Button>
+                <Button
+                  disabled={page >= pagination.pages || isLoadingSubmissions}
+                  icon={ChevronRight}
+                  onClick={() => setPage((current) => Math.min(pagination.pages, current + 1))}
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </Card>
       ) : (
         <EmptyState

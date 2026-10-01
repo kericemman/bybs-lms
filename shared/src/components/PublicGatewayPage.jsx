@@ -4,6 +4,7 @@ import {
   CalendarCheck,
   CheckCircle2,
   ClipboardList,
+  Download,
   GraduationCap,
   HeartHandshake,
   Menu,
@@ -17,6 +18,7 @@ import {
 import { useEffect, useState } from "react";
 import { Button } from "./Button.jsx";
 import { PublicPageLoader } from "./PublicPageLoader.jsx";
+import { usePwa } from "../hooks/usePwa.js";
 
 function NavLink({ href, children, onClick }) {
   return (
@@ -116,6 +118,7 @@ export function PublicGatewayPage({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(true);
+  const { canInstall, install, isInstalling } = usePwa();
 
   useEffect(() => {
     const loadingTimer = window.setTimeout(() => setIsPageLoading(false), 350);
@@ -153,6 +156,11 @@ export function PublicGatewayPage({
                 {link.label}
               </NavLink>
             ))}
+            {canInstall ? (
+              <Button disabled={isInstalling} icon={Download} onClick={install} size="sm" variant="ghost">
+                {isInstalling ? "Opening..." : "Install app"}
+              </Button>
+            ) : null}
             <Button as="a" href={studentLoginUrl} size="sm" variant="secondary">
               Mentee login
             </Button>
@@ -184,6 +192,20 @@ export function PublicGatewayPage({
                 </NavLink>
               ))}
               <div className="grid gap-2 pt-1 sm:grid-cols-3">
+                {canInstall ? (
+                  <Button
+                    disabled={isInstalling}
+                    icon={Download}
+                    onClick={async () => {
+                      await install();
+                      setMenuOpen(false);
+                    }}
+                    size="sm"
+                    variant="ghost"
+                  >
+                    {isInstalling ? "Opening..." : "Install app"}
+                  </Button>
+                ) : null}
                 <Button as="a" href={studentLoginUrl} onClick={() => setMenuOpen(false)} size="sm" variant="secondary">
                   Mentee login
                 </Button>
