@@ -22,6 +22,7 @@ export const listUsersSchema = z.object({
   query: paginationQuerySchema.extend({
     role: roleSchema.optional(),
     status: statusSchema.optional(),
+    statusGroup: z.enum(["current", "archived"]).optional(),
     cohort: objectIdSchema.optional()
   })
 });

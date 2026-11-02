@@ -147,6 +147,44 @@ describe("production readiness controls", () => {
     assert.equal(revokedData.status, "revoked");
   });
 
+  test("admin mentee views separate suspended and removed accounts without changing records", async (t) => {
+    if (!requireDatabase(t)) return;
+
+    const admin = await createUser({
+      name: "Mentee List Admin",
+      email: "mentee-list.admin@example.com",
+      role: "admin",
+      password: "AdminPass123!"
+    });
+    const records = await Promise.all([
+      createUser({ name: "Active Learner", email: "learner.active@example.com", role: "student", status: "active" }),
+      createUser({ name: "Inactive Learner", email: "learner.inactive@example.com", role: "student", status: "inactive" }),
+      createUser({ name: "Completed Learner", email: "learner.completed@example.com", role: "student", status: "completed" }),
+      createUser({ name: "Suspended Learner", email: "learner.suspended@example.com", role: "student", status: "suspended" }),
+      createUser({ name: "Removed Learner", email: "learner.removed@example.com", role: "student", status: "removed" })
+    ]);
+    const { token } = await login(admin.email, "AdminPass123!");
+
+    const currentResponse = await request(app)
+      .get("/api/users?role=student&statusGroup=current")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    const archivedResponse = await request(app)
+      .get("/api/users?role=student&statusGroup=archived")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+
+    assert.deepEqual(
+      currentResponse.body.data.map((student) => student.email).sort(),
+      ["learner.active@example.com", "learner.completed@example.com", "learner.inactive@example.com"].sort()
+    );
+    assert.deepEqual(
+      archivedResponse.body.data.map((student) => student.email).sort(),
+      ["learner.removed@example.com", "learner.suspended@example.com"].sort()
+    );
+    assert.deepEqual(records.map((student) => student.status).sort(), ["active", "completed", "inactive", "removed", "suspended"].sort());
+  });
+
   test("assignment deadlines use the official BYBS CAT deadline moment", () => {
     assert.equal(normalizeAssignmentDueDateInput("2026-08-21").toISOString(), "2026-08-21T21:59:00.000Z");
     assert.equal(normalizeAssignmentDueDateInput("2026-08-21T23:59").toISOString(), "2026-08-21T21:59:00.000Z");

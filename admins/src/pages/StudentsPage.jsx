@@ -1,4 +1,4 @@
-import { Download, Eye, Mail, Plus, Save, Upload, X } from "lucide-react";
+import { Archive, Download, Eye, Mail, Plus, Save, UsersRound, Upload, X } from "lucide-react";
 import Papa from "papaparse";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -82,6 +82,7 @@ export function StudentsPage() {
   const [cohorts, setCohorts] = useState([]);
   const [mentors, setMentors] = useState([]);
   const [filters, setFilters] = useState({ search: "", cohort: "", status: "" });
+  const [listView, setListView] = useState("current");
   const [form, setForm] = useState(() => createInitialForm());
   const [editingId, setEditingId] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -99,7 +100,7 @@ export function StudentsPage() {
 
   async function loadData() {
     const [studentResponse, cohortResponse, mentorResponse] = await Promise.all([
-      adminApi.listStudents(filters),
+      adminApi.listStudents({ ...filters, statusGroup: listView }),
       adminApi.listCohorts(),
       adminApi.listMentors()
     ]);
@@ -110,7 +111,12 @@ export function StudentsPage() {
 
   useEffect(() => {
     loadData().catch((requestError) => setError(requestError.message));
-  }, [filters]);
+  }, [filters, listView]);
+
+  function changeListView(nextView) {
+    setListView(nextView);
+    setFilters((current) => ({ ...current, status: "" }));
+  }
 
   function resetForm() {
     setForm(createInitialForm());
@@ -253,7 +259,41 @@ export function StudentsPage() {
         title="Mentees"
       />
 
-      <FilterBar cohorts={cohorts} filters={filters} onChange={setFilters} onReset={() => setFilters({ search: "", cohort: "", status: "" })} statuses={statusOptions} />
+      <div aria-label="Mentee account view" className="flex flex-wrap gap-2" role="tablist">
+        <button
+          aria-selected={listView === "current"}
+          className={`inline-flex h-10 items-center gap-2 rounded-md px-4 text-sm font-medium ${listView === "current" ? "bg-bybs-blue text-white" : "border border-bybs-border bg-white text-bybs-body hover:bg-bybs-pale"}`}
+          onClick={() => changeListView("current")}
+          role="tab"
+          type="button"
+        >
+          <UsersRound className="h-4 w-4" aria-hidden="true" /> Current mentees
+        </button>
+        <button
+          aria-selected={listView === "archived"}
+          className={`inline-flex h-10 items-center gap-2 rounded-md px-4 text-sm font-medium ${listView === "archived" ? "bg-bybs-blue text-white" : "border border-bybs-border bg-white text-bybs-body hover:bg-bybs-pale"}`}
+          onClick={() => changeListView("archived")}
+          role="tab"
+          type="button"
+        >
+          <Archive className="h-4 w-4" aria-hidden="true" /> Suspended &amp; removed
+        </button>
+      </div>
+
+      <FilterBar
+        cohorts={cohorts}
+        filters={filters}
+        onChange={(nextFilters) => {
+          if (nextFilters.status === "suspended" || nextFilters.status === "removed") setListView("archived");
+          else if (nextFilters.status) setListView("current");
+          setFilters(nextFilters);
+        }}
+        onReset={() => {
+          setListView("current");
+          setFilters({ search: "", cohort: "", status: "" });
+        }}
+        statuses={listView === "archived" ? statusOptions.filter((status) => ["suspended", "removed"].includes(status.value)) : statusOptions.filter((status) => !["suspended", "removed"].includes(status.value))}
+      />
 
       {!isFormOpen && error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
       {!isFormOpen && feedback ? <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue">{feedback}</p> : null}

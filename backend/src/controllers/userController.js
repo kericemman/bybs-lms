@@ -239,6 +239,11 @@ export const listUsers = asyncHandler(async (req, res) => {
     filter.role = req.query.role;
   }
 
+  if (req.query.statusGroup === "archived") {
+    filter.status = { $in: ["suspended", "removed"] };
+  } else if (req.query.statusGroup === "current") {
+    filter.status = { $nin: ["suspended", "removed"] };
+  }
   if (req.query.status) filter.status = req.query.status;
   if (req.query.cohort) filter.cohort = req.query.cohort;
   if (req.query.search) {
