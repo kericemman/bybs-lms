@@ -16,6 +16,12 @@ export const mentorListSchema = z.object({
   })
 });
 
+export const mentorStudentListSchema = z.object({
+  query: paginationQuerySchema.extend({
+    statusGroup: z.enum(["current", "suspended"]).optional()
+  })
+});
+
 export const mentorStudentDetailSchema = z.object({
   params: z.object({
     id: objectIdSchema

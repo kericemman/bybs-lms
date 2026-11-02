@@ -1452,6 +1452,9 @@ export const createSessionWork = asyncHandler(async (req, res) => {
 export const listMentorStudents = asyncHandler(async (req, res) => {
   const { page, limit, skip } = getPagination(req.query);
   const filter = await assignedStudentFilter(req.user);
+  filter.status = req.query.statusGroup === "suspended"
+    ? "suspended"
+    : { $nin: ["suspended", "removed"] };
   const [students, total] = await Promise.all([
     User.find(filter)
       .select("name email phone status cohort mentor lastLogin createdAt profileImage")

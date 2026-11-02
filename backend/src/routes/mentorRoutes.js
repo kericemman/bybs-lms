@@ -65,6 +65,7 @@ import {
   mentorBookingListSchema,
   mentorListSchema,
   mentorSessionListSchema,
+  mentorStudentListSchema,
   mentorStudentDetailSchema,
   mentorSubmissionListSchema,
   reviewSubmissionSchema,
@@ -119,7 +120,7 @@ mentorRoutes.patch("/assignment-reminders/:id", validate(updateAssignmentReminde
 mentorRoutes.delete("/assignment-reminders/:id", validate(idParamsSchema), archiveAssignmentReminder);
 mentorRoutes.post("/uploads", resourceUpload.single("file"), decompressCompressedUpload, finalizeResourceUpload, uploadResourceFile);
 mentorRoutes.post("/session-work", validate(createSessionWorkSchema), createSessionWork);
-mentorRoutes.get("/students", validate(mentorListSchema), listMentorStudents);
+mentorRoutes.get("/students", validate(mentorStudentListSchema), listMentorStudents);
 mentorRoutes.get("/students/:id", validate(mentorStudentDetailSchema), getMentorStudent);
 mentorRoutes.post("/students/:id/messages", validate(sendMentorStudentMessageSchema), sendMentorStudentMessage);
 mentorRoutes.post("/students/:id/graduation-approval", validate(mentorGraduationApprovalSchema), approveStudentGraduation);

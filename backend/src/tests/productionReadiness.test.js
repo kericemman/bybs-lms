@@ -185,6 +185,40 @@ describe("production readiness controls", () => {
     assert.deepEqual(records.map((student) => student.status).sort(), ["active", "completed", "inactive", "removed", "suspended"].sort());
   });
 
+  test("mentor mentee views separate assigned suspended learners without exposing removed accounts", async (t) => {
+    if (!requireDatabase(t)) return;
+
+    const cohort = await Cohort.create({ title: "Mentor List Cohort", status: "active" });
+    const mentor = await createUser({
+      name: "Mentee List Mentor",
+      email: "mentee-list.mentor@example.com",
+      role: "mentor",
+      password: "MentorPass123!",
+      cohort: cohort._id
+    });
+    cohort.mentors = [mentor._id];
+    await cohort.save();
+    const records = await Promise.all([
+      createUser({ name: "Current Learner", email: "mentor.learner.current@example.com", role: "student", status: "active", cohort: cohort._id }),
+      createUser({ name: "Suspended Learner", email: "mentor.learner.suspended@example.com", role: "student", status: "suspended", cohort: cohort._id }),
+      createUser({ name: "Removed Learner", email: "mentor.learner.removed@example.com", role: "student", status: "removed", cohort: cohort._id })
+    ]);
+    const { token } = await login(mentor.email, "MentorPass123!");
+
+    const currentResponse = await request(app)
+      .get("/api/mentor/students?statusGroup=current")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    const suspendedResponse = await request(app)
+      .get("/api/mentor/students?statusGroup=suspended")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+
+    assert.deepEqual(currentResponse.body.data.map((student) => student.email), ["mentor.learner.current@example.com"]);
+    assert.deepEqual(suspendedResponse.body.data.map((student) => student.email), ["mentor.learner.suspended@example.com"]);
+    assert.deepEqual(records.map((student) => student.status).sort(), ["active", "removed", "suspended"].sort());
+  });
+
   test("assignment deadlines use the official BYBS CAT deadline moment", () => {
     assert.equal(normalizeAssignmentDueDateInput("2026-08-21").toISOString(), "2026-08-21T21:59:00.000Z");
     assert.equal(normalizeAssignmentDueDateInput("2026-08-21T23:59").toISOString(), "2026-08-21T21:59:00.000Z");
