@@ -32,6 +32,7 @@ const { User } = await import("../models/User.js");
 const { runAssignmentDeadlineReminderJob } = await import("../services/assignmentReminderService.js");
 const { notifyUserOnce } = await import("../services/portalNotificationService.js");
 const { calculateStudentProgress } = await import("../services/progressService.js");
+const { certificatePublicData } = await import("../services/certificateService.js");
 const {
   effectiveAssignmentDeadline,
   isPastAssignmentDeadline,
@@ -118,6 +119,34 @@ function requireDatabase(t) {
 }
 
 describe("production readiness controls", () => {
+  test("public certificate verification exposes only minimal identity and validity fields", () => {
+    const privateCertificate = {
+      certificateNumber: "BYBS-2026-ABC123",
+      verificationCode: "PRIVATE-LOOKUP-CODE",
+      recipientNameSnapshot: "Amina Sample Learner",
+      student: { name: "Fallback Name", email: "learner@example.com", phone: "+211900000000" },
+      cohortTitleSnapshot: "Cohort 4 - 2026",
+      issuedAt: new Date("2026-11-07T00:00:00.000Z"),
+      mentorNotes: "Internal note",
+      revokeReason: "Internal reason",
+      status: "issued"
+    };
+    const issuedData = certificatePublicData(privateCertificate);
+
+    assert.deepEqual(Object.keys(issuedData).sort(), [
+      "certificateNumber", "cohortTitle", "issuedAt", "status", "studentName", "valid"
+    ].sort());
+    assert.equal(issuedData.valid, true);
+    assert.equal(issuedData.studentName, "Amina Sample Learner");
+    assert.equal(issuedData.cohortTitle, "Cohort 4 - 2026");
+    assert.equal(JSON.stringify(issuedData).includes("learner@example.com"), false);
+    assert.equal(JSON.stringify(issuedData).includes("PRIVATE-LOOKUP-CODE"), false);
+
+    const revokedData = certificatePublicData({ ...privateCertificate, status: "revoked" });
+    assert.equal(revokedData.valid, false);
+    assert.equal(revokedData.status, "revoked");
+  });
+
   test("assignment deadlines use the official BYBS CAT deadline moment", () => {
     assert.equal(normalizeAssignmentDueDateInput("2026-08-21").toISOString(), "2026-08-21T21:59:00.000Z");
     assert.equal(normalizeAssignmentDueDateInput("2026-08-21T23:59").toISOString(), "2026-08-21T21:59:00.000Z");

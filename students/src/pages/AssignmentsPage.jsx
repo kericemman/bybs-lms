@@ -11,7 +11,7 @@ import {
   Upload
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   AddToCalendarButton,
   Button,
@@ -269,6 +269,8 @@ function AttemptHistory({ history = [] }) {
 export function AssignmentsPage() {
   const { user } = useAuth();
   const fileInputRef = useRef(null);
+  const navigate = useNavigate();
+  const { assignmentId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [assignments, setAssignments] = useState([]);
   const [activeAssignment, setActiveAssignment] = useState(null);
@@ -292,6 +294,7 @@ export function AssignmentsPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const userId = user?.id || user?._id || "mentee";
+  const requestedAssignmentId = assignmentId || searchParams.get("assignment");
 
   async function loadAssignments() {
     const response = await studentApi.listAssignments();
@@ -305,7 +308,6 @@ export function AssignmentsPage() {
     loadAssignments()
       .then((data) => {
         if (!isMounted) return;
-        const requestedAssignmentId = searchParams.get("assignment");
         if (!requestedAssignmentId) return;
 
         const requestedAssignment = data.find((assignment) => assignment._id === requestedAssignmentId);
@@ -325,7 +327,7 @@ export function AssignmentsPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [requestedAssignmentId]);
 
   useEffect(() => {
     if (!activeAssignment) {
@@ -384,9 +386,8 @@ export function AssignmentsPage() {
     setFeedback("");
     setError("");
     const nextParams = new URLSearchParams(searchParams);
-    nextParams.set("assignment", assignment._id);
-    setSearchParams(nextParams);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    nextParams.delete("assignment");
+    navigate(`/app/assignments/${assignment._id}${nextParams.size ? `?${nextParams}` : ""}`);
   }
 
   function closeAssignment() {
@@ -397,7 +398,7 @@ export function AssignmentsPage() {
     setError("");
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete("assignment");
-    setSearchParams(nextParams);
+    navigate(`/app/assignments${nextParams.size ? `?${nextParams}` : ""}`);
   }
 
   function chooseFilter(filter) {
@@ -508,10 +509,11 @@ export function AssignmentsPage() {
 
   return (
     <div className="min-w-0 max-w-full space-y-6 overflow-x-hidden">
-      <PageHeader description="View instructions, submit your work, and keep a clear record of feedback and grades." title="Assignments" />
+      <PageHeader description={activeAssignment ? "Review the instructions and submit your work." : "View instructions, submit your work, and keep a clear record of feedback and grades."} title={activeAssignment ? "Assignment details" : "Assignments"} />
 
       {activeAssignment ? (
         <section className="min-w-0 max-w-full overflow-hidden rounded-lg border border-bybs-border bg-white p-4 shadow-sm sm:p-5">
+          <Button className="mb-4" onClick={closeAssignment} size="sm" type="button" variant="secondary">Back to assignments</Button>
           <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <p className="text-sm font-medium text-bybs-blue">{titleFor(activeAssignment.module, "General assignment")}</p>

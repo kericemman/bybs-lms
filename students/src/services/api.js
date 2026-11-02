@@ -40,6 +40,7 @@ export const studentApi = {
   submitAssignment: (id, payload) => api.post(`/student/assignments/${id}/submission`, payload),
   progress: () => api.get("/student/progress"),
   listCertificates: () => api.get("/student/certificates"),
+  downloadCertificatePdf: (id) => api.get(`/student/certificates/${encodeURIComponent(id)}/pdf`, { responseType: "blob" }),
   verifyCertificate: (code) => api.get(`/public/certificates/${encodeURIComponent(code)}`),
   listAvailability: () => api.get("/student/availability"),
   listBookings: (filters = {}) => api.get(`/student/bookings${toQueryString({ limit: 100, ...filters })}`),

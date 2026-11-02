@@ -1,4 +1,4 @@
-import { BarChart3, Plus, Save, X } from "lucide-react";
+import { ArrowRight, BarChart3, Plus, Save, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button, Card, DataTable, PageHeader, ProgressBar, SectionHeader, StatusBadge } from "@bybs/shared";
 import { useAuth } from "../auth/AuthContext.jsx";
@@ -37,6 +37,7 @@ export function CohortsPage() {
   const [ranking, setRanking] = useState(null);
   const [rankingLoading, setRankingLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const canDelete = canDeleteOperationalRecords(user);
 
@@ -100,6 +101,7 @@ export function CohortsPage() {
     setIsSubmitting(true);
 
     try {
+      const wasEditing = Boolean(editingId);
       if (editingId) {
         await adminApi.updateCohort(editingId, form);
       } else {
@@ -107,6 +109,7 @@ export function CohortsPage() {
       }
       resetForm();
       await loadCohorts();
+      setSuccess(wasEditing ? "Cohort updated." : "Cohort created. Continue with the setup steps below.");
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -132,6 +135,21 @@ export function CohortsPage() {
         onReset={() => setFilters({ search: "", status: "" })}
         statuses={statusOptions}
       />
+
+      {success ? (
+        <Card>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-medium text-bybs-navy" role="status">{success}</p>
+            {!isFormOpen && success.startsWith("Cohort created") ? (
+              <div className="flex flex-wrap gap-2">
+                <Button as="a" href="/modules" icon={ArrowRight} size="sm" variant="secondary">Create modules</Button>
+                <Button as="a" href="/sessions" icon={ArrowRight} size="sm" variant="secondary">Schedule sessions</Button>
+                <Button as="a" href="/students" icon={ArrowRight} size="sm" variant="secondary">Add mentees</Button>
+              </div>
+            ) : null}
+          </div>
+        </Card>
+      ) : null}
 
       {!isFormOpen && error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
 

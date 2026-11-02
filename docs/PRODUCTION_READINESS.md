@@ -94,6 +94,7 @@ JWT_SECRET=use-a-long-random-secret-at-least-32-characters
 CLIENT_ADMIN_URL=https://admin.lms.buildyourbestself.org
 CLIENT_MENTOR_URL=https://mentor.lms.buildyourbestself.org
 CLIENT_STUDENT_URL=https://lms.buildyourbestself.org
+CERTIFICATE_VERIFY_BASE_URL=https://lms.buildyourbestself.org
 PUBLIC_API_URL=https://api.lms.buildyourbestself.org
 CLOUDINARY_CLOUD_NAME=...
 CLOUDINARY_API_KEY=...

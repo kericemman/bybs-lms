@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { listStudentCertificates } from "../controllers/certificateController.js";
+import { downloadStudentCertificatePdf, listStudentCertificates } from "../controllers/certificateController.js";
 import {
   createStudentMentorQuestion,
   listStudentMentorQuestions,
@@ -92,6 +92,7 @@ studentRoutes.post("/mentor-questions/:id/replies", validate(mentorQuestionReply
 studentRoutes.patch("/mentor-questions/:id/status", validate(updateMentorQuestionStatusSchema), updateMentorQuestionStatus);
 studentRoutes.get("/progress", studentProgress);
 studentRoutes.get("/certificates", listStudentCertificates);
+studentRoutes.get("/certificates/:id/pdf", validate(idParamsSchema), downloadStudentCertificatePdf);
 studentRoutes.get("/availability", listStudentMentorAvailability);
 studentRoutes.get("/bookings", validate(studentListSchema), listStudentBookings);
 studentRoutes.post("/bookings", validate(createBookingSchema), createStudentBooking);

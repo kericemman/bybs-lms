@@ -1,5 +1,6 @@
 import { ArrowRight, Bell, Download, Loader2, LogOut, Menu, RefreshCw, Search, UserCircle, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { ROLE_LABELS } from "../constants/roles.js";
 import { cn } from "../lib/cn.js";
 import { useDialogAccessibility } from "../hooks/useDialogAccessibility.js";
@@ -25,6 +26,7 @@ export function AppShell({
   searchPlaceholder = "Search",
   sidebarFooter
 }) {
+  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -117,20 +119,20 @@ export function AppShell({
     const isActive = item.href === activePath || (!isDashboardPath && activePath.startsWith(`${item.href}/`));
 
     return (
-      <a
+      <Link
         aria-current={isActive ? "page" : undefined}
         className={cn(
           "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition",
           isActive ? "bg-bybs-blue text-white" : "text-bybs-body hover:bg-bybs-pale hover:text-bybs-blue"
         )}
-        href={item.href}
+        to={item.href}
         key={item.href}
         onClick={() => setIsMenuOpen(false)}
         tabIndex={options.tabIndex}
       >
         {Icon ? <Icon className="h-4 w-4 shrink-0" aria-hidden="true" /> : null}
         <span>{item.label}</span>
-      </a>
+      </Link>
     );
   }
 
@@ -156,7 +158,7 @@ export function AppShell({
     const firstResult = searchResults[0];
 
     if (firstResult?.href) {
-      window.location.href = firstResult.href;
+      navigate(firstResult.href);
     }
   }
 
@@ -185,9 +187,9 @@ export function AppShell({
     }
 
     return searchResults.map((result) => (
-      <a
+      <Link
         className="flex items-start justify-between gap-3 rounded-md px-3 py-2 text-sm transition hover:bg-bybs-pale"
-        href={result.href}
+        to={result.href}
         key={`${result.type}-${result.id}`}
         onClick={() => {
           setIsSearchOpen(false);
@@ -206,7 +208,7 @@ export function AppShell({
           ) : null}
         </span>
         <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-bybs-muted" aria-hidden="true" />
-      </a>
+      </Link>
     ));
   }
 
@@ -290,12 +292,7 @@ export function AppShell({
                     </div>
                   ) : null}
                 </form>
-              ) : (
-                <div className="hidden min-w-80 items-center gap-2 rounded-md border border-bybs-border bg-white px-3 py-2 text-sm text-bybs-muted md:flex">
-                  <Search className="h-4 w-4" aria-hidden="true" />
-                  <span>Search</span>
-                </div>
-              )}
+              ) : null}
             </div>
 
             <div className="flex min-w-0 items-center gap-3">
@@ -319,8 +316,8 @@ export function AppShell({
                 <span className="relative inline-flex">
                   <Button
                     aria-label={visibleNotificationCount ? `${visibleNotificationCount} unread notifications` : "Notifications"}
-                    as="a"
-                    href={notificationsHref}
+                    as={Link}
+                    to={notificationsHref}
                     size="icon"
                     title="Notifications"
                     variant="ghost"
@@ -369,14 +366,14 @@ export function AppShell({
                       <p className="truncate text-sm font-semibold text-bybs-navy">{user?.name || "BYBS User"}</p>
                       <p className="truncate text-xs text-bybs-muted">{user?.email || roleLabel}</p>
                     </div>
-                    <a
+                    <Link
                       className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-bybs-body transition hover:bg-bybs-pale hover:text-bybs-blue"
-                      href={profileHref || "#"}
+                      to={profileHref || "/"}
                       onClick={() => setIsProfileMenuOpen(false)}
                     >
                       <UserCircle className="h-4 w-4" aria-hidden="true" />
                       Profile and settings
-                    </a>
+                    </Link>
                     {canInstall ? (
                       <button
                         className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-bybs-body transition hover:bg-bybs-pale hover:text-bybs-blue disabled:cursor-not-allowed disabled:opacity-60"

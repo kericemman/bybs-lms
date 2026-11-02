@@ -4,6 +4,10 @@ const certificateSchema = new mongoose.Schema(
   {
     student: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, unique: true, index: true },
     cohort: { type: mongoose.Schema.Types.ObjectId, ref: "Cohort", index: true },
+    recipientNameSnapshot: { type: String, trim: true },
+    cohortTitleSnapshot: { type: String, trim: true },
+    cohortStartDateSnapshot: { type: Date },
+    cohortEndDateSnapshot: { type: Date },
     mentorApprovedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     mentorApprovedAt: { type: Date, default: Date.now },
     mentorNotes: { type: String },

@@ -1,5 +1,13 @@
 import crypto from "node:crypto";
+import { fileURLToPath } from "node:url";
+import PDFDocument from "pdfkit";
+import sharp from "sharp";
 import { env } from "../config/env.js";
+
+const certificateTemplatePath = fileURLToPath(new URL("../assets/certificate-template.jpg", import.meta.url));
+const certificateRegularFontPath = fileURLToPath(new URL("../assets/certificate-fonts/LiberationSans-Regular.ttf", import.meta.url));
+const certificateBoldFontPath = fileURLToPath(new URL("../assets/certificate-fonts/LiberationSans-Bold.ttf", import.meta.url));
+const certificateNameFontPath = fileURLToPath(new URL("../assets/certificate-fonts/LiberationSerif-Bold.ttf", import.meta.url));
 
 const QR_VERSION = 5;
 const QR_SIZE = QR_VERSION * 4 + 17;
@@ -245,19 +253,178 @@ function certificateDate(value) {
 export function certificatePublicData(certificate) {
   return {
     certificateNumber: certificate.certificateNumber,
-    studentName: certificate.student?.name,
-    cohortTitle: certificate.cohort?.title,
+    studentName: certificate.recipientNameSnapshot || certificate.student?.name,
+    cohortTitle: certificate.cohortTitleSnapshot || certificate.cohort?.title,
     issuedAt: certificate.issuedAt,
     status: certificate.status,
     valid: certificate.status === "issued"
   };
 }
 
+function formatCertificateDate(value) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  }).format(new Date(value));
+}
+
+function formatCohortDate(value) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("en", {
+    month: "long",
+    year: "numeric"
+  }).format(new Date(value));
+}
+
+function certificateProgramTitle(certificate) {
+  const cohortTitle = certificate.cohortTitleSnapshot || certificate.cohort?.title || "Fellowship Program";
+  if (/build your best self fellowship/i.test(cohortTitle)) return cohortTitle;
+  return `Build Your Best Self Fellowship (${cohortTitle})`;
+}
+
+function renderCertificatePdf(document, certificate, qrImage, { preview = false } = {}) {
+  const pageWidth = document.page.width;
+  const pageHeight = document.page.height;
+  const navy = "#00337C";
+  const dark = "#111827";
+  const name = certificate.recipientNameSnapshot || certificate.student?.name || "BYBS Graduate";
+  const verifyUrl = certificateVerificationUrl(certificate.verificationCode);
+  const cohortStart = certificate.cohortStartDateSnapshot || certificate.cohort?.startDate;
+  const cohortEnd = certificate.cohortEndDateSnapshot || certificate.cohort?.endDate;
+  const period = cohortStart && cohortEnd
+    ? `${formatCohortDate(cohortStart)} - ${formatCohortDate(cohortEnd)}`
+    : formatCohortDate(cohortStart || cohortEnd);
+
+  document.image(certificateTemplatePath, 0, 0, { width: pageWidth, height: pageHeight });
+
+  // Keep the reference artwork while replacing its sample year and recipient data.
+  document.save();
+  document.rect(0, 212, pageWidth, 216).fill("#FFFFFF");
+  document.rect(423, 455, 72, 86).fill("#FFFFFF");
+  document.restore();
+
+  document
+    .font("BYBS-Sans")
+    .fontSize(15)
+    .fillColor(navy)
+    .text("This certifies that", 55, 218, { width: pageWidth - 110, align: "center", lineBreak: false });
+
+  let nameFontSize = 31;
+  const nameMaxWidth = pageWidth - 120;
+  while (nameFontSize > 18) {
+    document.font("BYBS-Name").fontSize(nameFontSize);
+    if (document.widthOfString(name) <= nameMaxWidth) break;
+    nameFontSize -= 1;
+  }
+  document
+    .font("BYBS-Name")
+    .fontSize(nameFontSize)
+    .fillColor(dark)
+    .text(name, 45, 243, {
+      width: pageWidth - 90,
+      height: 40,
+      align: "center",
+      lineBreak: false,
+      ellipsis: true
+    });
+
+  const completionText = `has successfully completed the ${certificateProgramTitle(certificate)}, a three-month professional development program designed to upskill, reskill, and enhance personal branding, thereby strengthening employability and professional presence.`;
+  document
+    .font("BYBS-Sans")
+    .fontSize(10.5)
+    .fillColor(dark)
+    .text(completionText, 55, 294, {
+      width: pageWidth - 110,
+      height: 43,
+      align: "center",
+      lineGap: 2
+    });
+
+  let detailY = 348;
+  if (period) {
+    document
+      .font("BYBS-Sans-Bold")
+      .fontSize(10.5)
+      .fillColor(dark)
+      .text(`From: ${period}`, 80, detailY, { width: pageWidth - 160, align: "center", lineBreak: false });
+    detailY += 19;
+  }
+
+  document
+    .font("BYBS-Sans")
+    .fontSize(10.5)
+    .fillColor(navy)
+    .text(`Awarded on ${formatCertificateDate(certificate.issuedAt)}`, 80, detailY, {
+      width: pageWidth - 160,
+      align: "center",
+      lineBreak: false
+    });
+
+  document
+    .font("BYBS-Sans")
+    .fontSize(8)
+    .fillColor("#374151")
+    .text(`Certificate No. ${preview ? "PREVIEW - NOT ISSUED" : certificate.certificateNumber}`, 80, detailY + 18, {
+      width: pageWidth - 160,
+      align: "center",
+      lineBreak: false
+    });
+
+  const qrBox = { x: 428, y: 457, size: 61 };
+  document.image(qrImage, qrBox.x, qrBox.y, { width: qrBox.size, height: qrBox.size });
+  document
+    .font("BYBS-Sans")
+    .fontSize(6.5)
+    .fillColor(navy)
+    .text(preview ? "PREVIEW ONLY" : "SCAN TO VERIFY", qrBox.x - 3, 520, {
+      width: qrBox.size + 6,
+      align: "center",
+      lineBreak: false
+    });
+
+  if (!preview) document.link(qrBox.x, qrBox.y, qrBox.size, qrBox.size, verifyUrl);
+}
+
+export async function createCertificatePdf(certificate, { preview = false } = {}) {
+  const verificationUrl = certificateVerificationUrl(certificate.verificationCode);
+  const qrImage = await sharp(Buffer.from(qrCodeSvg(verificationUrl))).png().toBuffer();
+  const document = new PDFDocument({
+    size: "A4",
+    layout: "landscape",
+    margin: 0,
+    compress: true,
+    info: {
+      Title: `${certificate.certificateNumber} - BYBS Fellowship Certificate`,
+      Author: "Build Your Best Self",
+      Subject: "Certificate of completion"
+    }
+  });
+  document.registerFont("BYBS-Sans", certificateRegularFontPath);
+  document.registerFont("BYBS-Sans-Bold", certificateBoldFontPath);
+  document.registerFont("BYBS-Name", certificateNameFontPath);
+  const chunks = [];
+
+  return new Promise((resolve, reject) => {
+    document.on("data", (chunk) => chunks.push(chunk));
+    document.on("end", () => resolve(Buffer.concat(chunks)));
+    document.on("error", reject);
+
+    try {
+      renderCertificatePdf(document, certificate, qrImage, { preview });
+      document.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 export function certificateHtml(certificate) {
   const verifyUrl = certificateVerificationUrl(certificate.verificationCode);
   const qrSvg = qrCodeSvg(verifyUrl);
-  const studentName = certificate.student?.name || "BYBS Graduate";
-  const cohortTitle = certificate.cohort?.title || "Build Your Best Self Program";
+  const studentName = certificate.recipientNameSnapshot || certificate.student?.name || "BYBS Graduate";
+  const cohortTitle = certificateProgramTitle(certificate);
 
   return `<!doctype html>
 <html lang="en">
@@ -312,6 +479,10 @@ export function serializeCertificate(certificate, { includeHtml = false } = {}) 
     _id: certificate._id,
     student: certificate.student,
     cohort: certificate.cohort,
+    recipientNameSnapshot: certificate.recipientNameSnapshot,
+    cohortTitleSnapshot: certificate.cohortTitleSnapshot,
+    cohortStartDateSnapshot: certificate.cohortStartDateSnapshot,
+    cohortEndDateSnapshot: certificate.cohortEndDateSnapshot,
     mentorApprovedBy: certificate.mentorApprovedBy,
     mentorApprovedAt: certificate.mentorApprovedAt,
     mentorNotes: certificate.mentorNotes,

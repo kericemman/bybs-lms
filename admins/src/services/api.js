@@ -141,6 +141,7 @@ export const adminApi = {
   getLearnerOverview: (id) => api.get(`/admin/learner-overview/${id}`),
   updateReportReview: (id, payload) => api.patch(`/admin/reports/${id}/review`, payload),
   listCertificates: (filters = {}) => api.get(`/admin/certificates${toQueryString({ limit: 100, ...filters })}`),
+  previewCertificate: (id) => api.get(`/admin/certificates/${encodeURIComponent(id)}/preview`, { responseType: "blob" }),
   issueCertificate: (id) => api.post(`/admin/certificates/${id}/issue`, {}),
   revokeCertificate: (id, payload) => api.post(`/admin/certificates/${id}/revoke`, payload),
   listSupportTickets: (filters = {}) => api.get(`/admin/support-tickets${toQueryString({ limit: 100, ...filters })}`),

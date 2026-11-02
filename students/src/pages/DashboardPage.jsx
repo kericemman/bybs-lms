@@ -158,17 +158,6 @@ export function DashboardPage() {
           tone: "info"
         }
       : null,
-    upcoming.nextSession
-      ? {
-          id: `session-${upcoming.nextSession._id}`,
-          icon: CalendarCheck,
-          label: "Next session",
-          title: upcoming.nextSession.title,
-          detail: formatCatDateTime(upcoming.nextSession.startsAt),
-          onClick: () => document.getElementById("next-sessions")?.scrollIntoView({ behavior: "smooth", block: "start" }),
-          tone: "info"
-        }
-      : null
   ].filter(Boolean);
 
   return (
@@ -302,56 +291,6 @@ export function DashboardPage() {
             </Card>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-2">
-            <Card>
-              <SectionHeader
-                action={<Button onClick={() => navigate("/app/progress")} size="sm" type="button" variant="secondary">View details</Button>}
-                description="Calculated from your assignment completion, approved scores, attendance, and punctuality."
-                title="Progress summary"
-              />
-              <ProgressBar label="Overall progress" value={summary.progress || 0} />
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                {[
-                  ["Assignment completion", summary.assignmentCompletionPercentage || 0],
-                  ["Approved score", summary.scorePercentage || 0],
-                  ["Attendance", summary.attendancePercentage || 0],
-                  ["Punctuality", summary.punctualityPercentage || 0]
-                ].map(([label, value]) => (
-                  <div className="min-w-0 rounded-md bg-bybs-pale p-3" key={label}>
-                    <p className="break-words text-xs text-bybs-muted">{label}</p>
-                    <p className="mt-1 text-lg font-semibold text-bybs-navy">{value}%</p>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            <Card>
-              <SectionHeader
-                description="Your latest published mentor review."
-                title="Recent feedback"
-              />
-              {!feedback ? (
-                <EmptyState description="Published mentor feedback will appear here after your work is reviewed." title="No feedback yet" />
-              ) : (
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <StatusBadge label={feedbackLabel(feedback.status)} status={feedback.status} />
-                    {scoreLabel(feedback) ? <StatusBadge label={`Score ${scoreLabel(feedback)}`} status="approved" /> : null}
-                  </div>
-                  <h3 className="mt-4 break-words text-lg font-semibold text-bybs-navy">{feedback.assignment?.title}</h3>
-                  <p className="mt-2 break-words text-sm leading-6 text-bybs-body">{feedback.feedbackPreview}</p>
-                  <p className="mt-3 text-xs text-bybs-muted">
-                    {feedback.reviewedBy?.name ? `Reviewed by ${feedback.reviewedBy.name}` : "Reviewed"}
-                    {feedback.reviewedAt ? ` · ${formatDateTime(feedback.reviewedAt)}` : ""}
-                  </p>
-                  <Button className="mt-4" icon={ArrowRight} onClick={() => navigate(assignmentHref(feedback.assignment))} size="sm" type="button">
-                    Open full feedback
-                  </Button>
-                </div>
-              )}
-            </Card>
-          </div>
-
           <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
             <Card>
               <SectionHeader title="Next sessions" />
@@ -396,6 +335,56 @@ export function DashboardPage() {
                   ))}
                   <Button icon={CalendarCheck} onClick={() => navigate("/app/bookings")} size="sm" type="button" variant="secondary">
                     Book a slot
+                  </Button>
+                </div>
+              )}
+            </Card>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Card>
+              <SectionHeader
+                action={<Button onClick={() => navigate("/app/progress")} size="sm" type="button" variant="secondary">View details</Button>}
+                description="Calculated from your assignment completion, approved scores, attendance, and punctuality."
+                title="Progress summary"
+              />
+              <ProgressBar label="Overall progress" value={summary.progress || 0} />
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                {[
+                  ["Assignment completion", summary.assignmentCompletionPercentage || 0],
+                  ["Approved score", summary.scorePercentage || 0],
+                  ["Attendance", summary.attendancePercentage || 0],
+                  ["Punctuality", summary.punctualityPercentage || 0]
+                ].map(([label, value]) => (
+                  <div className="min-w-0 rounded-md bg-bybs-pale p-3" key={label}>
+                    <p className="break-words text-xs text-bybs-muted">{label}</p>
+                    <p className="mt-1 text-lg font-semibold text-bybs-navy">{value}%</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card>
+              <SectionHeader
+                description="Your latest published mentor review."
+                title="Recent feedback"
+              />
+              {!feedback ? (
+                <EmptyState description="Published mentor feedback will appear here after your work is reviewed." title="No feedback yet" />
+              ) : (
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge label={feedbackLabel(feedback.status)} status={feedback.status} />
+                    {scoreLabel(feedback) ? <StatusBadge label={`Score ${scoreLabel(feedback)}`} status="approved" /> : null}
+                  </div>
+                  <h3 className="mt-4 break-words text-lg font-semibold text-bybs-navy">{feedback.assignment?.title}</h3>
+                  <p className="mt-2 break-words text-sm leading-6 text-bybs-body">{feedback.feedbackPreview}</p>
+                  <p className="mt-3 text-xs text-bybs-muted">
+                    {feedback.reviewedBy?.name ? `Reviewed by ${feedback.reviewedBy.name}` : "Reviewed"}
+                    {feedback.reviewedAt ? ` · ${formatDateTime(feedback.reviewedAt)}` : ""}
+                  </p>
+                  <Button className="mt-4" icon={ArrowRight} onClick={() => navigate(assignmentHref(feedback.assignment))} size="sm" type="button">
+                    Open full feedback
                   </Button>
                 </div>
               )}

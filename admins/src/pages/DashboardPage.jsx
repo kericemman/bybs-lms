@@ -115,14 +115,64 @@ export function DashboardPage() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <StatCard icon={GraduationCap} label="Active mentees" tone="blue" value={summary.students} />
-        <StatCard icon={Users} label="Mentors" tone="blue" value={summary.mentors} />
-        <StatCard icon={BookOpen} label="Current cohorts" tone="blue" value={summary.cohorts} />
-        <StatCard icon={ClipboardCheck} label="Pending reviews" tone="gold" value={summary.pendingReviews} />
+      {isLoading ? (
+        <div className="flex min-h-32 items-center justify-center rounded-lg border border-bybs-border bg-white text-sm text-bybs-muted" role="status">
+          Loading dashboard snapshot...
+        </div>
+      ) : (
+        <>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
+        <StatCard icon={GraduationCap} label="Active mentees" onClick={() => navigate("/students")} tone="blue" value={summary.students} />
+        <StatCard icon={Users} label="Mentors" onClick={() => navigate("/mentors")} tone="blue" value={summary.mentors} />
+        <StatCard icon={BookOpen} label="Current cohorts" onClick={() => navigate("/cohorts")} tone="blue" value={summary.cohorts} />
+        <StatCard icon={ClipboardCheck} label="Submissions to review" onClick={() => navigate("/assignments")} tone="gold" value={summary.pendingReviews} />
+        <StatCard icon={AlertTriangle} label="Open support tickets" onClick={() => navigate("/support")} tone={summary.supportTickets ? "rose" : "blue"} value={summary.supportTickets} />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.3fr_0.7fr]">
+      <section aria-label="Needs attention" className="space-y-3">
+        <SectionHeader
+          description="Start with outstanding learner and support needs, then continue program setup."
+          title="Needs attention"
+        />
+        <div className="grid gap-4 md:grid-cols-2">
+          <QuickAction
+            actionLabel={summary.pendingReviews ? "Review submissions" : "Open assignments"}
+            description={summary.pendingReviews
+              ? `${summary.pendingReviews} submission${summary.pendingReviews === 1 ? " is" : "s are"} waiting for review.`
+              : "Check assignment activity and learner submissions."}
+            icon={ClipboardCheck}
+            onClick={() => navigate("/assignments")}
+            title="Assignment review"
+          />
+          <QuickAction
+            actionLabel={summary.supportTickets ? "Open support queue" : "View support"}
+            description={summary.supportTickets
+              ? `${summary.supportTickets} support ticket${summary.supportTickets === 1 ? " needs" : "s need"} follow-up.`
+              : "Review learner support requests and their progress."}
+            icon={AlertTriangle}
+            onClick={() => navigate("/support")}
+            title="Support queue"
+          />
+          <QuickAction
+            actionLabel="Prepare cohort"
+            description="Set up modules, sessions, resources, and assignments."
+            icon={BookOpen}
+            onClick={() => navigate("/modules")}
+            title="Program setup"
+          />
+          <QuickAction
+            actionLabel="Send update"
+            description="Share a program announcement with the selected audience."
+            icon={Send}
+            onClick={openComposer}
+            title="Communicate"
+          />
+        </div>
+      </section>
+        </>
+      )}
+
+      <div>
         <Card>
           <SectionHeader
             description="Live stream of assignments, reports, bookings, support tickets, sessions, and system events."
@@ -161,22 +211,6 @@ export function DashboardPage() {
           )}
         </Card>
 
-        <div className="space-y-4">
-          <QuickAction
-            actionLabel="Review"
-            description="Check unresolved tickets, assignment issues, and access problems."
-            icon={AlertTriangle}
-            onClick={() => navigate("/support")}
-            title="Support queue"
-          />
-          <QuickAction
-            actionLabel="Prepare"
-            description="Create modules, sessions, resources, and assignments for a cohort."
-            icon={BookOpen}
-            onClick={() => navigate("/modules")}
-            title="Cohort setup"
-          />
-        </div>
       </div>
     </div>
   );

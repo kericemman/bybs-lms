@@ -15,4 +15,9 @@ publicRoutes.post(
   createBetaApplication
 );
 
-publicRoutes.get("/certificates/:code", validate(verifyCertificateSchema), verifyCertificate);
+publicRoutes.get(
+  "/certificates/:code",
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 60 }),
+  validate(verifyCertificateSchema),
+  verifyCertificate
+);

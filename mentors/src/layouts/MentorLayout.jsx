@@ -1,4 +1,4 @@
-import { AppShell, Button, ChangePasswordPanel, ProgressBar } from "@bybs/shared";
+import { AppShell, Button, ChangePasswordPanel } from "@bybs/shared";
 import { LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
@@ -38,8 +38,6 @@ export function MentorLayout({ children }) {
       profileHref="/profile"
       sidebarFooter={
         <div>
-          <p className="mb-3 text-sm font-medium text-bybs-navy">Cohort health</p>
-          <ProgressBar label="Engagement" value={0} />
           <Button
             aria-label="Sign out"
             className="mt-4 w-full"

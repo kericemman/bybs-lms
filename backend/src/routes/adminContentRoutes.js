@@ -12,6 +12,7 @@ import {
 import {
   issueCertificate,
   listAdminCertificates,
+  previewCertificate,
   revokeCertificate
 } from "../controllers/certificateController.js";
 import { listAdminMentorQuestions } from "../controllers/mentorQuestionController.js";
@@ -139,6 +140,7 @@ adminContentRoutes.get("/learner-overview", validate(listLearnerOverviewSchema),
 adminContentRoutes.get("/learner-overview/:id", validate(learnerOverviewParamsSchema), getLearnerOverview);
 
 adminContentRoutes.get("/certificates", validate(listCertificatesSchema), listAdminCertificates);
+adminContentRoutes.get("/certificates/:id/preview", validate(certificateParamsSchema), previewCertificate);
 adminContentRoutes.post("/certificates/:id/issue", validate(certificateParamsSchema), requireRole("admin", "superAdmin"), issueCertificate);
 adminContentRoutes.post("/certificates/:id/revoke", validate(revokeCertificateSchema), requireRole("admin", "superAdmin"), revokeCertificate);
 

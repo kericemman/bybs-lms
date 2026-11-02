@@ -4,7 +4,7 @@ import { emitGlobalLoading } from "../components/GlobalLoader.jsx";
 export function createApiClient({ baseUrl, getToken, onUnauthorized }) {
   async function request(path, options = {}) {
     const token = getToken?.();
-    const { skipUnauthorizedHandling = false, ...fetchOptions } = options;
+    const { skipUnauthorizedHandling = false, responseType, ...fetchOptions } = options;
     const headers = new Headers(fetchOptions.headers || {});
 
     if (!headers.has("Content-Type") && !(fetchOptions.body instanceof FormData)) {
@@ -24,7 +24,7 @@ export function createApiClient({ baseUrl, getToken, onUnauthorized }) {
       });
 
       const isJson = response.headers.get("content-type")?.includes("application/json");
-      const data = isJson ? await response.json() : null;
+      const data = isJson ? await response.json() : responseType === "blob" && response.ok ? await response.blob() : null;
 
       if (!response.ok) {
         if (response.status === 401 && token && !skipUnauthorizedHandling) {

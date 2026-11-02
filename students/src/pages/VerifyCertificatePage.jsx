@@ -1,5 +1,5 @@
-import { ExternalLink, ShieldAlert, ShieldCheck } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ExternalLink, RotateCw, ShieldAlert, ShieldCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button, Card, StatusBadge } from "@bybs/shared";
 import { studentApi } from "../services/api.js";
@@ -10,15 +10,32 @@ export function VerifyCertificatePage() {
   const [certificate, setCertificate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [errorStatus, setErrorStatus] = useState(null);
+  const requestId = useRef(0);
 
-  useEffect(() => {
+  async function checkCertificate() {
+    const currentRequestId = ++requestId.current;
     setLoading(true);
     setError("");
+    setErrorStatus(null);
+    setCertificate(null);
 
-    studentApi.verifyCertificate(code)
-      .then((response) => setCertificate(response.data))
-      .catch((requestError) => setError(requestError.message))
-      .finally(() => setLoading(false));
+    try {
+      const response = await studentApi.verifyCertificate(code);
+      if (requestId.current === currentRequestId) setCertificate(response.data);
+    } catch (requestError) {
+      if (requestId.current === currentRequestId) {
+        setError(requestError.message);
+        setErrorStatus(requestError.status || null);
+      }
+    } finally {
+      if (requestId.current === currentRequestId) setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    checkCertificate();
+    return () => { requestId.current += 1; };
   }, [code]);
 
   const isValid = certificate?.valid;
@@ -44,12 +61,19 @@ export function VerifyCertificatePage() {
                 <ShieldAlert className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-2xl font-semibold text-bybs-navy">Certificate not verified</h1>
+                <h1 className="text-2xl font-semibold text-bybs-navy">{errorStatus === 404 ? "Certificate not verified" : "Verification temporarily unavailable"}</h1>
                 <p className="mt-2 text-sm leading-6 text-bybs-body">
-                  This verification code was not found. Check the link or contact BYBS support if you believe this is an error.
+                  {errorStatus === 404
+                    ? "This verification code was not found. Check the link or contact BYBS support if you believe this is an error."
+                    : errorStatus === 429
+                      ? "Too many verification attempts were made recently. Please wait a few minutes and try again."
+                      : "We could not reach the verification service. Please check your connection and try again."}
                 </p>
               </div>
-              <StatusBadge status="notFound" />
+              {errorStatus === 404 ? <StatusBadge status="notFound" /> : null}
+              {errorStatus !== 404 && errorStatus !== 429 ? (
+                <Button icon={RotateCw} onClick={checkCertificate} type="button" variant="secondary">Try again</Button>
+              ) : null}
             </div>
           ) : null}
 

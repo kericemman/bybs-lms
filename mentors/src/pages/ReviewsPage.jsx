@@ -17,7 +17,7 @@ import {
   X
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   Button,
   Card,
@@ -236,9 +236,11 @@ export function ReviewsPage() {
   const { user } = useAuth();
   const feedbackFileInputRef = useRef(null);
   const submissionRequestRef = useRef(0);
+  const navigate = useNavigate();
+  const { submissionId: routeSubmissionId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const requestedSubmissionId = searchParams.get("submission") || "";
-  const deepLinkSubmissionOpenedRef = useRef(false);
+  const requestedSubmissionId = routeSubmissionId || searchParams.get("submission") || "";
+  const deepLinkSubmissionOpenedRef = useRef("");
   const [modules, setModules] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [status, setStatus] = useState(searchParams.get("status") || "");
@@ -354,14 +356,13 @@ export function ReviewsPage() {
       setPagination(response.meta || { total: response.data.length, page: requestedPage, pages: 1 });
       setFilterOptions(response.meta?.filters || { students: [], assignments: [] });
 
-      if (requestedSubmissionId && !deepLinkSubmissionOpenedRef.current) {
+      if (requestedSubmissionId && requestedSubmissionId !== deepLinkSubmissionOpenedRef.current) {
         const requestedSubmission = response.data.find((submission) => submission._id === requestedSubmissionId);
         if (requestedSubmission) {
-          deepLinkSubmissionOpenedRef.current = true;
+          deepLinkSubmissionOpenedRef.current = requestedSubmissionId;
           setSelectedSubmission(requestedSubmission);
           setForm(initialReviewForm(requestedSubmission));
           setMessageForm(initialMessageForm(requestedSubmission));
-          window.scrollTo({ top: 0, behavior: "smooth" });
         }
       }
     } finally {
@@ -377,6 +378,22 @@ export function ReviewsPage() {
 
     loadSubmissions(selectedModuleId, page).catch((requestError) => setError(requestError.message));
   }, [assignmentFilter, page, requestedSubmissionId, selectedModuleId, sort, status, studentFilter, submittedFrom, submittedTo]);
+
+  useEffect(() => {
+    if (requestedSubmissionId) window.scrollTo(0, 0);
+  }, [requestedSubmissionId]);
+
+  useEffect(() => {
+    if (!requestedSubmissionId) {
+      setSelectedSubmission(null);
+      setForm(initialReviewForm());
+      setMessageForm(initialMessageForm());
+      deepLinkSubmissionOpenedRef.current = "";
+      return;
+    }
+
+    if (selectedSubmission?._id !== requestedSubmissionId) setSelectedSubmission(null);
+  }, [requestedSubmissionId]);
 
   function selectModule(module) {
     const nextSearchParams = { module: module._id };
@@ -418,13 +435,20 @@ export function ReviewsPage() {
     setMessageForm(initialMessageForm(submission));
     setError("");
     setFeedback("");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    const params = new URLSearchParams(searchParams);
+    params.delete("submission");
+    if (selectedModuleId) params.set("module", selectedModuleId);
+    navigate(`/reviews/${submission._id}${params.size ? `?${params.toString()}` : ""}`);
   }
 
   function cancelReview() {
     setSelectedSubmission(null);
     setForm(initialReviewForm());
     setMessageForm(initialMessageForm());
+    deepLinkSubmissionOpenedRef.current = "";
+    const params = new URLSearchParams(searchParams);
+    params.delete("submission");
+    navigate(`/reviews${params.size ? `?${params.toString()}` : ""}`);
   }
 
   function updateReviewStatus(value) {
@@ -577,9 +601,17 @@ export function ReviewsPage() {
   return (
     <div className="min-w-0 max-w-full overflow-x-hidden space-y-6">
       <PageHeader
-        description="Choose an assigned module first, then review only the submissions for that module."
-        title="Review submissions"
+        description={requestedSubmissionId
+          ? "Review the mentee's work, give feedback, and record an outcome."
+          : "Choose an assigned module first, then review only the submissions for that module."}
+        title={requestedSubmissionId ? "Review assignment" : "Review submissions"}
       />
+
+      {requestedSubmissionId ? (
+        <Button icon={ChevronLeft} onClick={cancelReview} type="button" variant="secondary">
+          Back to submissions
+        </Button>
+      ) : null}
 
       {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
       {feedback ? <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue">{feedback}</p> : null}
@@ -775,6 +807,20 @@ export function ReviewsPage() {
         </div>
       ) : null}
 
+      {requestedSubmissionId && !selectedSubmission && isLoadingSubmissions ? (
+        <Card><p className="p-5 text-sm text-bybs-muted">Loading submitted work...</p></Card>
+      ) : null}
+
+      {requestedSubmissionId && !selectedSubmission && !isLoadingSubmissions && !error ? (
+        <EmptyState
+          description="This submission may have been removed or may not belong to a module assigned to your account."
+          icon={BookOpen}
+          title="Submission unavailable"
+        />
+      ) : null}
+
+      {!requestedSubmissionId ? (
+        <>
       <Card>
         <SectionHeader
           description="Open a module to review submitted, pending, and late work under that module."
@@ -1004,6 +1050,8 @@ export function ReviewsPage() {
           title="Choose a module to review"
         />
       )}
+        </>
+      ) : null}
     </div>
   );
 }

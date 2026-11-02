@@ -43,6 +43,7 @@ export default function App() {
                     <Route element={<MaterialsPage />} path="materials" />
                     <Route element={<DiscussionsPage />} path="forum" />
                     <Route element={<AssignmentsPage />} path="assignments" />
+                    <Route element={<AssignmentsPage />} path="assignments/:assignmentId" />
                     <Route element={<QuestionsPage />} path="questions" />
                     <Route element={<ProgressPage />} path="progress" />
                     <Route element={<CertificatesPage />} path="certificates" />

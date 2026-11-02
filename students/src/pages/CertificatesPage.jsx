@@ -1,32 +1,9 @@
-import { Award, Download, ExternalLink, ShieldCheck } from "lucide-react";
+import { Award, Download, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button, Card, EmptyState, PageHeader, StatusBadge } from "@bybs/shared";
 import { studentApi } from "../services/api.js";
 import { formatDate } from "../utils/format.js";
-
-function fileName(certificate) {
-  return `${certificate.certificateNumber || "BYBS-certificate"}.html`;
-}
-
-function openCertificate(certificate) {
-  const blob = new Blob([certificate.certificateHtml], { type: "text/html" });
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank", "noopener,noreferrer");
-  window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
-}
-
-function downloadCertificate(certificate) {
-  const blob = new Blob([certificate.certificateHtml], { type: "text/html" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName(certificate);
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
 
 function svgImage(svg = "") {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -37,6 +14,7 @@ export function CertificatesPage() {
   const requestedCertificateId = searchParams.get("certificate") || "";
   const [certificates, setCertificates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -49,6 +27,27 @@ export function CertificatesPage() {
       .catch((requestError) => setError(requestError.message))
       .finally(() => setLoading(false));
   }, [requestedCertificateId]);
+
+  async function downloadCertificate(certificate) {
+    setDownloadingId(certificate._id);
+    setError("");
+
+    try {
+      const blob = await studentApi.downloadCertificatePdf(certificate._id);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${certificate.certificateNumber || "BYBS-certificate"}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    } catch (downloadError) {
+      setError(downloadError.message || "Could not download the certificate PDF.");
+    } finally {
+      setDownloadingId("");
+    }
+  }
 
   return (
     <div className="min-w-0 max-w-full overflow-x-hidden space-y-6">
@@ -91,7 +90,7 @@ export function CertificatesPage() {
             <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-center">
               <div className="min-w-0 space-y-3 text-sm text-bybs-body">
                 <p className="break-words"><span className="font-medium text-bybs-navy">Certificate number:</span> {certificate.certificateNumber}</p>
-                <p className="break-words"><span className="font-medium text-bybs-navy">Cohort:</span> {certificate.cohort?.title || "BYBS Program"}</p>
+                <p className="break-words"><span className="font-medium text-bybs-navy">Cohort:</span> {certificate.cohortTitleSnapshot || certificate.cohort?.title || "BYBS Program"}</p>
                 <p><span className="font-medium text-bybs-navy">Issued:</span> {formatDate(certificate.issuedAt)}</p>
                 <p className="break-words"><span className="font-medium text-bybs-navy">Verification:</span> {certificate.verificationCode}</p>
               </div>
@@ -103,11 +102,8 @@ export function CertificatesPage() {
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2">
-              <Button icon={Download} onClick={() => downloadCertificate(certificate)} type="button">
-                Download
-              </Button>
-              <Button icon={ExternalLink} onClick={() => openCertificate(certificate)} type="button" variant="secondary">
-                Open
+              <Button disabled={downloadingId === certificate._id} icon={Download} onClick={() => downloadCertificate(certificate)} type="button">
+                {downloadingId === certificate._id ? "Preparing PDF..." : "Download PDF"}
               </Button>
               <Button as="a" href={certificate.verificationUrl} icon={ShieldCheck} rel="noreferrer" target="_blank" variant="secondary">
                 Verify

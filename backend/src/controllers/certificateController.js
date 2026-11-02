@@ -3,6 +3,7 @@ import { User } from "../models/User.js";
 import {
   certificatePublicData,
   createCertificateNumber,
+  createCertificatePdf,
   createVerificationCode,
   serializeCertificate
 } from "../services/certificateService.js";
@@ -17,7 +18,7 @@ import { sanitizePlainText } from "../utils/sanitizeRichText.js";
 function certificatePopulate(query) {
   return query
     .populate("student", "name email phone status cohort profileImage")
-    .populate("cohort", "title status")
+    .populate("cohort", "title status startDate endDate")
     .populate("mentorApprovedBy", "name email")
     .populate("issuedBy", "name email role")
     .populate("revokedBy", "name email role");
@@ -25,7 +26,7 @@ function certificatePopulate(query) {
 
 async function populateCertificate(certificate) {
   await certificate.populate("student", "name email phone status cohort profileImage");
-  await certificate.populate("cohort", "title status");
+  await certificate.populate("cohort", "title status startDate endDate");
   await certificate.populate("mentorApprovedBy", "name email");
   await certificate.populate("issuedBy", "name email role");
   await certificate.populate("revokedBy", "name email role");
@@ -172,6 +173,11 @@ export const issueCertificate = asyncHandler(async (req, res) => {
   certificate.status = "issued";
   certificate.issuedBy = req.user._id;
   certificate.issuedAt = certificate.issuedAt || new Date();
+  if (!certificate.recipientNameSnapshot) certificate.recipientNameSnapshot = student.name;
+  await certificate.populate("cohort", "title startDate endDate");
+  if (!certificate.cohortTitleSnapshot) certificate.cohortTitleSnapshot = certificate.cohort?.title || "";
+  if (!certificate.cohortStartDateSnapshot) certificate.cohortStartDateSnapshot = certificate.cohort?.startDate;
+  if (!certificate.cohortEndDateSnapshot) certificate.cohortEndDateSnapshot = certificate.cohort?.endDate;
   certificate.progressSnapshot = progressSnapshot(currentProgress);
   certificate.revokedBy = undefined;
   certificate.revokedAt = undefined;
@@ -208,6 +214,33 @@ export const issueCertificate = asyncHandler(async (req, res) => {
   res.json({ data });
 });
 
+export const previewCertificate = asyncHandler(async (req, res) => {
+  const certificate = await Certificate.findOne({
+    _id: req.params.id,
+    status: "mentorApproved"
+  })
+    .populate("student", "name status cohort")
+    .populate("cohort", "title startDate endDate");
+
+  if (!certificate || !certificate.student || certificate.student.status === "removed") {
+    throw new ApiError(404, "Certificate request not found");
+  }
+
+  const preview = {
+    ...certificate.toObject(),
+    certificateNumber: "PREVIEW-NOT-ISSUED",
+    verificationCode: "PREVIEW",
+    issuedAt: new Date()
+  };
+  const pdf = await createCertificatePdf(preview, { preview: true });
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", 'inline; filename="BYBS-certificate-preview.pdf"');
+  res.setHeader("Content-Length", pdf.length);
+  res.setHeader("Cache-Control", "private, no-store");
+  res.send(pdf);
+});
+
 export const revokeCertificate = asyncHandler(async (req, res) => {
   const certificate = await Certificate.findById(req.params.id);
 
@@ -236,6 +269,28 @@ export const listStudentCertificates = asyncHandler(async (req, res) => {
   res.json({
     data: certificates.map((certificate) => serializeCertificate(certificate, { includeHtml: true }))
   });
+});
+
+export const downloadStudentCertificatePdf = asyncHandler(async (req, res) => {
+  const certificate = await Certificate.findOne({
+    _id: req.params.id,
+    student: req.user._id,
+    status: "issued"
+  })
+    .populate("student", "name")
+    .populate("cohort", "title startDate endDate");
+
+  if (!certificate) {
+    throw new ApiError(404, "Issued certificate not found");
+  }
+
+  const pdf = await createCertificatePdf(certificate);
+  const safeNumber = String(certificate.certificateNumber || "BYBS-certificate").replace(/[^a-zA-Z0-9_-]/g, "-");
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename=\"${safeNumber}.pdf\"`);
+  res.setHeader("Content-Length", pdf.length);
+  res.setHeader("Cache-Control", "private, no-store");
+  res.send(pdf);
 });
 
 export const verifyCertificate = asyncHandler(async (req, res) => {

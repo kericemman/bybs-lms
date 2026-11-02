@@ -1,4 +1,4 @@
-import { Award, CheckCircle2, RotateCcw, Search, ShieldCheck } from "lucide-react";
+import { Award, CheckCircle2, Download, Eye, RotateCcw, Search, ShieldCheck, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button, Card, DataTable, PageHeader, ProgressBar, SafeHtml, StatCard, StatusBadge } from "@bybs/shared";
@@ -99,8 +99,15 @@ export function CertificatesPage() {
   const [selectedCertificate, setSelectedCertificate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [workingId, setWorkingId] = useState("");
+  const [previewingId, setPreviewingId] = useState("");
+  const [previewUrl, setPreviewUrl] = useState("");
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
+
+  useEffect(() => {
+    if (!previewUrl) return undefined;
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
 
   async function loadCertificates(nextFilters = filters) {
     const response = await adminApi.listCertificates({
@@ -164,6 +171,24 @@ export function CertificatesPage() {
     }
   }
 
+  async function previewCertificate(certificate) {
+    setError("");
+    setPreviewingId(certificate._id);
+
+    try {
+      const blob = await adminApi.previewCertificate(certificate._id);
+      setPreviewUrl(URL.createObjectURL(blob));
+    } catch (requestError) {
+      setError(requestError.message || "Could not prepare the certificate preview.");
+    } finally {
+      setPreviewingId("");
+    }
+  }
+
+  function closePreview() {
+    setPreviewUrl("");
+  }
+
   async function revokeCertificate(certificate) {
     if (!window.confirm("Revoke this certificate? The public verification page will show it as not valid.")) return;
 
@@ -199,6 +224,40 @@ export function CertificatesPage() {
 
       {error ? <p className="rounded-md bg-bybs-blush px-3 py-2 text-sm text-bybs-rose">{error}</p> : null}
       {feedback ? <p className="rounded-md bg-bybs-pale px-3 py-2 text-sm text-bybs-blue">{feedback}</p> : null}
+
+      {previewUrl ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-bybs-navy/60 p-3 sm:p-6"
+          onClick={closePreview}
+        >
+          <section
+            aria-labelledby="certificate-preview-title"
+            aria-modal="true"
+            className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-6xl flex-col overflow-hidden rounded-lg border border-bybs-border bg-white shadow-xl sm:max-h-[calc(100dvh-3rem)]"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            tabIndex="-1"
+          >
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-bybs-border p-3 sm:p-4">
+              <div className="min-w-0">
+                <h2 className="font-semibold text-bybs-navy" id="certificate-preview-title">Certificate preview</h2>
+                <p className="text-sm text-bybs-muted">Preview only. This certificate has not been issued.</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Button as="a" download="BYBS-certificate-preview.pdf" href={previewUrl} icon={Download} size="sm" variant="secondary">
+                  Download preview
+                </Button>
+                <Button aria-label="Close certificate preview" icon={X} onClick={closePreview} size="icon" type="button" variant="ghost" />
+              </div>
+            </div>
+            <iframe
+              className="min-h-[60dvh] w-full flex-1 bg-white sm:min-h-[70dvh]"
+              src={previewUrl}
+              title="Unissued BYBS certificate PDF preview"
+            />
+          </section>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
         <StatCard icon={Award} label="Total" value={counts.total} />
@@ -248,6 +307,17 @@ export function CertificatesPage() {
           ) : null}
 
           <div className="mt-5 flex flex-wrap gap-2">
+            {selectedCertificate.status === "mentorApproved" ? (
+              <Button
+                disabled={previewingId === selectedCertificate._id}
+                icon={Eye}
+                onClick={() => previewCertificate(selectedCertificate)}
+                type="button"
+                variant="secondary"
+              >
+                {previewingId === selectedCertificate._id ? "Preparing preview..." : "Preview certificate"}
+              </Button>
+            ) : null}
             {canIssue && selectedCertificate.status === "mentorApproved" ? (
               <Button
                 disabled={workingId === selectedCertificate._id || !isCertificateReady(selectedCertificate)}
@@ -336,6 +406,18 @@ export function CertificatesPage() {
                 <Button onClick={() => selectCertificate(row)} size="sm" type="button" variant="secondary">
                   View
                 </Button>
+                {row.status === "mentorApproved" ? (
+                  <Button
+                    disabled={previewingId === row._id}
+                    icon={Eye}
+                    onClick={() => previewCertificate(row)}
+                    size="sm"
+                    type="button"
+                    variant="secondary"
+                  >
+                    {previewingId === row._id ? "Preparing..." : "Preview"}
+                  </Button>
+                ) : null}
                 {canIssue && row.status === "mentorApproved" ? (
                   <Button
                     disabled={workingId === row._id || !isCertificateReady(row)}

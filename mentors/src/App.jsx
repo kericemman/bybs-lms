@@ -45,6 +45,7 @@ export default function App() {
                   <Route element={<AttendancePage />} path="attendance" />
                   <Route element={<RemindersPage />} path="reminders" />
                   <Route element={<ReviewsPage />} path="reviews" />
+                  <Route element={<ReviewsPage />} path="reviews/:submissionId" />
                   <Route element={<AvailabilityPage />} path="availability" />
                   <Route element={<BookingsPage />} path="bookings" />
                   <Route element={<NotificationsPage />} path="notifications" />
